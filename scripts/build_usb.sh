@@ -1,102 +1,132 @@
 #!/bin/bash
-# Build a Lantern USB drive. Run on a Mac that has internet; the result runs on any Mac offline.
+# Build a Beacon USB drive. Run on a Mac with internet; the drive then runs offline on
+# Macs (macOS 14 Sonoma or newer) and Windows 10/11 PCs.
 #
-#   ./scripts/build_usb.sh /Volumes/LANTERN                       # essential library + 2 models
-#   ./scripts/build_usb.sh /Volumes/LANTERN --tier recommended
-#   ./scripts/build_usb.sh /Volumes/LANTERN --tier full --models "qwen3:4b qwen3:14b qwen3.6:27b"
+#   ./scripts/build_usb.sh /Volumes/BEACON                      # asks a few questions
+#   ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Atlanta" --radius 300
+#   ./scripts/build_usb.sh /Volumes/BEACON --tier core --models "qwen3:4b" --no-windows
 #
-# Safe to re-run: finished downloads are skipped, partial ones resume.
+# Safe to re-run any time: finished downloads are skipped, interrupted ones resume.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-TARGET="${1:-}"; shift || true
-TIER="essential"
-MODELS="qwen3:4b qwen3:14b"       # light model for 8 GB Macs + strong model for 16 GB+
-EMBED_MODEL="nomic-embed-text"
+TARGET="${1:-}"; [ $# -gt 0 ] && shift
+TIER=""; MODELS=""; REGION=""; RADIUS="300"; WINDOWS=1; MAPS=1
 PY_VER="3.12"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --tier) TIER="$2"; shift 2 ;;
     --models) MODELS="$2"; shift 2 ;;
+    --region) REGION="$2"; shift 2 ;;
+    --radius) RADIUS="$2"; shift 2 ;;
+    --no-windows) WINDOWS=0; shift ;;
+    --no-maps) MAPS=0; shift ;;
     *) echo "Unknown option $1"; exit 1 ;;
   esac
 done
 
 say()  { printf "\n\033[1;33m▸ %s\033[0m\n" "$*"; }
 warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
-[ -n "$TARGET" ] && [ -d "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_USB [--tier essential|recommended|full] [--models \"...\"]"; exit 1; }
+[ -n "$TARGET" ] && [ -d "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_USB [--tier core|extended|complete|everything] [--region CITY] [--models \"...\"] [--no-windows] [--no-maps]"; exit 1; }
 [ "$(uname)" = "Darwin" ] || { echo "Run this on a Mac."; exit 1; }
 
-L="$TARGET/Lantern"
-mkdir -p "$L"/{app,runtime,ollama,models,library/zim,library/manuals,data}
+# ---- a few questions if run without options
+if [ -z "$TIER" ] && [ -t 0 ]; then
+  echo; echo "Which library tier?"
+  echo "  1) Core        essentials (64 GB drive)"
+  echo "  2) Extended    + repair, off-grid, homesteading, reading shelf (128 GB)"
+  echo "  3) Complete    + WikiHow and Wikipedia intros (256 GB)"
+  echo "  4) Everything  + all of Wikipedia (512 GB+)"
+  read -r -p "Choose 1-4 [1]: " n
+  TIER=$(case "${n:-1}" in 2) echo extended;; 3) echo complete;; 4) echo everything;; *) echo core;; esac)
+  read -r -p "Detailed map around which town or city? (Enter to skip): " REGION
+fi
+TIER="${TIER:-core}"
+MODELS="${MODELS:-qwen3:4b qwen3:14b}"   # light brain for 8 GB machines + strong brain for 16 GB+
 
-# FAT32 can't hold files over 4 GB (models and big libraries are larger).
+L="$TARGET/Beacon"
+mkdir -p "$L"/{app,runtime,ollama,models,library/zim,library/manuals,library/books,maps,data}
+
 FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}')"
 if echo "$FS" | grep -qi "FAT32"; then
   warn "This drive is FAT32, which can't store files over 4 GB."
-  warn "Reformat it as exFAT (works on Mac + Windows) or APFS (Mac only) in Disk Utility, then re-run."
+  warn "Reformat it as exFAT in Disk Utility (works on Mac and Windows), then re-run."
   exit 1
 fi
-echo "Drive: $TARGET (${FS:-unknown filesystem}), free: $(df -h "$TARGET" | awk 'NR==2{print $4}')"
+echo "Drive: $TARGET (${FS:-unknown filesystem}) · free: $(df -h "$TARGET" | awk 'NR==2{print $4}') · tier: $TIER"
 
-fetch() { # url dest — resumable, skips if complete
+fetch() { # url dest: resumable, skips if complete
   local url="$1" dest="$2" size have
   size="$(curl -sIL "$url" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub(/\r/,"",v); print v}')"
   have="$( [ -f "$dest" ] && stat -f%z "$dest" || echo 0)"
   if [ -n "$size" ] && [ "$have" = "$size" ]; then echo "  ✓ $(basename "$dest") (already downloaded)"; return 0; fi
-  if [ -n "$size" ]; then
-    local free; free="$(df -k "$(dirname "$dest")" | awk 'NR==2{print $4*1024}')"
-    if [ "$((size - have))" -gt "$free" ]; then warn "Not enough space for $(basename "$dest") ($((size/1024/1024)) MB). Skipping."; return 1; fi
-  fi
   echo "  ↓ $(basename "$dest") ${size:+($((size/1024/1024)) MB)}"
   curl -fL --retry 3 -C - -o "$dest" "$url" --progress-bar
 }
 
-# ---------------------------------------------------------------- app code
-say "Copying the Lantern app"
-rsync -a --delete --exclude .git --exclude data --exclude library --exclude config.json \
-  --exclude __pycache__ --exclude tests "$REPO/" "$L/app/"
-cp "$REPO/scripts/Lantern.command" "$L/Lantern.command"; chmod +x "$L/Lantern.command"
-rsync -a "$REPO/library/manuals/" "$L/library/manuals/"
+gh_assets() { # repo -> list of download URLs for the latest release (no API rate limit)
+  local repo="$1" tag
+  tag="$(curl -sI "https://github.com/$repo/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | sed 's#.*/tag/##' | tr -d '\r')"
+  if [ -n "$tag" ]; then
+    curl -sL "https://github.com/$repo/releases/expanded_assets/$tag" \
+      | grep -oE "/$repo/releases/download/$tag/[^\"?#]+" | sort -u | sed 's#^#https://github.com#'
+  else
+    curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/'
+  fi
+}
 
-# ---------------------------------------------------------------- portable Python (both chip types)
-say "Portable Python $PY_VER for Apple Silicon and Intel"
-API="https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest"
-URLS="$(curl -fsSL "$API" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/' \
-       | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-(aarch64|x86_64)-apple-darwin-install_only\.tar\.gz$" || true)"
-for pair in "arm64:aarch64" "x86_64:x86_64"; do
-  arch="${pair%%:*}"; triple="${pair##*:}"
-  if [ -x "$L/runtime/python-$arch/bin/python3" ]; then echo "  ✓ python-$arch"; continue; fi
-  url="$(echo "$URLS" | grep "$triple-apple" | head -1)"
-  [ -n "$url" ] || { warn "Couldn't find a Python download for $arch"; exit 1; }
-  fetch "$url" "$L/runtime/py-$arch.tar.gz"
-  mkdir -p "$L/runtime/python-$arch"
-  tar -xzf "$L/runtime/py-$arch.tar.gz" -C "$L/runtime/python-$arch" --strip-components 1
-  rm -f "$L/runtime/py-$arch.tar.gz"
+# ---------------------------------------------------------------- app
+say "Copying the Beacon app"
+rsync -a --delete --exclude .git --exclude data --exclude library --exclude config.json \
+  --exclude __pycache__ --exclude tests --exclude .github --exclude docs "$REPO/" "$L/app/"
+rsync -a "$REPO/library/manuals/" "$L/library/manuals/"
+cp "$REPO/START-HERE.txt" "$TARGET/START-HERE.txt"; cp "$REPO/START-HERE.txt" "$L/START-HERE.txt"
+cp "$REPO/scripts/Beacon.command" "$L/Beacon.command"; chmod +x "$L/Beacon.command"
+cp "$REPO/scripts/Beacon.bat" "$L/Beacon.bat"
+
+# ---------------------------------------------------------------- portable Python
+say "Portable Python $PY_VER (Mac Apple Silicon, Mac Intel$( [ $WINDOWS = 1 ] && echo ", Windows"))"
+PYURLS="$(gh_assets astral-sh/python-build-standalone | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-[a-z0-9_]+-[a-z0-9_-]+-install_only\.tar\.gz$" || true)"
+TRIPLES="arm64:aarch64-apple-darwin x86_64:x86_64-apple-darwin"
+[ $WINDOWS = 1 ] && TRIPLES="$TRIPLES windows:x86_64-pc-windows-msvc"
+for pair in $TRIPLES; do
+  name="${pair%%:*}"; triple="${pair##*:}"
+  if [ -e "$L/runtime/python-$name/bin/python3" ] || [ -e "$L/runtime/python-$name/python.exe" ]; then echo "  ✓ python-$name"; continue; fi
+  url="$(echo "$PYURLS" | grep -- "-$triple-install_only" | head -1)"
+  [ -n "$url" ] || { warn "Couldn't find a Python download for $name"; exit 1; }
+  fetch "$url" "$L/runtime/py-$name.tar.gz"
+  mkdir -p "$L/runtime/python-$name"
+  tar -xzf "$L/runtime/py-$name.tar.gz" -C "$L/runtime/python-$name" --strip-components 1
+  rm -f "$L/runtime/py-$name.tar.gz"
 done
 
 HOST_ARCH="$(uname -m)"; [ "$(sysctl -in sysctl.proc_translated 2>/dev/null)" = "1" ] && HOST_ARCH="arm64"
 HPY="$L/runtime/python-$HOST_ARCH/bin/python3"
 
-say "Installing Python packages for both chip types"
-for pair in "arm64:macosx_11_0_arm64" "x86_64:macosx_10_15_x86_64"; do
-  arch="${pair%%:*}"; plat="${pair##*:}"
-  common=(--target "$L/runtime/site-$arch" --upgrade --only-binary=:all: --python-version "$PY_VER"
-          --implementation cp --platform "$plat" --platform macosx_11_0_universal2 -q)
-  "$HPY" -m pip install "${common[@]}" flask requests numpy pypdf
-  "$HPY" -m pip install "${common[@]}" libzim || warn "libzim unavailable for $arch — Kiwix search disabled on that chip."
-  echo "  ✓ site-$arch"
+say "Python packages"
+PLATS="arm64:macosx_14_0_arm64 x86_64:macosx_14_0_x86_64"
+[ $WINDOWS = 1 ] && PLATS="$PLATS windows:win_amd64"
+for pair in $PLATS; do
+  name="${pair%%:*}"; plat="${pair##*:}"
+  "$HPY" -m pip install --target "$L/runtime/site-$name" --upgrade --only-binary=:all: \
+     --python-version "$PY_VER" --implementation cp --platform "$plat" -q \
+     -r "$REPO/requirements.txt" && echo "  ✓ site-$name" || warn "Package install failed for $name"
 done
 
-# ---------------------------------------------------------------- Ollama
-say "Ollama (runs the AI models)"
-if [ -z "$(find "$L/ollama" -type f -name ollama 2>/dev/null | head -1)" ]; then
+# ---------------------------------------------------------------- Ollama (the AI engine)
+say "AI engine (Ollama)"
+if [ -z "$(find "$L/ollama/mac" -type f -name ollama 2>/dev/null | head -1)" ]; then
+  mkdir -p "$L/ollama/mac"
   fetch "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz" "$L/ollama/ollama-darwin.tgz"
-  tar -xzf "$L/ollama/ollama-darwin.tgz" -C "$L/ollama"
-  rm -f "$L/ollama/ollama-darwin.tgz"
+  tar -xzf "$L/ollama/ollama-darwin.tgz" -C "$L/ollama/mac"; rm -f "$L/ollama/ollama-darwin.tgz"
 fi
-OLLAMA_BIN="$(find "$L/ollama" -type f -name ollama | head -1)"
+if [ $WINDOWS = 1 ] && [ ! -f "$L/ollama/windows/ollama.exe" ]; then
+  mkdir -p "$L/ollama/windows"
+  fetch "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip" "$L/ollama/ollama-windows.zip"
+  ditto -x -k "$L/ollama/ollama-windows.zip" "$L/ollama/windows"; rm -f "$L/ollama/ollama-windows.zip"
+fi
+OLLAMA_BIN="$(find "$L/ollama/mac" -type f -name ollama | head -1)"
 chmod +x "$OLLAMA_BIN"; xattr -dr com.apple.quarantine "$L/ollama" 2>/dev/null || true
 echo "  ✓ $("$OLLAMA_BIN" --version 2>/dev/null | tail -1)"
 
@@ -105,49 +135,33 @@ export OLLAMA_HOST="127.0.0.1:11435" OLLAMA_MODELS="$L/models"
 OPID=$!; trap 'kill $OPID 2>/dev/null || true' EXIT
 for _ in $(seq 1 60); do curl -s "http://$OLLAMA_HOST/api/version" >/dev/null && break; sleep 0.5; done
 
-say "Downloading AI models to the drive: $MODELS $EMBED_MODEL"
-for m in $EMBED_MODEL $MODELS; do
-  "$OLLAMA_BIN" pull "$m" || warn "Couldn't pull $m"
-done
+export BEACON_OLLAMA_URL="http://$OLLAMA_HOST" BEACON_DATA_ROOT="$L" PYTHONNOUSERSITE=1
+export PYTHONPATH="$L/runtime/site-$HOST_ARCH:$L/app"
+INSTALL=("$HPY" -m beacon.installer)
 
-# ---------------------------------------------------------------- reference library
-say "Reference library (tier: $TIER)"
-"$HPY" - "$REPO/catalog.json" "$TIER" >"$L/data/download-plan.tsv" <<'PY'
-import json, sys
-cat, tier = json.load(open(sys.argv[1])), sys.argv[2]
-order = {"essential": 0, "recommended": 1, "full": 2}
-want = lambda t: order[t] <= order[tier]
-for z in cat["zim"]:
-    if want(z["tier"]): print("zim", z["dir"], z["prefix"], z["what"], sep="\t")
-for p in cat["pdf"]:
-    if want(p["tier"]): print("pdf", p["url"], p["file"], p["what"], sep="\t")
-PY
+say "AI brains: $MODELS"
+"${INSTALL[@]}" --models "$MODELS" || warn "Some models didn't download; add them later in the Library tab."
 
-while IFS=$'\t' read -r kind a b what; do
-  if [ "$kind" = "zim" ]; then
-    listing="$(curl -fsSL "https://download.kiwix.org/zim/$a/" || true)"
-    file="$(echo "$listing" | grep -oE "${b//./\\.}_[0-9]{4}-[0-9]{2}\.zim" | sort -u | tail -1)"
-    if [ -z "$file" ]; then warn "Not found on Kiwix: $b ($what) — skipped"; continue; fi
-    # remove older editions of the same book
-    find "$L/library/zim" -name "${b}_*.zim" ! -name "$file" -delete 2>/dev/null || true
-    echo "  $what"
-    fetch "https://download.kiwix.org/zim/$a/$file" "$L/library/zim/$file" || warn "Download failed: $file"
+say "Library: $TIER tier"
+"${INSTALL[@]}" --tier "$TIER" || warn "Some items failed; retry later in the Library tab."
+
+if [ $MAPS = 1 ]; then
+  say "Maps"
+  if [ -n "$REGION" ]; then
+    "${INSTALL[@]}" --maps places,world --region "$REGION" --radius "$RADIUS" || warn "Map step had problems; retry in the Library tab."
   else
-    echo "  $what"
-    fetch "$a" "$L/library/manuals/$b" || warn "Download failed: $b"
+    "${INSTALL[@]}" --maps places,world || warn "Map step had problems; retry in the Library tab."
   fi
-done <"$L/data/download-plan.tsv"
+fi
 
-# ---------------------------------------------------------------- index manuals
-say "Indexing manuals so they're searchable"
-LANTERN_OLLAMA_URL="http://$OLLAMA_HOST" LANTERN_DATA_ROOT="$L" PYTHONNOUSERSITE=1 \
-  PYTHONPATH="$L/runtime/site-$HOST_ARCH:$L/app" "$HPY" -m lantern.ingest_cli || warn "Indexing failed; use the button in the app."
+say "Indexing manuals so the AI can search them"
+"$HPY" -m beacon.ingest_cli || warn "Indexing failed; use 'Index manuals folder' in the app."
 
 dot_clean -m "$L" 2>/dev/null || true
 say "Done. Free space left: $(df -h "$TARGET" | awk 'NR==2{print $4}')"
 cat <<EOF
 
-  On any Mac: open the drive → Lantern → right-click Lantern.command → Open.
-  Not downloaded automatically (add PDFs to Lantern/library/manuals, then click "Index manuals"):
+  Mac:     open the drive > Beacon > right-click Beacon.command > Open (first time only).
+  Windows: open the drive > Beacon > double-click Beacon.bat.
+  Read START-HERE.txt on the drive for everything else.
 EOF
-"$HPY" -c "import json;[print('   •',m['what'],('— '+m['url']) if m['url'] else '') for m in json.load(open('$REPO/catalog.json'))['manual_downloads']]"

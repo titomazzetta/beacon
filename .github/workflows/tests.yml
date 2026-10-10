@@ -13,4 +13,4 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
-      - run: bash -n scripts/build_usb.sh && bash -n scripts/Lantern.command
+      - run: bash -n scripts/build_usb.sh && bash -n scripts/Beacon.command

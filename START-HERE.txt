@@ -1,0 +1,119 @@
+=====================================================================
+                           B E A C O N
+          Your offline survival guide, library and assistant.
+               Works with no internet, no cell service.
+=====================================================================
+
+WHAT IT IS
+  Beacon is a USB drive with a private AI assistant and a library of
+  survival manuals, medical guides, maps and books. You type a
+  question in plain English; it answers from the library and shows you
+  exactly which page or article it used. Nothing is sent anywhere.
+
+---------------------------------------------------------------------
+OPEN IT
+---------------------------------------------------------------------
+  MAC
+    1. Plug in the drive. Open it in Finder, then open the Beacon folder.
+    2. FIRST TIME ONLY: right-click (or Control-click) "Beacon.command"
+       and choose Open, then Open again. macOS asks once.
+    3. After that, just double-click Beacon.command.
+
+  WINDOWS PC
+    1. Plug in the drive. Open it in File Explorer, then the Beacon folder.
+    2. Double-click "Beacon.bat".
+    3. If Windows says "Windows protected your PC": click "More info",
+       then "Run anyway".
+
+  A black window opens (leave it open; closing it turns Beacon off)
+  and your web browser shows Beacon. No internet is needed.
+
+---------------------------------------------------------------------
+THE FIRST SCREEN: COMPUTER CHECK
+---------------------------------------------------------------------
+  Beacon looks at the computer it's plugged into (memory, graphics,
+  battery, free space) and picks the strongest AI "brain" that
+  computer can run. Click Start.
+
+---------------------------------------------------------------------
+WHAT EACH TAB DOES
+---------------------------------------------------------------------
+  EMERGENCY (red button)  Instant first-aid steps. No AI, no waiting.
+  ASK      Type any question. Answers cite their sources; click a
+           [number] to read the original page.
+  PLAN     Pick a plan (evacuation, winter storm, tornado, leaving the
+           country, food, garden...). Fill in what you know. Beacon
+           writes a step-by-step plan you can print.
+  MAP      Type where you are (or coordinates) and where you need to
+           go. See the map, distance, compass direction and travel time.
+  LIBRARY  See what's installed. With internet, download more:
+           manuals, Wikipedia, maps, books, and bigger AI brains.
+  CHECK    Proves the AI can find every manual and library on the drive.
+  MY INFO  Your household: people, medical needs, contacts and meeting
+           places. Plans use it automatically. Prints in the binder.
+
+---------------------------------------------------------------------
+SAVE AS PDF / PRINT
+---------------------------------------------------------------------
+  Click "Save as PDF" on any answer, plan or map.
+    Mac:     in the print window, click "PDF" (bottom left) > Save as PDF.
+    Windows: choose "Microsoft Print to PDF" as the printer.
+  PRINT THE BINDER: Library tab > "Print the binder" prints every quick
+  card, the cliff notes and your household info. Keep a paper copy
+  with your emergency supplies in case all power is gone.
+
+---------------------------------------------------------------------
+TALK INSTEAD OF TYPING
+---------------------------------------------------------------------
+  Mac:     press the microphone key, or the Fn/Globe key twice, then speak.
+  Windows: press Windows key + H, then speak.
+  Click "Read aloud" under any answer to hear it.
+
+---------------------------------------------------------------------
+IF THE AI WON'T START
+---------------------------------------------------------------------
+  Everything important is also plain text you can open directly:
+    Beacon > library > manuals > cards
+      BEACON-CLIFFNOTES.txt   <- the most important file. Start here.
+      first-aid-essentials.md, water.md, severe-weather.md, ...
+  Any computer, phone or tablet can open these.
+
+---------------------------------------------------------------------
+ADD YOUR OWN DOCUMENTS
+---------------------------------------------------------------------
+  Copy PDFs or text files into  Beacon > library > manuals
+  (generator manual, medical records, insurance, house info, maps).
+  Then in Beacon: Library tab > "Index manuals folder".
+  Scanned PDFs (photos of pages) can be stored but not searched.
+
+---------------------------------------------------------------------
+GOOD TO KNOW
+---------------------------------------------------------------------
+  - The AI can make mistakes. For medical, electrical, gas, weapons or
+    wild food questions, click the source and read it yourself.
+    Call 911 / 112 whenever you can.
+  - On battery power the AI drains the laptop quickly. Use the quick
+    cards and the Emergency button when you need to save power.
+  - Laptops don't have GPS. Type your town or coordinates on the Map
+    tab (a phone's compass app or a paper map can give coordinates).
+  - Your household info is stored on this drive WITHOUT a password.
+    Keep the drive somewhere safe.
+  - To update the library: plug into any computer with internet, open
+    Beacon, go to the Library tab.
+  - Works best with 16 GB of memory or more. Older and Intel
+    computers use a smaller, slower brain, but everything still works.
+
+---------------------------------------------------------------------
+WHERE THINGS ARE ON THE DRIVE
+---------------------------------------------------------------------
+  Beacon.command / Beacon.bat   start Beacon (Mac / Windows)
+  library/manuals               PDFs and quick cards (searchable)
+  library/zim                   offline Wikipedia, medical, repair...
+  library/books                 reading shelf (novels, spiritual texts)
+  maps                          offline world and region maps
+  models                        the AI brains
+  data                          search index, your household info
+
+=====================================================================
+  Stay calm. Stay together. Read the source. You've got this.
+=====================================================================

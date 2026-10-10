@@ -1,0 +1,5 @@
+maplibre-gl 6.13.0 BSD-3-Clause
+pmtiles 4.5.0 BSD-3-Clause
+@protomaps/basemaps 5.7.2 BSD-3-Clause
+world-atlas 2.0.2 ISC
+topojson-client 3.1.0 ISC
