@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantern</title>
+<style>
+  /* Fully offline: no fonts, scripts or styles load from the internet. */
+  :root {
+    --bg: #12100d; --panel: #1b1814; --line: #2e2922; --text: #ece4d6; --muted: #9d927f;
+    --amber: #f2a93b; --amber-dim: #6b4c1c; --red: #e5604d; --green: #7fbf6a;
+    --user: #2a241b; --radius: 10px;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); }
+  .app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 20px; overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .brand svg { width: 28px; height: 28px; }
+  .brand h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+  .brand small { display: block; color: var(--muted); font-size: 12px; }
+  h2 { font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+  .stat { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--red); }
+  .dot.ok { background: var(--green); }
+  select, button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  select { width: 100%; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--amber-dim); }
+  button.primary { background: var(--amber); color: #1a1206; border-color: var(--amber); font-weight: 600; }
+  .lib { font-size: 13px; color: var(--muted); padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .lib b { color: var(--text); font-weight: 500; }
+  .log { font: 12px var(--mono); color: var(--muted); white-space: pre-wrap; margin-top: 8px; max-height: 140px; overflow-y: auto; }
+  main { display: flex; flex-direction: column; height: 100vh; min-width: 0; }
+  #chat { flex: 1; overflow-y: auto; padding: 28px max(20px, calc((100% - 820px) / 2)); }
+  .empty { margin-top: 8vh; text-align: center; color: var(--muted); }
+  .empty h3 { color: var(--text); font-size: 24px; margin: 0 0 6px; }
+  .quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 26px; text-align: left; }
+  .quick button { padding: 14px; background: var(--panel); border-radius: var(--radius); text-align: left; }
+  .quick button b { display: block; color: var(--amber); font-size: 13px; margin-bottom: 2px; }
+  .msg { margin: 0 0 22px; }
+  .msg.user .bubble { background: var(--user); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; display: inline-block; max-width: 100%; }
+  .msg.user { text-align: right; }
+  .msg.user .bubble { text-align: left; }
+  .bubble h1, .bubble h2, .bubble h3 { font: 600 17px var(--sans); color: var(--text); text-transform: none; letter-spacing: 0; margin: 14px 0 6px; }
+  .bubble p { margin: 0 0 10px; }
+  .bubble ul, .bubble ol { margin: 0 0 10px; padding-left: 22px; }
+  .bubble code { font: 14px var(--mono); background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+  .bubble pre { background: var(--panel); padding: 12px; border-radius: 8px; overflow-x: auto; }
+  .bubble strong { color: #fff3dc; }
+  .cite { color: var(--amber); text-decoration: none; font: 600 12px var(--mono); vertical-align: super; }
+  .status { color: var(--muted); font: 13px var(--mono); }
+  .error { color: var(--red); }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .sources a { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 20px; padding: 3px 10px; text-decoration: none; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sources a:hover { color: var(--amber); border-color: var(--amber-dim); }
+  .sources a span { color: var(--amber); font-family: var(--mono); margin-right: 4px; }
+  form { border-top: 1px solid var(--line); padding: 14px max(20px, calc((100% - 820px) / 2)) 18px; }
+  .inputrow { display: flex; gap: 10px; }
+  textarea { flex: 1; resize: none; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-height: 52px; max-height: 200px; }
+  textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--amber-dim); outline-offset: 1px; }
+  .opts { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .menu { display: none; }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    aside { display: none; position: fixed; inset: 0; z-index: 5; }
+    aside.open { display: block; }
+    .menu { display: inline-block; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="#f2a93b" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4h8M16 4v3M10 9h12l-1 16H11L10 9z"/><path d="M8 25h16M16 13c-2 3-2 5 0 8 2-3 2-5 0-8z" fill="#f2a93b"/>
+      </svg>
+      <div><h1>Lantern</h1><small>Offline field reference</small></div>
+    </div>
+    <button class="menu" onclick="side.classList.remove('open')">Close</button>
+
+    <h2>System</h2>
+    <div class="stat"><span><i class="dot" id="odot"></i>AI engine</span><span id="ostat">checking…</span></div>
+    <div class="stat"><span>Memory</span><span id="ram">–</span></div>
+
+    <h2>Model</h2>
+    <select id="model" title="Auto picks the strongest model your Mac can run"></select>
+
+    <h2>Reference library</h2>
+    <div id="books"></div>
+
+    <h2>Manuals &amp; PDFs</h2>
+    <div id="manuals"></div>
+    <button id="ingest" style="width:100%;margin-top:10px">Index manuals folder</button>
+    <div class="log" id="ilog"></div>
+  </aside>
+
+  <main>
+    <div id="chat">
+      <div class="empty" id="empty">
+        <h3>What do you need to know?</h3>
+        <div>Answers come from the library on this drive. No internet needed.</div>
+        <div class="quick">
+          <button data-q="How do I make water safe to drink if the tap water might be contaminated?"><b>Water</b>Make water safe to drink</button>
+          <button data-q="Someone is bleeding heavily from a cut on the leg. What do I do right now?"><b>First aid</b>Stop heavy bleeding</button>
+          <button data-q="The power has been out for a day in winter. How do I keep the house warm and food safe?"><b>Power out</b>Winter outage plan</button>
+          <button data-q="What radio frequencies should I monitor for emergency information and how do I call for help?"><b>Radio</b>Emergency frequencies</button>
+          <button data-q="How do I safely run a portable generator or inverter to power the house?"><b>Backup power</b>Generator &amp; inverter safety</button>
+          <button data-q="Which wild plants are safe to eat in the southeastern US and how do I test an unknown plant?"><b>Food</b>Foraging basics</button>
+        </div>
+      </div>
+    </div>
+    <form id="form">
+      <div class="inputrow">
+        <button type="button" class="menu" onclick="side.classList.add('open')">☰</button>
+        <textarea id="q" rows="1" placeholder="Ask anything… (Enter to send, Shift+Enter for a new line)"></textarea>
+        <button class="primary" id="send">Ask</button>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="uselib" checked> Search the library</label>
+        <a href="#" id="clear" style="color:var(--muted)">New conversation</a>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const chat = $("chat"), q = $("q"), side = $("side");
+let history = [], busy = false;
+
+const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function md(src, sources) {
+  // Tiny, safe markdown renderer: escape first, then format.
+  const blocks = esc(src).split(/\n{2,}/);
+  const inline = t => t
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[(\d{1,2})\]/g, (m, n) => {
+      const s = sources[n - 1];
+      return s ? `<a class="cite" href="${link(s)}" target="_blank" title="${esc(s.book + " — " + s.title)}">[${n}]</a>` : m;
+    });
+  return blocks.map(b => {
+    if (/^```/.test(b)) return `<pre>${b.replace(/^```\w*\n?|```$/g, "")}</pre>`;
+    const h = b.match(/^(#{1,3}) (.*)/);
+    if (h) return `<h3>${inline(h[2])}</h3>`;
+    const lines = b.split("\n");
+    if (lines.every(l => /^\s*[-*•] /.test(l)))
+      return "<ul>" + lines.map(l => `<li>${inline(l.replace(/^\s*[-*•] /, ""))}</li>`).join("") + "</ul>";
+    if (lines.every(l => /^\s*\d+[.)] /.test(l)))
+      return "<ol>" + lines.map(l => `<li>${inline(l.replace(/^\s*\d+[.)] /, ""))}</li>`).join("") + "</ol>";
+    return `<p>${inline(b).replace(/\n/g, "<br>")}</p>`;
+  }).join("");
+}
+
+function link(s) {
+  if (s.kind === "kiwix") return "/read/kiwix/" + s.ref.split("/").map(encodeURIComponent).join("/");
+  const [file, page] = s.ref.split("#");
+  return "/read/manual/" + encodeURIComponent(file) + (page ? "#" + page : "");
+}
+
+function addMsg(role, html) {
+  $("empty")?.remove();
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.innerHTML = `<div class="bubble">${html}</div>`;
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+  return el.querySelector(".bubble");
+}
+
+async function ask(text) {
+  if (busy || !text.trim()) return;
+  busy = true; $("send").disabled = true;
+  addMsg("user", esc(text));
+  const bubble = addMsg("assistant", '<span class="status">Starting…</span>');
+  let answer = "", sources = [];
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: text, history, use_library: $("uselib").checked}),
+    });
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const raw = buf.slice(0, i); buf = buf.slice(i + 2);
+        const kind = raw.match(/^event: (.*)$/m)?.[1];
+        const data = JSON.parse(raw.match(/^data: (.*)$/m)?.[1] ?? "null");
+        if (kind === "status" && !answer) bubble.innerHTML = `<span class="status">${esc(data)}</span>`;
+        if (kind === "sources") sources = data;
+        if (kind === "token") { answer += data; bubble.innerHTML = md(stripThink(answer), sources); }
+        if (kind === "error") bubble.innerHTML += `<p class="error">${esc(data)}</p>`;
+      }
+      chat.scrollTop = chat.scrollHeight;
+    }
+  } catch (e) {
+    bubble.innerHTML += `<p class="error">Lost connection to Lantern: ${esc(String(e))}</p>`;
+  }
+  if (sources.length) {
+    bubble.insertAdjacentHTML("beforeend", '<div class="sources">' + sources.map((s, n) =>
+      `<a href="${link(s)}" target="_blank" title="${esc(s.book)}"><span>${n + 1}</span>${esc(s.title)} · ${esc(s.book)}</a>`).join("") + "</div>");
+  }
+  history.push({role: "user", content: text}, {role: "assistant", content: stripThink(answer)});
+  busy = false; $("send").disabled = false; q.focus();
+}
+
+// Reasoning models emit <think>…</think>; hide it from the answer.
+const stripThink = t => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+
+async function refresh() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    $("odot").className = "dot" + (s.ollama ? " ok" : "");
+    $("ostat").textContent = s.ollama ? (s.model || "no model") : "offline";
+    $("ram").textContent = s.ram_gb + " GB";
+    const sel = $("model"), cur = sel.value;
+    sel.innerHTML = `<option value="">Auto (${esc(s.model || "none")})</option>` +
+      s.models.map(m => `<option>${esc(m)}</option>`).join("");
+    sel.value = cur;
+    $("books").innerHTML = s.books.length
+      ? s.books.map(b => `<div class="lib"><b>${esc(b.title)}</b><br>${b.articles.toLocaleString()} articles</div>`).join("")
+      : '<div class="lib">No .zim files yet. Add them to library/zim.</div>';
+    $("manuals").innerHTML = s.manuals.length
+      ? s.manuals.map(m => `<div class="lib"><b>${esc(m.file)}</b> · ${m.chunks} passages</div>`).join("")
+      : '<div class="lib">Not indexed yet.</div>';
+    $("ingest").disabled = s.ingest.running;
+    $("ilog").textContent = s.ingest.log.slice(-6).join("\n");
+    if (s.ingest.running) setTimeout(refresh, 1500);
+  } catch { $("ostat").textContent = "app offline"; }
+}
+
+$("form").onsubmit = e => { e.preventDefault(); const t = q.value; q.value = ""; ask(t); };
+q.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); } });
+q.addEventListener("input", () => { q.style.height = "auto"; q.style.height = q.scrollHeight + "px"; });
+document.querySelectorAll(".quick button").forEach(b => b.onclick = () => ask(b.dataset.q));
+$("clear").onclick = e => { e.preventDefault(); history = []; location.reload(); };
+$("model").onchange = e => fetch("/api/model", {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({model: e.target.value})}).then(refresh);
+$("ingest").onclick = () => fetch("/api/ingest", {method: "POST"}).then(() => setTimeout(refresh, 300));
+refresh(); setInterval(refresh, 15000); q.focus();
+</script>
+</body>
+</html>

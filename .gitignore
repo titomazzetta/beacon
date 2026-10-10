@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+config.json
+data/
+library/zim/*
+!library/zim/.gitkeep
+library/manuals/*
+!library/manuals/cards/
+.DS_Store
+._*

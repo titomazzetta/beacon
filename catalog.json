@@ -1,0 +1,31 @@
+{
+  "_about": "What build_usb.sh downloads. 'zim' entries are resolved to the newest file in https://download.kiwix.org/zim/<dir>/ whose name starts with <prefix>_. Anything that can't be found is skipped with a warning. Tiers are cumulative: recommended includes essential, full includes both.",
+  "zim": [
+    {"tier": "essential",   "dir": "other",          "prefix": "zimgit-post-disaster_en",   "what": "Post-disaster survival guides collection"},
+    {"tier": "essential",   "dir": "other",          "prefix": "zimgit-medicine_en",        "what": "Field medicine & first aid books"},
+    {"tier": "essential",   "dir": "other",          "prefix": "zimgit-water_en",           "what": "Water sourcing, treatment, sanitation"},
+    {"tier": "essential",   "dir": "other",          "prefix": "zimgit-food-preparation_en","what": "Food preparation & preservation"},
+    {"tier": "essential",   "dir": "other",          "prefix": "zimgit-knots_en",           "what": "Knots"},
+    {"tier": "essential",   "dir": "other",          "prefix": "mdwiki_en_all_maxi",        "what": "WikiMed medical encyclopedia"},
+    {"tier": "essential",   "dir": "stack_exchange", "prefix": "ham.stackexchange.com_en_all",      "what": "Amateur radio Q&A"},
+    {"tier": "essential",   "dir": "stack_exchange", "prefix": "outdoors.stackexchange.com_en_all", "what": "Outdoors, camping, wilderness Q&A"},
+    {"tier": "recommended", "dir": "ifixit",         "prefix": "ifixit_en_all",             "what": "iFixit repair guides"},
+    {"tier": "recommended", "dir": "stack_exchange", "prefix": "diy.stackexchange.com_en_all",       "what": "Home repair, plumbing, electrical Q&A"},
+    {"tier": "recommended", "dir": "stack_exchange", "prefix": "cooking.stackexchange.com_en_all",   "what": "Cooking & food safety Q&A"},
+    {"tier": "recommended", "dir": "stack_exchange", "prefix": "gardening.stackexchange.com_en_all", "what": "Growing food Q&A"},
+    {"tier": "recommended", "dir": "other",          "prefix": "appropedia_en_all_maxi",    "what": "Appropriate technology & off-grid solutions"},
+    {"tier": "recommended", "dir": "other",          "prefix": "energypedia_en_all_maxi",   "what": "Off-grid energy: solar, batteries, generators"},
+    {"tier": "full",        "dir": "wikihow",        "prefix": "wikihow_en_maxi",           "what": "WikiHow (illustrated how-tos)"},
+    {"tier": "full",        "dir": "wikipedia",      "prefix": "wikipedia_en_all_nopic",    "what": "All of English Wikipedia (text, no images)"}
+  ],
+  "pdf": [
+    {"tier": "essential", "file": "ATP-3-50.21-Army-Survival.pdf", "url": "https://irp.fas.org/doddir/army/atp3-50-21.pdf", "what": "US Army survival manual (public domain)"},
+    {"tier": "essential", "file": "TC-4-02.1-Army-First-Aid.pdf", "url": "https://irp.fas.org/doddir/army/tc4-02-1.pdf", "what": "US Army first aid (public domain)"},
+    {"tier": "essential", "file": "FEMA-Are-You-Ready.pdf", "url": "https://nehrpsearch.nist.gov/static/files/FEMA/PB2003102494.pdf", "what": "FEMA citizen preparedness guide (public domain)"}
+  ],
+  "manual_downloads": [
+    {"what": "Where There Is No Doctor (Hesperian) — the classic village medicine book; free download for personal use", "url": "https://en.hesperian.org/hhg/Where_There_Is_No_Doctor"},
+    {"what": "USDA Complete Guide to Home Canning (2015)", "url": "https://nchfp.uga.edu/resources/entry/about-the-usda-guide-to-home-canning-2015-revision"},
+    {"what": "Your own docs: house manuals, generator/inverter manual, radio manual, medical info, maps as PDFs", "url": ""}
+  ]
+}
