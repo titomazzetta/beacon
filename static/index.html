@@ -1,874 +1,288 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1A24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Beacon">
 <title>Beacon</title>
+<link rel="icon" href="/static/icon/favicon.png">
+<link rel="apple-touch-icon" href="/static/icon/apple-touch-icon.png">
 <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-<style>
-  /* Fully offline: nothing here loads from the internet. */
-  :root {
-    --bg: #100f0d; --panel: #1a1815; --panel2: #221f1b; --line: #2f2a23; --text: #ece4d6; --muted: #9a8f7c;
-    --amber: #f2a93b; --amber-dim: #6b4c1c; --red: #e5604d; --green: #7fbf6a; --blue: #6aa6d8;
-    --user: #2a241b; --r: 10px;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); }
-  button, input, select, textarea { font: inherit; color: var(--text); }
-  button { cursor: pointer; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
-  button:hover:not(:disabled) { border-color: var(--amber-dim); }
-  button:disabled { opacity: .5; cursor: default; }
-  button.primary { background: var(--amber); color: #1a1206; border-color: var(--amber); font-weight: 600; }
-  button.small { padding: 4px 10px; font-size: 13px; }
-  input[type=text], input[type=search], select, textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; }
-  :focus-visible { outline: 2px solid var(--amber-dim); outline-offset: 1px; }
-  a { color: var(--amber); }
-  .muted { color: var(--muted); } .ok { color: var(--green); } .bad { color: var(--red); } .warn { color: var(--amber); }
-  .mono { font-family: var(--mono); font-size: 13px; }
-  h2.k { font: 600 11px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
-
-  /* header */
-  header { display: flex; align-items: center; gap: 18px; padding: 0 18px; height: 56px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 19px; letter-spacing: .4px; }
-  .brand svg { width: 26px; height: 26px; }
-  nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
-  nav button { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 16px 12px 14px; color: var(--muted); white-space: nowrap; }
-  nav button.on { color: var(--text); border-bottom-color: var(--amber); }
-  .pill { font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 20px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--red); vertical-align: 1px; }
-  .dot.ok { background: var(--green); }
-  section.tab { display: none; height: calc(100vh - 56px); overflow: hidden; }
-  section.tab.on { display: flex; }
-
-  /* ask */
-  .chatwrap { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-  .scroll { flex: 1; overflow-y: auto; padding: 26px max(20px, calc((100% - 820px) / 2)); }
-  .empty { margin-top: 5vh; text-align: center; }
-  .empty h3 { font-size: 24px; margin: 0 0 6px; }
-  .quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 9px; margin-top: 22px; text-align: left; }
-  .quick button { padding: 12px 13px; background: var(--panel); border-radius: var(--r); text-align: left; }
-  .quick b { display: block; color: var(--amber); font-size: 12px; margin-bottom: 1px; }
-  .msg { margin: 0 0 22px; }
-  .msg.user { text-align: right; }
-  .msg.user .bubble { background: var(--user); border: 1px solid var(--line); border-radius: var(--r); padding: 11px 15px; display: inline-block; text-align: left; max-width: 100%; }
-  .bubble h3 { font-size: 17px; margin: 16px 0 6px; }
-  .bubble p { margin: 0 0 10px; }
-  .bubble ul, .bubble ol { margin: 0 0 10px; padding-left: 22px; }
-  .bubble code { font: 14px var(--mono); background: var(--panel); padding: 1px 5px; border-radius: 4px; }
-  .bubble pre { background: var(--panel); padding: 12px; border-radius: 8px; overflow-x: auto; }
-  .bubble strong { color: #fff3dc; }
-  .bubble table { border-collapse: collapse; margin: 8px 0 12px; } .bubble td, .bubble th { border: 1px solid var(--line); padding: 4px 8px; }
-  .cite { color: var(--amber); text-decoration: none; font: 600 12px var(--mono); vertical-align: super; }
-  .status { color: var(--muted); font: 13px var(--mono); }
-  .err { color: var(--red); }
-  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .sources a { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 20px; padding: 3px 10px; text-decoration: none; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sources a span { color: var(--amber); font-family: var(--mono); margin-right: 4px; }
-  .actions { display: flex; gap: 8px; margin-top: 10px; }
-  form.composer { border-top: 1px solid var(--line); padding: 12px max(20px, calc((100% - 820px) / 2)) 16px; }
-  .row { display: flex; gap: 10px; align-items: center; }
-  textarea#q { resize: none; min-height: 50px; max-height: 200px; }
-  .opts { display: flex; justify-content: space-between; margin-top: 7px; font-size: 13px; color: var(--muted); }
-
-  /* split layouts */
-  .side { width: 330px; flex: none; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 18px; }
-  .mainpane { flex: 1; overflow-y: auto; padding: 24px max(20px, calc((100% - 860px) / 2)); min-width: 0; }
-  .tpl { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; margin-bottom: 6px; background: var(--bg); }
-  .tpl.on { border-color: var(--amber); }
-  .tpl i { font-style: normal; font-size: 18px; width: 24px; text-align: center; }
-  label.f { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px; }
-  .doc { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 22px 26px; margin-top: 16px; }
-  .doc h1 { font-size: 22px; margin: 0 0 4px; }
-
-  /* map */
-  #map { flex: 1; position: relative; min-width: 0; background: #0b1622; }
-  .sugg { position: relative; }
-  .sugg ul { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: 4px 0; list-style: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
-  .sugg li { padding: 6px 11px; cursor: pointer; font-size: 14px; } .sugg li:hover, .sugg li.on { background: var(--user); }
-  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-  .fact { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-  .fact b { display: block; font-size: 19px; } .fact span { font-size: 12px; color: var(--muted); }
-  .maplabel { position: absolute; z-index: 2; left: 10px; bottom: 10px; font: 12px var(--mono); background: rgba(16,15,13,.85); padding: 4px 8px; border-radius: 6px; color: var(--muted); }
-  .mapnote { position: absolute; z-index: 2; bottom: 44px; left: 50%; transform: translateX(-50%); cursor: pointer; background: rgba(16,15,13,.92); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: 90%; }
-
-  /* library */
-  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 14px 0; }
-  .tier { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
-  .tier h4 { margin: 0; font-size: 15px; } .tier p { margin: 3px 0 10px; font-size: 13px; color: var(--muted); }
-  details.band { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 8px; }
-  details.band summary { cursor: pointer; padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; }
-  .item { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 14px; }
-  .item small { display: block; color: var(--muted); font-size: 12px; }
-  .tag { font: 11px var(--mono); border: 1px solid var(--line); border-radius: 10px; padding: 1px 7px; color: var(--muted); margin-left: 6px; }
-  .prog { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 4px; width: 140px; }
-  .prog i { display: block; height: 100%; background: var(--amber); }
-  .brainrow { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; margin-bottom: 12px; }
-
-  /* check */
-  table.res { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.res td { padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: top; }
-
-  /* emergency */
-  button.sos { background: #b3261e; border-color: #b3261e; color: #fff; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
-  button.sos:hover { background: #d0342b; }
-  #sos { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: none; overflow-y: auto; }
-  #sos.on { display: block; }
-  .sosbar { position: sticky; top: 0; background: #b3261e; color: #fff; display: flex; gap: 8px; align-items: center; padding: 10px 16px; flex-wrap: wrap; }
-  .sosbar b { font-size: 18px; margin-right: auto; }
-  .sosbar button { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.35); color: #fff; }
-  .soscard { max-width: 860px; margin: 0 auto; padding: 18px 20px 60px; font-size: 18px; }
-  .soscard h3 { color: var(--amber); font-size: 21px; }
-  .speak { font-size: 13px; }
-  textarea.tall { min-height: 74px; resize: vertical; }
-
-  /* startup overlay */
-  #boot { position: fixed; inset: 0; z-index: 50; background: rgba(8,7,6,.94); display: none; align-items: center; justify-content: center; padding: 16px; }
-  #boot.on { display: flex; }
-  .bootbox { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px 26px; }
-  .bootbox h3 { margin: 0 0 4px; font-size: 21px; }
-  .spec { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
-  .spec div { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-  .spec b { display: block; font-size: 15px; }
-  .notes li { margin-bottom: 6px; font-size: 14px; }
-
-  @media (max-width: 820px) {
-    section.tab.on { flex-direction: column; }
-    .side { width: 100%; border-right: 0; border-bottom: 1px solid var(--line); max-height: 45vh; }
-    #map { min-height: 50vh; }
-    .brand span { display: none; }
-    header { gap: 8px; padding: 0 10px; }
-    nav button { padding: 16px 8px 14px; }
-    #brainlabel { display: none; }
-    .quick { grid-template-columns: 1fr 1fr; }
-    .pill { padding: 4px 7px; }
-    button.sos { padding: 7px 10px; }
-  }
-
-  /* ---------- print / Save as PDF ---------- */
-  #printhead { display: none; }
-  @media print {
-    @page { margin: 14mm; }
-    html, body { background: #fff !important; color: #111 !important; height: auto; }
-    header, nav, .side, form.composer, .actions, .opts, #boot, .quick, button, .maplabel, .mapnote, .maplibregl-ctrl { display: none !important; }
-    section.tab { display: none !important; height: auto; overflow: visible; }
-    section.tab.on { display: block !important; }
-    .scroll, .mainpane { overflow: visible; padding: 0; }
-    #printhead { display: block; border-bottom: 2px solid #111; margin-bottom: 12px; padding-bottom: 6px; font-size: 12px; }
-    .bubble, .doc, .doc * { color: #111 !important; } .doc { border: 0; padding: 0; background: none; }
-    .msg.user .bubble { background: #eee; border-color: #ccc; }
-    .sources a { color: #333; border-color: #bbb; max-width: none; white-space: normal; }
-    .cite { color: #333; }
-    body[data-print="map"] #tab-map { display: block !important; }
-    body[data-print="map"] #map { height: 150mm; width: 100%; }
-    body[data-print="map"] #mapside { display: block !important; width: 100%; border: 0; background: none; max-height: none; color: #111; }
-    body[data-print="map"] #mapside input, body[data-print="map"] #mapside .sugg ul { display: none; }
-    .fact { border-color: #bbb; background: none; } .fact span { color: #444; }
-    #planform, #tpls { display: none !important; }
-  }
-</style>
+<link rel="stylesheet" href="/static/beacon.css">
+<script src="/static/js/theme.js"></script>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <svg viewBox="0 0 32 32" fill="none" stroke="#f2a93b" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
-      <path d="M13 29l1.5-15h3L19 29z" fill="#f2a93b" fill-opacity=".25"/><path d="M12 14h8M14 10h4v4h-4zM16 6v4"/>
-      <path d="M8 8.5a10 10 0 0 0 0 7M24 8.5a10 10 0 0 1 0 7M4.5 6a15 15 0 0 0 0 12M27.5 6a15 15 0 0 1 0 12"/>
+<header class="top">
+  <a class="brand" href="#home" aria-label="Beacon home">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 11 3 7.5v7z" fill="var(--signal)" opacity=".35"/><path d="M16 11l13-3.5v7z" fill="var(--signal)" opacity=".35"/>
+      <path d="M13.2 27.5 14.3 13h3.4l1.1 14.5z" fill="var(--text)"/><path d="M13.8 20h4.4l.2 2.2h-4.8z" fill="var(--signal)"/>
+      <rect x="12.6" y="12" width="6.8" height="1.6" rx=".5" fill="var(--text)"/><rect x="14" y="8.4" width="4" height="3.6" rx=".8" fill="var(--signal)"/>
+      <path d="M13.6 8.6 16 6.4l2.4 2.2z" fill="var(--text)"/><rect x="11" y="27.3" width="10" height="1.6" rx=".6" fill="var(--text)"/>
     </svg>
     <span>Beacon</span>
-  </div>
-  <nav id="nav">
-    <button data-tab="ask" class="on">Ask</button>
-    <button data-tab="plan">Plan</button>
-    <button data-tab="map">Map</button>
-    <button data-tab="library">Library</button>
-    <button data-tab="check">Check</button>
-    <button data-tab="info">My info</button>
+  </a>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-tab="home" data-icon="home" class="on" aria-current="page">Home</button>
+    <button data-tab="plan" data-icon="plan">Plan</button>
+    <button data-tab="map" data-icon="map">Map</button>
+    <button data-tab="board" data-icon="board">Board</button>
+    <button data-tab="tools" data-icon="tools">Tools</button>
+    <button data-tab="library" data-icon="books">Library</button>
   </nav>
-  <button class="sos" id="sosBtn" title="Instant first aid, no AI needed">Emergency</button>
-  <span class="pill" id="brainpill" title="System & brain"><i class="dot" id="odot"></i><span id="brainlabel">checking…</span></span>
+  <div class="top-right">
+    <button class="chip admin" id="shareBtn" data-icon="wifi" title="Let phones on your Wi-Fi use Beacon"><span class="chip-text" id="shareText">Share</span></button>
+    <button class="chip" id="statusBtn" title="This computer and its AI"><i class="dot" id="statusDot"></i><span class="chip-text" id="statusText">Starting</span></button>
+    <button class="help" id="helpBtn"><span class="long">I need help now</span><span class="short">Help now</span></button>
+  </div>
 </header>
 <div id="printhead"></div>
 
-<!-- ============ ASK ============ -->
-<section class="tab on" id="tab-ask">
-  <div class="chatwrap">
-    <div class="scroll" id="chat">
-      <div class="empty" id="empty">
-        <h3>What do you need to know?</h3>
-        <div class="muted">Answers come from the library on this drive. No internet needed.</div>
-        <div class="quick" id="quick"></div>
+<main>
+  <!-- HOME -->
+  <section class="tab on idle" id="tab-home" aria-label="Home">
+    <div class="home-scroll" id="homeScroll">
+      <div class="hero">
+        <svg class="contours" id="contours" aria-hidden="true"></svg>
+        <div class="hero-in">
+          <h1>What's happening?</h1>
+          <p class="lede">Ask anything. Beacon answers from the manuals, guides and encyclopedias on this drive, with no internet, and shows you where each answer came from.</p>
+          <form class="askbox" id="heroForm">
+            <textarea id="heroQ" rows="2" aria-label="Your question" placeholder="The power's been out for two days and it's freezing. How do we stay warm safely?"></textarea>
+            <button class="btn primary big">Ask</button>
+          </form>
+          <p class="ondrive" id="onDrive"></p>
+        </div>
       </div>
+      <div class="situations-wrap">
+        <h2>Common situations</h2>
+        <div class="index" id="situations"></div>
+        <p class="hint">Quick cards open instantly and work even when the AI is off. <button class="link" id="allCards">See all quick cards</button></p>
+      </div>
+      <div class="convo" id="convo" aria-live="polite"></div>
     </div>
-    <form class="composer" id="askform">
-      <div class="row">
-        <textarea id="q" rows="1" placeholder="Ask anything… (Enter to send, Shift+Enter for a new line)"></textarea>
-        <button class="primary" id="send">Ask</button>
-      </div>
-      <div class="opts">
-        <label><input type="checkbox" id="uselib" checked> Search the library</label>
-        <span><a href="#" id="cardsLink">Quick cards</a> · <a href="#" id="printChat">Save as PDF</a> · <a href="#" id="clear">New conversation</a></span>
+    <form class="composer" id="composer">
+      <div class="composer-in">
+        <div class="composer-row">
+          <textarea id="q" rows="1" aria-label="Ask a follow-up" placeholder="Ask a follow-up"></textarea>
+          <button class="btn primary" id="sendBtn">Ask</button>
+        </div>
+        <div class="composer-opts">
+          <label class="check"><input type="checkbox" id="useLib" checked> Search the library</label>
+          <span class="spacer"></span>
+          <button type="button" class="link" id="saveConvo">Save as PDF</button>
+          <button type="button" class="link" id="printConvo">Print</button>
+          <button type="button" class="link" id="newConvo">New conversation</button>
+        </div>
       </div>
     </form>
-  </div>
-</section>
+  </section>
 
-<!-- ============ PLAN ============ -->
-<section class="tab" id="tab-plan">
-  <div class="side">
-    <h2 class="k" style="margin-top:0">Choose a plan</h2>
-    <div id="tpls"></div>
-  </div>
-  <div class="mainpane">
-    <div id="planform"><p class="muted">Pick a plan on the left. Beacon fills it in from your library and location, ready to print.</p></div>
-    <div id="planout"></div>
-  </div>
-</section>
-
-<!-- ============ MAP ============ -->
-<section class="tab" id="tab-map">
-  <div class="side" id="mapside">
-    <h2 class="k" style="margin-top:0">Where are you?</h2>
-    <div class="sugg"><input type="search" id="fromIn" placeholder="City, or coordinates like 33.75, -84.39" autocomplete="off"><ul id="fromSug" hidden></ul></div>
-    <div class="row" style="margin-top:8px"><button class="small" id="gpsBtn">Use device location</button><button class="small" id="clickFrom">Pick on map</button></div>
-    <div class="muted" id="gpsNote" style="font-size:12px;margin-top:6px"></div>
-    <h2 class="k">Where to?</h2>
-    <div class="sugg"><input type="search" id="toIn" placeholder="City or coordinates" autocomplete="off"><ul id="toSug" hidden></ul></div>
-    <div class="row" style="margin-top:8px"><button class="small" id="clickTo">Pick on map</button><button class="small" id="swap">Swap</button></div>
-    <div id="routeFacts"></div>
-    <div id="nearby"></div>
-    <div class="row" style="margin-top:14px;flex-wrap:wrap">
-      <button id="planTrip" disabled>Make a travel plan</button>
-      <button id="printMap">Save map as PDF</button>
+  <!-- PLAN -->
+  <section class="tab" id="tab-plan" aria-label="Plan">
+    <aside class="rail">
+      <h2>Plans</h2>
+      <p class="rail-note">Beacon writes a step-by-step plan from your library, your location and your household, ready to print.</p>
+      <div id="savedPlans"></div>
+      <div class="tpl-list" id="tpls"></div>
+      <button class="btn wide admin" id="householdBtn" data-icon="house">Your household</button>
+    </aside>
+    <div class="pane" id="planPane">
+      <button class="btn small ghost back" id="planBack" data-icon="back">All plans</button>
+      <div class="empty-state" id="planEmpty">
+        <h2>Pick a plan</h2>
+        <p>Choose a situation on the left. Fill in what you know; blanks are fine, and Beacon says what it assumed. Every plan cites the manuals it used.</p>
+      </div>
+      <div id="planForm"></div>
+      <div id="planOut"></div>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:14px">Distances are straight-line. Real routes are longer: allow ~30% more. Bearings are true north; adjust your compass for local declination (see the navigation card).</p>
-  </div>
-  <div id="map"><div class="maplabel" id="cursor">—</div></div>
-</section>
+  </section>
 
-<!-- ============ LIBRARY ============ -->
-<section class="tab" id="tab-library">
-  <div class="mainpane" style="padding-top:18px">
-    <div class="bar">
-      <span id="libNet" class="pill">…</span>
-      <span id="libFree" class="pill">…</span>
-      <button class="small" id="sizesBtn">Check sizes</button>
-      <span class="muted" style="font-size:13px">Downloads need internet once. Everything works offline after.</span>
+  <!-- MAP -->
+  <section class="tab" id="tab-map" aria-label="Map">
+    <aside class="rail" id="mapRail">
+      <h2 id="mapTitle" hidden></h2>
+      <label class="field" for="fromIn" style="margin-top:0">Where are you?</label>
+      <div class="sugg"><input type="search" id="fromIn" autocomplete="off" placeholder="City, or coordinates like 39.74, -104.99"><ul id="fromSug" hidden></ul></div>
+      <div class="row" style="margin-top:8px"><button class="btn small" id="gpsBtn" data-icon="locate">Use this device's location</button><button class="btn small ghost" id="clickFrom">Pick on map</button></div>
+      <p class="small-print" id="gpsNote" style="margin-top:6px"></p>
+      <label class="field" for="toIn">Where to?</label>
+      <div class="sugg"><input type="search" id="toIn" autocomplete="off" placeholder="City or coordinates"><ul id="toSug" hidden></ul></div>
+      <div class="row" style="margin-top:8px"><button class="btn small ghost" id="clickTo">Pick on map</button><button class="btn small ghost" id="swapBtn">Swap</button><button class="btn small ghost" id="clearRoute">Clear</button></div>
+      <div id="routeFacts"></div>
+      <div id="nearby" class="nearby"></div>
+      <div class="row" style="margin-top:22px"><button class="btn primary" id="planTrip" disabled>Make a travel plan</button></div>
+      <div class="row" style="margin-top:10px"><button class="btn small" id="saveMap" data-icon="download">Save image</button><button class="btn small" id="printMap" data-icon="print">Print</button></div>
+      <p class="small-print" style="margin-top:20px">Distances are in a straight line; real routes are usually about a third longer. Headings are true north: adjust your compass for local declination (see the Navigation card).</p>
+    </aside>
+    <div class="map" id="map"><div class="map-coords" id="cursor"></div></div>
+  </section>
+
+  <!-- BOARD -->
+  <section class="tab" id="tab-board" aria-label="Board">
+    <aside class="rail">
+      <h2>Board</h2>
+      <p class="rail-note">For everyone on this Beacon: check in, ask for help, offer what you have, report what you see.</p>
+      <label class="field" for="ciName" style="margin-top:0">Your name or household</label>
+      <input id="ciName" maxlength="40" autocomplete="name" placeholder="The Garcias, Unit 4B">
+      <label class="field" for="ciNote">Note (optional)</label>
+      <input id="ciNote" maxlength="200" placeholder="All four of us, and the dog">
+      <div class="row" style="margin-top:12px"><button class="btn checkin-safe" data-status="safe" type="button">We're safe</button><button class="btn checkin-help" data-status="help" type="button">We need help</button></div>
+      <h3 class="group-label" style="margin-top:26px">Post</h3>
+      <div class="seg" id="postKind" role="group"><button type="button" data-v="need" class="on" aria-pressed="true">Need</button><button type="button" data-v="offer">Offer</button><button type="button" data-v="report">Report</button><button type="button" data-v="note">Note</button></div>
+      <textarea id="postText" rows="3" maxlength="500" style="margin-top:10px" placeholder="What do you need, have or see?"></textarea>
+      <label class="check" id="meshSendWrap" style="margin-top:8px" hidden><input type="checkbox" id="meshSend"> Also send over the mesh</label>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="postBtn" type="button">Post</button></div>
+      <div id="meshPanel"></div>
+    </aside>
+    <div class="pane" id="boardPane">
+      <div class="sec-head"><h2>Check-ins</h2><span class="meta" id="rosterMeta"></span><span class="spacer"></span><button class="btn small ghost noprint" id="printRoster" data-icon="print">Print</button></div>
+      <div id="roster"></div>
+      <div class="sec-head noprint" style="margin-top:34px"><h2>Posts</h2></div>
+      <div class="seg noprint" id="boardFilter" role="group" style="margin:12px 0 4px"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">Needs</button><button type="button" data-v="offer">Offers</button><button type="button" data-v="report">Reports</button><button type="button" data-v="mesh">Mesh</button></div>
+      <div id="posts" class="noprint"></div>
     </div>
+  </section>
 
-    <h2 class="k">Install a tier</h2>
-    <div class="tiers" id="tiers"></div>
-
-    <h2 class="k">Brain (AI models)</h2>
-    <div class="card" id="brainCard"></div>
-
-    <h2 class="k">Maps</h2>
-    <div class="card" id="mapsCard"></div>
-
-    <h2 class="k">Topic bands</h2>
-    <div id="bands"></div>
-    <div class="row" style="margin:10px 0 0"><button class="primary" id="dlSel">Download selected</button><span class="muted" id="selInfo"></span></div>
-
-    <h2 class="k">Downloads</h2>
-    <div class="card" id="jobs"><span class="muted">Nothing downloading.</span></div>
-
-    <h2 class="k">Your manuals</h2>
-    <div class="card"><div id="manuals"></div>
-      <div class="row" style="margin-top:10px"><button id="ingest">Index manuals folder</button><span class="muted mono" id="ilog"></span></div>
-      <p class="muted" style="font-size:13px;margin-bottom:0">Drop any PDF, .txt or .md into <span class="mono">library/manuals</span> on the drive, then index. Scanned PDFs (pictures of pages) can't be read until they're converted with OCR.</p>
+  <!-- TOOLS -->
+  <section class="tab" id="tab-tools" aria-label="Tools">
+    <div class="pane wide" id="toolsPane">
+      <div id="toolIndex">
+        <div class="tools-head"><h2>Tools</h2><p>Everything here works offline, even with the AI turned off.</p></div>
+        <div id="toolGroups"></div>
+      </div>
+      <div class="tool-view" id="toolView" hidden></div>
     </div>
+  </section>
 
-    <h2 class="k">Find anything in the Kiwix library</h2>
-    <div class="card">
-      <div class="row"><input type="search" id="kq" placeholder="e.g. permaculture, first aid, chemistry, bushcraft"><button id="kgo">Search</button></div>
-      <div id="kres"></div>
+  <!-- LIBRARY -->
+  <section class="tab" id="tab-library" aria-label="Library">
+    <nav class="lib-index" id="libIndex" aria-label="Library sections"></nav>
+    <div class="pane lib" id="libPane">
+      <section id="lib-saved">
+        <div class="sec-head"><h2>Saved</h2><span class="meta" id="savedMeta"></span></div>
+        <p class="sec-note">Plans are saved here automatically, and you can save any answer. They open with the AI off and download as PDFs to share.<span class="admin"> Only you see them until you share them.</span><span class="guest-only"> These were shared by people on this Beacon.</span></p>
+        <div id="savedList"></div>
+      </section>
+      <section id="lib-install" class="admin">
+        <div class="sec-head"><h2>What's installed</h2><span class="meta" id="libMeta"></span></div>
+        <p class="sec-note">Install a level of the library. Each level includes everything below it. Downloads need internet once; everything works offline after.</p>
+        <div class="gauge" id="gauge"></div>
+        <div id="tierDetail"></div>
+      </section>
+      <section id="lib-brain" class="admin">
+        <div class="sec-head"><h2>Brain</h2><span class="meta" id="brainMeta"></span></div>
+        <p class="sec-note">The AI models on this drive. Beacon uses the strongest one the computer it's plugged into can run, so a bigger Mac gets a smarter brain automatically.</p>
+        <div class="rows" id="brainRows"></div>
+        <div class="row" style="margin-top:14px"><label class="check" for="modelSel">Use</label><select id="modelSel"></select></div>
+      </section>
+      <section id="lib-maps" class="admin">
+        <div class="sec-head"><h2>Maps</h2></div>
+        <p class="sec-note">Place names let you search for towns. The world map shows countries, roads and cities; a detailed region map adds every street and trail around a place.</p>
+        <div class="rows" id="mapRows"></div>
+      </section>
+      <section id="lib-topics" class="admin">
+        <div class="sec-head"><h2>Topics</h2><span class="meta" id="topicMeta"></span></div>
+        <p class="sec-note">Pick individual manuals, guides and encyclopedias. Items marked "link" open the publisher's site instead of downloading.</p>
+        <div id="bands"></div>
+        <div class="sticky-actions"><button class="btn primary" id="dlSel" disabled>Download selected</button><span class="hint" id="selInfo"></span></div>
+        <h3 class="group-label">Find more in the Kiwix library</h3>
+        <div class="row"><input type="search" id="kq" placeholder="Permaculture, chemistry, bushcraft…" style="flex:1;min-width:12em"><button class="btn" id="kgo">Search</button></div>
+        <div id="kres" class="rows" style="margin-top:10px;border-top:0"></div>
+      </section>
+      <section id="lib-downloads" class="admin">
+        <div class="sec-head"><h2>Downloads</h2></div>
+        <div class="rows" id="jobs" style="margin-top:14px"></div>
+      </section>
+      <section id="lib-docs">
+        <div class="sec-head"><h2>Manuals and guides</h2><span class="meta" id="docMeta"></span></div>
+        <p class="sec-note">Everything the AI can search. Open one to read it, or save a copy to this device.</p>
+        <div id="docs"></div>
+        <div class="admin" style="margin-top:16px">
+          <div class="row"><button class="btn" id="ingestBtn">Index new files</button><span class="hint" id="ingestLog"></span></div>
+          <p class="small-print" style="margin-top:8px">To add your own, put PDFs, .txt or .md files in <b>library/manuals</b> on the drive, then index. Scanned PDFs (photos of pages) need text recognition first.</p>
+        </div>
+      </section>
+      <section id="lib-check" class="admin">
+        <div class="sec-head"><h2>Health check</h2></div>
+        <p class="sec-note">Proves the AI is running and that every manual and library on the drive can actually be found.</p>
+        <button class="btn" id="runCheck">Run the health check</button>
+        <div id="checkOut"></div>
+      </section>
+      <section id="lib-shelf">
+        <div class="sec-head"><h2>Reading shelf</h2></div>
+        <p class="sec-note">Books for the long nights: adventure, strategy, philosophy and faith. They open in a quiet reading view.</p>
+        <div id="shelf"></div>
+      </section>
+      <section id="lib-paper">
+        <div class="sec-head"><h2>Paper backup</h2></div>
+        <p class="sec-note">Batteries die. Print every quick card and the cliff notes as one binder<span class="admin">, with your household info at the front,</span> and keep it with your supplies. On a phone, save them for reading without Wi-Fi.</p>
+        <div class="rows" id="paperRows"></div>
+      </section>
+      <section id="lib-gear">
+        <div class="sec-head"><h2>Gear worth having</h2></div>
+        <p class="sec-note" id="gearAbout"></p>
+        <div id="gearList"></div>
+      </section>
+      <section id="lib-buy">
+        <div class="sec-head"><h2>Books worth owning</h2></div>
+        <p class="sec-note" id="buyAbout"></p>
+        <ol id="buyList" class="buy"></ol>
+      </section>
     </div>
+  </section>
+</main>
 
-    <h2 class="k">Reading shelf</h2>
-    <div class="card" id="shelf"><span class="muted">No books yet. Install the "Reading Shelf" or "Mind, Body & Discipline" band.</span></div>
-
-    <h2 class="k">Paper backup</h2>
-    <div class="card"><p style="margin-top:0">Print every quick card, the cliff notes and your household info as one binder. Keep it with your supplies in case there's no power at all.</p><a href="/binder" target="_blank"><button>Print the binder</button></a></div>
-
-    <h2 class="k">Books worth buying in print</h2>
-    <div class="card" id="buy"></div>
+<!-- Quick cards and emergency -->
+<div class="cards" id="cards" role="dialog" aria-modal="true" aria-labelledby="cardsTitle" hidden>
+  <div class="cards-bar">
+    <div class="cards-head"><h2 id="cardsTitle">Quick cards</h2><button class="icon-btn" id="cardsClose" data-icon="close" aria-label="Close"></button></div>
+    <p class="callstrip">If you can reach help, call <b>911</b> in North America or <b>112</b> in Europe and on most mobile phones.</p>
+    <div class="card-tools" id="cardTools">
+      <button class="btn small" data-tool="cpr">CPR metronome</button>
+      <button class="btn small" data-tool="tourniquet">Tourniquet timer</button>
+      <button class="btn small" data-tool="light">Flashlight and SOS</button>
+    </div>
+    <div class="card-tabs" id="cardTabs" role="tablist"></div>
   </div>
-</section>
-
-<!-- ============ CHECK ============ -->
-<section class="tab" id="tab-check">
-  <div class="mainpane">
-    <h2 class="k" style="margin-top:0">Library check</h2>
-    <p class="muted">Proves the brain is running and that every manual and library on the drive can actually be found by search.</p>
-    <button class="primary" id="runCheck">Run library check</button>
-    <div id="checkOut" style="margin-top:16px"></div>
-    <h2 class="k">This computer</h2>
-    <div class="card" id="sysCard"></div>
+  <div class="card-scroll" id="cardScroll"><article class="card-body" id="cardBody"></article></div>
+  <div class="card-actions" id="cardActions">
+    <button class="btn small" id="cardSpeak">Read aloud</button>
+    <a class="btn small" id="cardSave" href="#" download>Save to this device</a>
+    <button class="btn small" id="cardPrint">Print</button>
+    <button class="btn small" id="cardAsk">Ask Beacon</button>
   </div>
-</section>
-
-<!-- ============ MY INFO ============ -->
-<section class="tab" id="tab-info">
-  <div class="mainpane">
-    <h2 class="k" style="margin-top:0">Our household</h2>
-    <p class="muted">Fill in what you want Beacon to remember. Plans use it automatically, and it prints at the front of the binder. It's stored on this drive <b>without a password</b>; keep the drive safe.</p>
-    <div id="infoForm"></div>
-    <div class="row" style="margin-top:14px"><button class="primary" id="infoSave">Save</button><a href="/binder" target="_blank">Print the binder</a><span class="muted" id="infoMsg"></span></div>
-  </div>
-</section>
-
-<!-- ============ EMERGENCY ============ -->
-<div id="sos" role="dialog" aria-label="Emergency first aid">
-  <div class="sosbar"><b>Emergency</b>
-    <button data-card="first-aid-essentials.md">First aid</button><button data-card="severe-weather.md">Severe weather</button>
-    <button data-card="water.md">Water</button><button data-card="power-outage.md">Power out</button>
-    <button data-card="car-emergency.md">Car</button><button data-card="emergency-radio.md">Radio</button>
-    <button data-card="morse-and-signals.md">Signals</button>
-    <button id="sosSpeak">Read aloud</button><button id="sosAsk">Ask Beacon</button><button id="sosClose">Close ✕</button></div>
-  <div class="soscard bubble" id="sosBody"><p class="status">Loading…</p></div>
 </div>
 
-<!-- ============ STARTUP RESOURCE CHECK ============ -->
-<div id="boot"><div class="bootbox" id="bootbox"><h3>Checking this computer…</h3></div></div>
-
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const gb = b => b > 0 ? (b / 1024 ** 3 >= 1 ? (b / 1024 ** 3).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1024 ** 2)) + " MB") : "";
-const J = (url, body) => fetch(url, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).then(r => r.json());
-const store = { get(k) { try { return sessionStorage.getItem(k); } catch { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch {} } };
-const stripThink = t => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
-
-/* ---------- tabs ---------- */
-const tabs = {};
-function show(name) {
-  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
-  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("on", s.id === "tab-" + name));
-  tabs[name]?.();
-}
-document.querySelectorAll("#nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
-
-/* ---------- markdown: escape once, then format line by line ---------- */
-function md(src, sources) {
-  const inline = t => t.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
-    .replace(/\[(\d{1,2})\]/g, (m, n) => { const s = sources[n - 1]; return s ? `<a class="cite" href="${link(s)}" target="_blank" title="${esc(s.book + " — " + s.title)}">[${n}]</a>` : m; });
-  const out = []; let para = [], list = null, table = [], code = null;
-  const flush = () => {
-    if (para.length) { out.push(`<p>${inline(para.join("<br>"))}</p>`); para = []; }
-    if (list) { out.push(`<${list.tag}>` + list.items.map(i => `<li>${inline(i)}</li>`).join("") + `</${list.tag}>`); list = null; }
-    if (table.length) { out.push("<table>" + table.filter(r => !/^\|[\s:|-]+\|$/.test(r)).map(r => "<tr>" + r.slice(1, -1).split("|").map(c => `<td>${inline(c.trim())}</td>`).join("") + "</tr>").join("") + "</table>"); table = []; }
-  };
-  for (const raw of esc(src).split("\n")) {
-    const line = raw.trimEnd(), t = line.trim();
-    if (code !== null) { if (t.startsWith("```")) { out.push(`<pre>${code.join("\n")}</pre>`); code = null; } else code.push(line); continue; }
-    if (t.startsWith("```")) { flush(); code = []; continue; }
-    if (!t) { flush(); continue; }
-    const h = t.match(/^#{1,4} (.*)/); if (h) { flush(); out.push(`<h3>${inline(h[1])}</h3>`); continue; }
-    if (/^\|.*\|$/.test(t)) { if (para.length || list) flush(); table.push(t); continue; }
-    const ul = t.match(/^[-*•] (.*)/), ol = t.match(/^\d+[.)] (.*)/);
-    if (ul || ol) {
-      const tag = ul ? "ul" : "ol";
-      if (para.length || table.length || (list && list.tag !== tag)) flush();
-      if (!list) list = {tag, items: []};
-      list.items.push((ul || ol)[1]); continue;
-    }
-    if (list && /^\s{2,}/.test(raw)) { list.items[list.items.length - 1] += " " + t; continue; }  // wrapped list line
-    if (list || table.length) flush();
-    para.push(t);
-  }
-  if (code !== null) out.push(`<pre>${code.join("\n")}</pre>`);
-  flush();
-  return out.join("");
-}
-function link(s) {
-  if (s.kind === "kiwix") return "/read/kiwix/" + s.ref.split("/").map(encodeURIComponent).join("/");
-  const [file, page] = s.ref.split("#");
-  return "/read/manual/" + file.split("/").map(encodeURIComponent).join("/") + (page ? "#" + page : "");
-}
-function sourceChips(sources) {
-  return sources.length ? '<div class="sources">' + sources.map((s, n) =>
-    `<a href="${link(s)}" target="_blank" title="${esc(s.book)}"><span>${n + 1}</span>${esc(s.title)} · ${esc(s.book)}</a>`).join("") + "</div>" : "";
-}
-
-/* ---------- streaming from the brain (shared by Ask and Plan) ---------- */
-async function streamTo(url, body, el, onDone) {
-  let answer = "", sources = [];
-  try {
-    const res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
-    while (true) {
-      const {value, done} = await reader.read(); if (done) break;
-      buf += dec.decode(value, {stream: true}); let i;
-      while ((i = buf.indexOf("\n\n")) >= 0) {
-        const raw = buf.slice(0, i); buf = buf.slice(i + 2);
-        const kind = raw.match(/^event: (.*)$/m)?.[1], data = JSON.parse(raw.match(/^data: (.*)$/m)?.[1] ?? "null");
-        if (kind === "status" && !answer) el.innerHTML = `<span class="status">${esc(data)}</span>`;
-        if (kind === "sources") sources = data;
-        if (kind === "token") { answer += data; el.innerHTML = md(stripThink(answer), sources); }
-        if (kind === "error") el.innerHTML += `<p class="err">${esc(data)}</p>`;
-      }
-      el.closest(".scroll, .mainpane")?.scrollTo({top: 1e9});
-    }
-  } catch (e) { el.innerHTML += `<p class="err">Lost connection to Beacon: ${esc(String(e))}</p>`; }
-  el.insertAdjacentHTML("beforeend", sourceChips(sources));
-  onDone?.(stripThink(answer), sources);
-}
-
-/* read aloud: uses the computer's built-in voices, works offline */
-function speak(text, btn) {
-  if (!("speechSynthesis" in window)) return alert("This browser can't read aloud.");
-  if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.textContent = "Read aloud"; return; }
-  const clean = text.replace(/\[(\d+)\]/g, "").replace(/[#*`|>]/g, " ");
-  const u = new SpeechSynthesisUtterance(clean); u.rate = 1.0;
-  u.onend = () => { if (btn) btn.textContent = "Read aloud"; };
-  speechSynthesis.speak(u); if (btn) btn.textContent = "Stop reading";
-}
-function addActions(el, text, extra = "") {
-  const bar = document.createElement("div"); bar.className = "actions";
-  bar.innerHTML = `<button class="small speak">Read aloud</button><button class="small copy">Copy</button>${extra}`;
-  bar.querySelector(".speak").onclick = e => speak(text, e.target);
-  bar.querySelector(".copy").onclick = e => { navigator.clipboard?.writeText(text).then(() => e.target.textContent = "Copied"); };
-  el.appendChild(bar); return bar;
-}
-
-function printAs(kind, title) {
-  document.body.dataset.print = kind;
-  $("printhead").innerHTML = `<b>BEACON</b> · ${esc(title)} · ${new Date().toLocaleString()} · Generated offline. Verify critical steps against the cited sources.`;
-  setTimeout(() => window.print(), 50);
-}
-window.addEventListener("afterprint", () => { delete document.body.dataset.print; });
-
-/* ---------- ASK ---------- */
-const QUICK = [
-  ["Water", "Make water safe to drink", "How do I make water safe to drink if the tap water might be contaminated?"],
-  ["First aid", "Stop heavy bleeding", "Someone is bleeding heavily from a cut on the leg. What do I do right now?"],
-  ["Winter", "Power out in a freeze", "The power has been out for a day in winter. How do I keep the house warm and food safe?"],
-  ["Tornado", "Warning issued now", "A tornado warning was just issued. What do I do right now and where do I shelter?"],
-  ["Heat", "Heat stroke signs", "What are the signs of heat stroke vs heat exhaustion and what do I do?"],
-  ["Radio", "Emergency frequencies", "What radio frequencies should I monitor for emergency information and how do I call for help?"],
-  ["Navigate", "No GPS, no compass", "How do I find north and navigate without GPS or a compass?"],
-  ["Food", "Wild edibles", "How do I identify safe wild edible plants where I live, and what should I never eat?"],
-  ["Car", "Stuck in snow", "My car is stuck in snow and it's getting dark. What should I do?"],
-  ["Evacuate", "Leave in 15 minutes", "We have to evacuate in 15 minutes. What do we grab and do?"],
-  ["Mind", "Calm down fast", "I'm panicking. Give me a breathing technique to calm down right now."],
-  ["Morse", "Send SOS", "How do I signal SOS with a flashlight, whistle or mirror?"],
-];
-$("quick").innerHTML = QUICK.map((x, i) => `<button data-i="${i}"><b>${x[0]}</b>${x[1]}</button>`).join("");
-$("quick").onclick = e => { const b = e.target.closest("button"); if (b) ask(QUICK[b.dataset.i][2]); };
-let history = [], busy = false;
-function addMsg(role, html) {
-  $("empty")?.remove();
-  const el = document.createElement("div"); el.className = "msg " + role;
-  el.innerHTML = `<div class="bubble">${html}</div>`; $("chat").appendChild(el); $("chat").scrollTop = 1e9;
-  return el.querySelector(".bubble");
-}
-async function ask(text) {
-  if (busy || !text.trim()) return;
-  busy = true; $("send").disabled = true;
-  addMsg("user", esc(text));
-  const b = addMsg("assistant", '<span class="status">Starting…</span>');
-  await streamTo("/api/ask", {question: text, history, use_library: $("uselib").checked}, b, ans => {
-    history.push({role: "user", content: text}, {role: "assistant", content: ans});
-    if (ans) addActions(b, ans);
-  });
-  busy = false; $("send").disabled = false; $("q").focus();
-}
-$("askform").onsubmit = e => { e.preventDefault(); const t = $("q").value; $("q").value = ""; ask(t); };
-$("q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("askform").requestSubmit(); } });
-$("q").addEventListener("input", () => { const q = $("q"); q.style.height = "auto"; q.style.height = q.scrollHeight + "px"; });
-$("clear").onclick = e => { e.preventDefault(); history = []; location.reload(); };
-$("printChat").onclick = e => { e.preventDefault(); printAs("ask", "Questions & answers"); };
-$("cardsLink").onclick = async e => {
-  e.preventDefault();
-  const cards = await J("/api/cards");
-  const b = addMsg("assistant", "<p><strong>Quick cards</strong> work even if the AI won't start. Open one:</p>" +
-    "<ul>" + cards.map(c => `<li><a href="/read/manual/${c.path.split("/").map(encodeURIComponent).join("/")}" target="_blank">${esc(c.title)}</a></li>`).join("") + "</ul>");
-};
-
-/* ---------- PLAN ---------- */
-let planList = [], planCur = null;
-tabs.plan = async () => {
-  if (planList.length) return;
-  planList = await J("/api/plans");
-  $("tpls").innerHTML = planList.map(p => `<button class="tpl" data-id="${p.id}"><i>${p.icon}</i>${esc(p.title)}</button>`).join("");
-};
-$("tpls").onclick = e => { const b = e.target.closest(".tpl"); if (b) openPlan(b.dataset.id); };
-async function openPlan(id, prefill = {}) {
-  planCur = planList.find(p => p.id === id); if (!planCur) return;
-  try { const prof = await J("/api/profile"); prefill = {location: prof.home || "", people: [prof.people, prof.medical].filter(Boolean).join("; "), resources: [prof.vehicles, prof.skills].filter(Boolean).join("; "), ...Object.fromEntries(Object.entries(prefill).filter(([k, v]) => v))}; } catch {}
-  document.querySelectorAll(".tpl").forEach(b => b.classList.toggle("on", b.dataset.id === id));
-  $("planform").innerHTML = `<h2 style="margin:0 0 4px">${planCur.icon} ${esc(planCur.title)}</h2>
-    <p class="muted" style="margin:0">Fill in what you know. Blanks are fine; Beacon will state its assumptions.</p>` +
-    planCur.fields.map(f => `<label class="f" for="pf-${f.id}">${esc(f.label)}</label><input type="text" id="pf-${f.id}" placeholder="${esc(f.placeholder)}" value="${esc(prefill[f.id] || "")}">`).join("") +
-    `<label class="f" for="pf-notes">Anything else?</label><textarea id="pf-notes" rows="2"></textarea>
-     <div class="row" style="margin-top:14px"><button class="primary" id="genPlan">Generate plan</button></div>`;
-  $("planout").innerHTML = "";
-  $("genPlan").onclick = genPlan;
-}
-async function genPlan() {
-  const answers = {notes: $("pf-notes").value};
-  planCur.fields.forEach(f => answers[f.id] = $("pf-" + f.id).value);
-  $("genPlan").disabled = true;
-  $("planout").innerHTML = `<div class="doc"><h1>${esc(planCur.title)}</h1><div class="muted" style="font-size:13px">${esc(answers.location || "")} · ${new Date().toLocaleDateString()}</div><div class="bubble" id="planBody"><span class="status">Starting…</span></div>
-    <div class="actions"><button id="planPdf">Save as PDF</button><button id="planAgain">Regenerate</button></div></div>`;
-  let planText = "";
-  await streamTo("/api/plan", {template: planCur.id, answers}, $("planBody"), t => planText = t);
-  $("genPlan").disabled = false;
-  const sp = document.createElement("button"); sp.className = "small"; sp.textContent = "Read aloud";
-  sp.onclick = () => speak(planText, sp); document.querySelector("#planout .actions").appendChild(sp);
-  $("planPdf").onclick = () => printAs("plan", planCur.title);
-  $("planAgain").onclick = genPlan;
-}
-
-/* ---------- BRAIN PILL + STARTUP RESOURCE CHECK ---------- */
-let sys = null;
-async function loadSystem() {
-  sys = await J("/api/system");
-  $("odot").className = "dot" + (sys.engine_up && sys.active_model ? " ok" : "");
-  $("brainlabel").textContent = sys.active_model ? `${sys.active_model} · ${sys.profile.name} brain` : (sys.engine_up ? "no model" : "AI engine offline");
-  return sys;
-}
-function bootView(s) {
-  const bat = s.battery ? `${s.battery.percent}% ${s.battery.plugged_in ? "(plugged in)" : "(on battery)"}` : "No battery / desktop";
-  return `<h3>This computer</h3><div class="muted" style="font-size:14px">${esc(s.chip)} · ${esc(s.os)}</div>
-  <div class="spec">
-    <div><span class="muted">Memory</span><b>${s.ram_gb} GB</b>${s.ram_free_gb != null ? s.ram_free_gb + " GB free" : ""}</div>
-    <div><span class="muted">Graphics</span><b>${esc(s.gpu.split(" — ")[0])}</b>${esc(s.gpu.split(" — ")[1] || "")}</div>
-    <div><span class="muted">Drive space</span><b>${s.disk_free_gb} GB free</b>of ${s.disk_total_gb} GB</div>
-    <div><span class="muted">Power</span><b>${esc(bat)}</b></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" tabindex="-1" hidden><div class="sheet-in" id="sheetIn"></div></div>
+<div class="light" id="light" hidden>
+  <div class="light-face" id="lightFace"></div>
+  <div class="light-bar">
+    <button class="btn" data-light="white">White light</button>
+    <button class="btn" data-light="red">Red light</button>
+    <button class="btn" data-light="sos">Flash SOS</button>
+    <button class="btn" data-light="sound">Sound</button>
+    <button class="btn" data-light="off">Close</button>
   </div>
-  <div class="card" style="background:var(--bg)"><span class="muted">Brain for this machine</span>
-    <div style="font-size:18px;margin:2px 0"><b>${esc(s.active_model || "none installed")}</b> <span class="tag">${esc(s.profile.name)} · reads up to ${s.profile.sources} sources</span></div>
-    <div class="muted" style="font-size:13px">Recommended: ${esc(s.recommended.model)} (${esc(s.recommended.label)})</div></div>
-  ${s.notes.length ? `<ul class="notes">${s.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : `<p class="ok">All set. This computer can run Beacon's recommended brain.</p>`}
-  <div class="row" style="justify-content:flex-end;margin-top:8px">
-    ${s.active_model !== s.recommended.model && !s.tiers.find(t => t.model === s.recommended.model)?.installed ? `<button id="bootLib">Get the recommended brain</button>` : ""}
-    <button class="primary" id="bootGo">Start</button></div>`;
-}
-async function boot() {
-  const first = !store.get("booted");
-  if (first) $("boot").classList.add("on");
-  const s = await loadSystem();
-  $("bootbox").innerHTML = bootView(s);
-  $("bootGo").onclick = () => { $("boot").classList.remove("on"); store.set("booted", "1"); $("q").focus(); };
-  if ($("bootLib")) $("bootLib").onclick = () => { $("bootGo").click(); show("library"); };
-}
-$("brainpill").onclick = async () => { $("boot").classList.add("on"); const s = await loadSystem(); $("bootbox").innerHTML = bootView(s); $("bootGo").onclick = () => $("boot").classList.remove("on"); if ($("bootLib")) $("bootLib").onclick = () => { $("boot").classList.remove("on"); show("library"); }; };
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="stopped" id="stopped" hidden><div><h2>Beacon has stopped</h2><p>You can eject the drive now: in Finder, click the eject button next to the drive's name, then unplug it.</p><p>To use Beacon again, open Beacon on the drive.</p></div></div>
 
-/* ---------- LIBRARY ---------- */
-let lib = null, sizes = {}, libTimer = null;
-const TIER_IDX = {core: 0, extended: 1, complete: 2, everything: 3};
-tabs.library = () => { refreshLib(); if (!libTimer) libTimer = setInterval(() => { if ($("tab-library").classList.contains("on")) refreshLib(); }, 2500); };
-async function refreshLib() {
-  lib = await J("/api/library");
-  lib.bands.forEach(b => b.items.forEach(i => { if (i.size) sizes[i.id] = i.size; }));
-  $("libNet").innerHTML = `<i class="dot ${lib.online ? "ok" : ""}"></i>${lib.online ? "Online: downloads available" : "Offline"}`;
-  $("libFree").textContent = `${lib.free_gb} GB free on drive`;
-  renderTiers(); renderBands(); renderJobs(); renderMapsCard(); renderBuy();
-  if (sys) renderBrain();
-  const st = await J("/api/status");
-  $("manuals").innerHTML = st.manuals.length ? st.manuals.map(m => `<div class="item" style="grid-template-columns:1fr auto;padding:6px 0"><div>${esc(m.file)}<small>${esc(m.path)}</small></div><span class="${m.scanned || !m.chunks ? "warn" : "muted"}" style="font-size:13px">${m.chunks ? m.chunks.toLocaleString() + " passages" : "no text"}${m.scanned ? " · scanned" : ""}</span></div>`).join("") : '<span class="muted">No manuals indexed yet.</span>';
-  if (st.pending.length) $("manuals").insertAdjacentHTML("beforeend", `<p class="warn" style="font-size:13px">${st.pending.length} file(s) waiting to be indexed.</p>`);
-  $("ingest").disabled = st.ingest.running; $("ilog").textContent = st.ingest.log.slice(-1)[0] || "";
-}
-function tierItems(tier) {
-  const out = [], groups = {};
-  lib.bands.forEach(b => b.items.forEach(i => {
-    if (i.type === "link" || i.optional || TIER_IDX[i.tier] > TIER_IDX[tier]) return;
-    if (i.group) { const p = groups[i.group]; if (!p || TIER_IDX[i.tier] >= TIER_IDX[p.tier]) { if (p) out.splice(out.indexOf(p), 1); groups[i.group] = i; out.push(i); } }
-    else out.push(i);
-  }));
-  return out;
-}
-function renderTiers() {
-  $("tiers").innerHTML = lib.tiers.map(t => {
-    const its = tierItems(t.id), missing = its.filter(i => !i.installed);
-    const known = missing.reduce((a, i) => a + (sizes[i.id] || 0), 0), unknown = missing.filter(i => i.type === "zim" && !sizes[i.id]).length;
-    return `<div class="tier"><h4>${esc(t.title)}</h4><p>${esc(t.about)}</p>
-      <div class="muted" style="font-size:12px;margin-bottom:8px">${its.length - missing.length} of ${its.length} installed${missing.length ? (known ? ` · ≈${gb(known)}${unknown ? "+" : ""} to download` : (unknown ? " · tap Check sizes" : "")) : ""}</div>
-      <button class="small ${t.id === "core" ? "primary" : ""}" data-tier="${t.id}" ${!lib.online || !missing.length ? "disabled" : ""}>${missing.length ? "Download " + t.title : "Installed ✓"}</button></div>`;
-  }).join("");
-}
-$("tiers").onclick = async e => { const b = e.target.closest("button[data-tier]"); if (!b) return; b.disabled = true; const r = await J("/api/library/download", {tier: b.dataset.tier}); if (r.errors.length) alert(r.errors.join("\n")); refreshLib(); };
-const sel = new Set();
-function itemRow(i) {
-  const j = i.job, pct = j && j.total ? Math.round(100 * j.done / j.total) : 0;
-  const state = i.installed ? '<span class="ok">Installed</span>' : j && j.state === "downloading" ? `${pct}%<div class="prog"><i style="width:${pct}%"></i></div>` :
-    j && j.state === "queued" ? "Queued" : j && j.state === "failed" ? `<span class="bad" title="${esc(j.error)}">Failed</span>` : (sizes[i.id] > 0 ? gb(sizes[i.id]) : (sizes[i.id] === -1 ? '<span class="bad">not found</span>' : ""));
-  if (i.type === "link") return `<div class="item"><span>↗</span><div><a href="${esc(i.url)}" target="_blank">${esc(i.title)}</a><small>${esc(i.note)}</small></div><span class="tag">${esc(i.tier)}</span></div>`;
-  return `<div class="item"><input type="checkbox" data-id="${i.id}" ${i.installed ? "checked disabled" : sel.has(i.id) ? "checked" : ""} ${!lib.online && !i.installed ? "disabled" : ""}>
-    <div>${esc(i.title)}<span class="tag">${esc(i.tier)}</span><small>${esc(i.type.toUpperCase())} · ${esc(i.license)}</small></div><span style="font-size:13px;text-align:right">${state}</span></div>`;
-}
-function renderBands() {
-  const open = new Set([...document.querySelectorAll("details.band[open]")].map(d => d.dataset.id));
-  $("bands").innerHTML = lib.bands.map(b => {
-    const n = b.items.filter(i => i.type !== "link"), have = n.filter(i => i.installed).length;
-    return `<details class="band" data-id="${b.id}" ${open.has(b.id) ? "open" : ""}><summary><b>${esc(b.title)}</b><span class="muted" style="font-size:13px">${have}/${n.length} installed</span></summary>${b.items.map(itemRow).join("")}</details>`;
-  }).join("");
-  $("selInfo").textContent = sel.size ? `${sel.size} selected` : "";
-}
-$("bands").onchange = e => { const c = e.target; if (c.dataset.id) { c.checked ? sel.add(c.dataset.id) : sel.delete(c.dataset.id); $("selInfo").textContent = sel.size ? `${sel.size} selected` : ""; } };
-$("dlSel").onclick = async () => { if (!sel.size) return; const r = await J("/api/library/download", {ids: [...sel]}); sel.clear(); if (r.errors.length) alert(r.errors.join("\n")); refreshLib(); };
-$("sizesBtn").onclick = async () => { $("sizesBtn").disabled = true; $("sizesBtn").textContent = "Checking…"; const r = await J("/api/library/sizes", {}); if (r.sizes) Object.assign(sizes, r.sizes); $("sizesBtn").textContent = r.online ? "Sizes checked" : "Offline"; refreshLib(); };
-function renderJobs() {
-  const js = lib.jobs.filter(j => j.state !== "done" || Date.now()); // show all this session
-  $("jobs").innerHTML = js.length ? js.slice().reverse().map(j => {
-    const pct = j.total ? Math.round(100 * j.done / j.total) : null;
-    return `<div class="item" style="grid-template-columns:1fr auto auto"><div>${esc(j.title)}<small>${esc(j.detail || j.error || "")}</small></div>
-      <span style="font-size:13px">${j.state === "downloading" ? (pct != null ? pct + "% of " + gb(j.total) : "working…") : esc(j.state)}</span>
-      ${["queued", "downloading"].includes(j.state) ? `<button class="small" data-cancel="${j.id}">Cancel</button>` : "<span></span>"}</div>`;
-  }).join("") : '<span class="muted">Nothing downloading.</span>';
-}
-$("jobs").onclick = e => { const b = e.target.closest("[data-cancel]"); if (b) J("/api/library/cancel", {id: b.dataset.cancel}).then(refreshLib); };
-function renderBrain() {
-  $("brainCard").innerHTML = `<div class="muted" style="font-size:14px;margin-bottom:6px">This computer: ${sys.ram_gb} GB memory · ${esc(sys.gpu)}. Beacon picks the strongest installed model that fits. Models you download stay on the drive and work on any computer it's plugged into.</div>` +
-    sys.tiers.map(t => `<div class="brainrow"><div><b>${esc(t.model)}</b> <span class="muted">· ${esc(t.label)} · ${t.size_gb} GB</span>${t.model === sys.recommended.model ? ' <span class="tag" style="color:var(--amber)">recommended here</span>' : ""}</div>
-      <span class="${t.fits ? "ok" : "muted"}" style="font-size:13px">${t.fits ? "fits" : "needs " + t.min_ram_gb + " GB"}</span>
-      ${t.installed ? '<span class="ok" style="font-size:13px">installed</span>' : `<button class="small" data-pull="${esc(t.model)}" ${lib && lib.online ? "" : "disabled"}>Download</button>`}</div>`).join("") +
-    `<div class="row" style="margin-top:10px"><label class="muted" style="font-size:13px">Use model:</label><select id="modelSel" style="width:auto"><option value="">Auto (${esc(sys.active_model || "none")})</option>${sys.tiers.filter(t => t.installed).map(t => `<option ${sys.chosen === t.model ? "selected" : ""}>${esc(t.model)}</option>`).join("")}</select></div>`;
-}
-$("brainCard").onclick = e => { const b = e.target.closest("[data-pull]"); if (b) { b.disabled = true; J("/api/models/pull", {model: b.dataset.pull}).then(refreshLib); } };
-$("brainCard").onchange = e => { if (e.target.id === "modelSel") J("/api/model", {model: e.target.value}).then(loadSystem); };
-function renderMapsCard() {
-  const has = f => lib.maps.find(m => m.file === f);
-  $("mapsCard").innerHTML = `
-    <div class="brainrow"><div><b>World place names</b><span class="muted"> · 60,000+ cities and towns for search & "where am I" · ~10 MB</span></div><span></span>${lib.places ? '<span class="ok" style="font-size:13px">installed</span>' : `<button class="small" data-map="places" ${lib.online ? "" : "disabled"}>Download</button>`}</div>
-    <div class="brainrow"><div><b>World map</b><span class="muted"> · countries, coasts, major roads & cities (zoom 0–6)</span></div><span class="muted" style="font-size:13px">${has("world.pmtiles") ? gb(has("world.pmtiles").size_mb * 1024 ** 2) : ""}</span>${has("world.pmtiles") ? '<span class="ok" style="font-size:13px">installed</span>' : `<button class="small" data-map="world" ${lib.online ? "" : "disabled"}>Build</button>`}</div>
-    <div style="padding:10px 0 0;border-top:1px solid var(--line);margin-top:4px"><b>Detailed region map</b> <span class="muted">· every street, trail and building around a place (zoom 13)</span>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap"><div class="sugg" style="flex:1;min-width:200px"><input type="search" id="regIn" placeholder="Center on… (city)" autocomplete="off"><ul id="regSug" hidden></ul></div>
-      <select id="regRad" style="width:auto"><option value="100">100 km</option><option value="300" selected>300 km</option><option value="600">600 km</option><option value="1000">1000 km</option></select>
-      <button class="small" id="regGo" ${lib.online ? "" : "disabled"}>Build</button></div>
-      <div class="muted" style="font-size:12px;margin-top:6px">Bigger areas take much more space: 300 km is typically a few GB. Installed: ${lib.maps.filter(m => m.kind === "region").map(m => esc(m.file.replace(/^region-|\.pmtiles$/g, "")) + " (" + gb(m.size_mb * 1024 ** 2) + ")").join(", ") || "none"}</div></div>`;
-  wireSuggest("regIn", "regSug", p => { regPick = p; });
-  $("regGo").onclick = () => { if (!regPick) return alert("Pick a place from the list first."); J("/api/maps/build", {kind: "region", label: regPick.label.split(",")[0], lat: regPick.lat, lon: regPick.lon, radius: +$("regRad").value}).then(refreshLib); };
-}
-let regPick = null;
-$("mapsCard").onclick = e => { const b = e.target.closest("[data-map]"); if (b) { b.disabled = true; J("/api/maps/build", {kind: b.dataset.map}).then(refreshLib); } };
-function renderBuy() { const bl = lib.buy_list; $("buy").innerHTML = `<p class="muted" style="margin-top:0;font-size:13px">${esc(bl._about || "")}</p><ul style="margin:0">${(bl.books || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>`; }
-$("ingest").onclick = () => J("/api/ingest", {}).then(() => setTimeout(refreshLib, 400));
-$("kgo").onclick = async () => {
-  $("kres").innerHTML = '<p class="muted">Searching…</p>';
-  const r = await J("/api/library/search?q=" + encodeURIComponent($("kq").value));
-  $("kres").innerHTML = r.length ? r.map((e, i) => `<div class="item" style="grid-template-columns:1fr auto auto"><div>${esc(e.title)} <span class="tag">${esc(e.flavour || "")}</span><small>${esc(e.summary)}</small></div><span class="muted" style="font-size:13px">${gb(e.size)}</span><button class="small" data-k="${i}">Add</button></div>`).join("") : '<p class="muted">Nothing found (or offline).</p>';
-  $("kres").onclick = ev => { const b = ev.target.closest("[data-k]"); if (b) { b.disabled = true; J("/api/library/add_zim", r[b.dataset.k]).then(refreshLib); } };
-};
-
-/* ---------- place search box (shared) ---------- */
-function wireSuggest(inputId, listId, onPick) {
-  const inp = $(inputId), ul = $(listId); let t, items = [], seq = 0;
-  async function search() {
-    const q = inp.value.trim(); if (q.length < 2) { ul.hidden = true; items = []; return; }
-    const my = ++seq, r = await J("/api/places?q=" + encodeURIComponent(q));
-    if (my !== seq) return;  // a newer keystroke won
-    items = r.results;
-    if (!r.available && !items.length) { ul.innerHTML = '<li class="muted">Place names not installed (Library → Maps). You can still type coordinates like 33.75, -84.39.</li>'; ul.hidden = false; return; }
-    ul.innerHTML = items.map((p, i) => `<li data-i="${i}">${esc(p.label)}</li>`).join("") || '<li class="muted">No match</li>'; ul.hidden = false;
-  }
-  inp.oninput = () => { clearTimeout(t); t = setTimeout(search, 160); };
-  inp.onkeydown = async e => {
-    if (e.key !== "Enter") return;
-    e.preventDefault(); clearTimeout(t);
-    await search();               // Enter works even before suggestions arrive
-    if (items[0]) pick(0);
-  };
-  ul.onclick = e => { const li = e.target.closest("li[data-i]"); if (li) pick(+li.dataset.i); };
-  inp.onblur = () => setTimeout(() => ul.hidden = true, 200);
-  function pick(i) { const p = items[i]; inp.value = p.label; ul.hidden = true; onPick(p); }
-}
-</script>
-
-<script type="module">
-/* ---------- MAP (MapLibre + PMTiles, all served from the drive) ---------- */
-import * as maplibregl from "/static/vendor/maplibre-gl.mjs";
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let map, from = null, to = null, clickMode = null, mFrom, mTo, ready = false;
-
-function arc(a, b, n = 96) { // great-circle points
-  const R = Math.PI / 180, [l1, p1, l2, p2] = [a.lon * R, a.lat * R, b.lon * R, b.lat * R];
-  const d = 2 * Math.asin(Math.sqrt(Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin((l2 - l1) / 2) ** 2));
-  if (d === 0) return [[a.lon, a.lat]];
-  const pts = [];
-  for (let i = 0; i <= n; i++) {
-    const f = i / n, A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
-    const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2), y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2), z = A * Math.sin(p1) + B * Math.sin(p2);
-    pts.push([Math.atan2(y, x) / R, Math.atan2(z, Math.sqrt(x * x + y * y)) / R]);
-  }
-  for (let i = 1; i < pts.length; i++) { while (pts[i][0] - pts[i - 1][0] > 180) pts[i][0] -= 360; while (pts[i][0] - pts[i - 1][0] < -180) pts[i][0] += 360; }
-  return pts;
-}
-
-async function init() {
-  if (map) { map.resize(); return; }
-  const info = await fetch("/api/maps").then(r => r.json());
-  const origin = location.origin;
-  const style = { version: 8, glyphs: origin + "/static/vendor/fonts/{fontstack}/{range}.pbf", sprite: origin + "/static/vendor/sprites/light",
-    sources: {}, layers: [{id: "bg", type: "background", paint: {"background-color": "#c7dbe9"}}] };
-  // Always-available fallback: country shapes bundled with the app.
-  const topo = await fetch("/static/vendor/countries-50m.json").then(r => r.json());
-  style.sources.countries = {type: "geojson", data: window.topojson.feature(topo, topo.objects.countries)};
-  style.layers.push({id: "c-fill", type: "fill", source: "countries", paint: {"fill-color": "#efe9dc"}},
-                    {id: "c-line", type: "line", source: "countries", paint: {"line-color": "#9c8f78", "line-width": .6}});
-  let hasTiles = false;
-  if (info.maps.length && window.pmtiles && window.basemaps) {
-    const proto = new window.pmtiles.Protocol(); maplibregl.addProtocol("pmtiles", proto.tile);
-    const files = [...info.maps].sort((a, b) => (a.kind === "world" ? -1 : 1) - (b.kind === "world" ? -1 : 1));
-    files.forEach((m, i) => {
-      const src = "pm" + i;
-      style.sources[src] = {type: "vector", url: `pmtiles://${origin}/maps/${m.file}`, attribution: "© OpenStreetMap contributors · Protomaps"};
-      window.basemaps.layers(src, window.basemaps.namedFlavor("light"), {lang: "en"})
-        .filter(l => l.type !== "background").forEach(l => style.layers.push({...l, id: `${src}-${l.id}`}));
-    });
-    hasTiles = true;
-  }
-  style.sources.route = {type: "geojson", data: {type: "FeatureCollection", features: []}};
-  style.layers.push({id: "route", type: "line", source: "route", paint: {"line-color": "#d0451b", "line-width": 3, "line-dasharray": [2, 1.5]}});
-  map = new maplibregl.Map({container: "map", style, center: [-40, 30], zoom: 1.6, attributionControl: {compact: true}, canvasContextAttributes: {preserveDrawingBuffer: true}});
-  map.addControl(new maplibregl.NavigationControl(), "top-right");
-  map.addControl(new maplibregl.ScaleControl({unit: "imperial"}), "bottom-right");
-  map.addControl(new maplibregl.ScaleControl({unit: "metric"}), "bottom-right");
-  map.on("load", () => { ready = true; draw(); });
-  map.on("mousemove", e => $("cursor").textContent = `${e.lngLat.lat.toFixed(4)}, ${e.lngLat.lng.toFixed(4)}`);
-  map.on("click", async e => {
-    if (!clickMode) return;
-    const p = {lat: e.lngLat.lat, lon: e.lngLat.lng};
-    const near = await fetch(`/api/places/nearest?lat=${p.lat}&lon=${p.lon}`).then(r => r.json());
-    p.label = `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}` + (near[0] ? ` (near ${near[0].name.split(",")[0]})` : "");
-    if (clickMode === "from") { from = p; $("fromIn").value = p.label; } else { to = p; $("toIn").value = p.label; }
-    clickMode = null; map.getCanvas().style.cursor = ""; update();
-  });
-  if (!hasTiles) {
-    const n = document.createElement("div"); n.className = "mapnote";
-    n.innerHTML = info.places ? "Basic world outline only. Build the world and region maps in <b>Library → Maps</b> for roads, towns and terrain."
-                               : "Basic world outline only. Install <b>place names</b> and <b>maps</b> in Library → Maps. You can still enter coordinates.";
-    n.title = "Click to dismiss"; n.onclick = () => n.remove();
-    $("map").appendChild(n);
-  }
-}
-
-function marker(p, color, old) {
-  old?.remove();
-  return p ? new maplibregl.Marker({color}).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup().setText(p.label || "")).addTo(map) : null;
-}
-function draw() {
-  if (!ready) return;
-  mFrom = marker(from, "#2b7bd3", mFrom); mTo = marker(to, "#d0451b", mTo);
-  map.getSource("route").setData({type: "FeatureCollection", features: from && to ? [{type: "Feature", geometry: {type: "LineString", coordinates: arc(from, to)}}] : []});
-  const pts = [from, to].filter(Boolean);
-  if (pts.length === 2) {
-    const c = arc(from, to); const lons = c.map(p => p[0]), lats = c.map(p => p[1]);
-    map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], {padding: 60, maxZoom: 12, duration: 600});
-  } else if (pts.length === 1) map.flyTo({center: [pts[0].lon, pts[0].lat], zoom: Math.max(map.getZoom(), 9)});
-}
-async function update() {
-  draw();
-  $("planTrip").disabled = !from;
-  if (from) {
-    const near = await fetch(`/api/places/nearest?lat=${from.lat}&lon=${from.lon}`).then(r => r.json());
-    $("nearby").innerHTML = near.length ? `<h2 class="k">Nearest towns</h2>` + near.map(n => `<div style="font-size:14px">${esc(n.name)} <span class="muted">· ${n.km} km</span></div>`).join("") : "";
-  }
-  if (from && to) {
-    const r = await fetch("/api/route", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({from, to})}).then(r => r.json());
-    $("routeFacts").innerHTML = `<div class="facts">
-      <div class="fact"><b>${r.miles.toLocaleString()} mi</b><span>${r.km.toLocaleString()} km straight line</span></div>
-      <div class="fact"><b>${r.bearing}° ${r.compass}</b><span>initial heading (true)</span></div>
-      ${r.walk_days != null ? `<div class="fact"><b>${r.walk_days} days</b><span>walking, ~25 km/day</span></div>
-      <div class="fact"><b>${r.drive_hours} h</b><span>driving, rough</span></div>` : `<div class="fact"><b>~${r.flight_hours} h</b><span>flying, nonstop</span></div>
-      <div class="fact"><b>Overseas</b><span>needs air or sea travel</span></div>`}</div>`;
-  } else $("routeFacts").innerHTML = "";
-}
-window.BeaconMap = { init };
-document.querySelector('#nav button[data-tab="map"]').addEventListener("click", () => setTimeout(init, 30));
-wireSuggest("fromIn", "fromSug", p => { from = p; update(); });
-wireSuggest("toIn", "toSug", p => { to = p; update(); });
-$("clickFrom").onclick = () => { clickMode = "from"; map.getCanvas().style.cursor = "crosshair"; };
-$("clickTo").onclick = () => { clickMode = "to"; map.getCanvas().style.cursor = "crosshair"; };
-$("swap").onclick = () => { [from, to] = [to, from]; [$("fromIn").value, $("toIn").value] = [$("toIn").value, $("fromIn").value]; update(); };
-$("gpsBtn").onclick = () => {
-  if (!navigator.geolocation) { $("gpsNote").textContent = "This browser can't read location. Type it in instead."; return; }
-  $("gpsNote").textContent = "Asking the device for a location…";
-  navigator.geolocation.getCurrentPosition(async pos => {
-    from = {lat: pos.coords.latitude, lon: pos.coords.longitude};
-    const near = await fetch(`/api/places/nearest?lat=${from.lat}&lon=${from.lon}`).then(r => r.json());
-    from.label = `${from.lat.toFixed(4)}, ${from.lon.toFixed(4)}` + (near[0] ? ` (near ${near[0].name.split(",")[0]})` : "");
-    $("fromIn").value = from.label; $("gpsNote").textContent = `Accurate to about ${Math.round(pos.coords.accuracy)} m.`; update();
-  }, () => { $("gpsNote").textContent = "No location available. Laptops usually need internet or a USB GPS for this. Type your city or coordinates instead."; }, {timeout: 15000, enableHighAccuracy: true});
-};
-$("planTrip").onclick = async () => {
-  document.querySelector('#nav button[data-tab="plan"]').click();
-  await new Promise(r => setTimeout(r, 300));
-  window.BeaconPlan?.(to ? "evacuate" : "get-home", {location: from?.label || "", destination: to?.label || ""});
-};
-$("printMap").onclick = () => { map?.resize(); window.printAs("map", "Map: " + ($("fromIn").value || "") + ($("toIn").value ? " → " + $("toIn").value : "")); };
-</script>
 <script src="/static/vendor/pmtiles.js"></script>
 <script src="/static/vendor/basemaps.js"></script>
 <script src="/static/vendor/topojson-client.min.js"></script>
-<script>
-/* ---------- CHECK ---------- */
-window.printAs = printAs; window.wireSuggest = wireSuggest; window.BeaconPlan = async (id, pre) => { await tabs.plan(); openPlan(id, pre); };
-tabs.check = () => { renderSys(); J("/api/check").then(c => c.report && renderCheck(c.report)); };
-function renderSys() {
-  if (!sys) return;
-  $("sysCard").innerHTML = `<table class="res">${[["Computer", sys.chip], ["System", sys.os + " · " + sys.machine], ["CPU cores", sys.cpu_cores], ["Memory", sys.ram_gb + " GB (" + (sys.ram_free_gb ?? "?") + " GB free)"], ["Graphics", sys.gpu], ["Drive", sys.disk_free_gb + " GB free of " + sys.disk_total_gb + " GB"], ["Brain", (sys.active_model || "none") + " · " + sys.profile.name + " (context " + sys.profile.num_ctx.toLocaleString() + " tokens, up to " + sys.profile.sources + " sources)"], ["Recommended", sys.recommended.model]].map(r => `<tr><td class="muted">${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table>`;
-}
-function renderCheck(rep) {
-  const groups = {brain: "Brain", manual: "Manuals & PDFs", library: "Offline libraries"};
-  $("checkOut").innerHTML = `<div class="card"><b class="${rep.passed === rep.total ? "ok" : "warn"}">${rep.passed} of ${rep.total} checks passed</b> <span class="muted">· ${rep.seconds}s</span></div>` +
-    Object.entries(groups).map(([k, t]) => { const rs = rep.results.filter(r => r.kind === k); return rs.length ? `<h2 class="k">${t}</h2><div class="card"><table class="res">${rs.map(r => `<tr><td style="width:22px" class="${r.ok ? (r.warn ? "warn" : "ok") : "bad"}">${r.ok ? (r.warn ? "!" : "✓") : "✗"}</td><td>${esc(r.name)}</td><td class="muted">${esc(r.detail)}</td></tr>`).join("")}</table></div>` : ""; }).join("");
-}
-$("runCheck").onclick = async () => {
-  $("runCheck").disabled = true; $("checkOut").innerHTML = '<p class="status">Running checks… searching every manual and library.</p>';
-  await J("/api/check", {});
-  const poll = async () => { const c = await J("/api/check"); if (c.running) return setTimeout(poll, 800); $("runCheck").disabled = false; if (c.report) renderCheck(c.report); };
-  poll();
-};
-/* ---------- EMERGENCY ---------- */
-let sosText = "";
-async function sosCard(file) {
-  const t = await fetch("/read/manual/cards/" + file).then(r => r.ok ? r.text() : "Card not found.");
-  sosText = t; $("sosBody").innerHTML = md(t, []); $("sos").scrollTo({top: 0});
-}
-$("sosBtn").onclick = () => { $("sos").classList.add("on"); sosCard("first-aid-essentials.md"); };
-$("sos").onclick = e => { const b = e.target.closest("[data-card]"); if (b) sosCard(b.dataset.card); };
-$("sosClose").onclick = () => { $("sos").classList.remove("on"); speechSynthesis?.cancel(); };
-$("sosSpeak").onclick = e => speak(sosText, e.target);
-$("sosAsk").onclick = () => { $("sos").classList.remove("on"); show("ask"); $("q").focus(); };
-document.addEventListener("keydown", e => { if (e.key === "Escape") $("sos").classList.remove("on"); });
-
-/* ---------- MY INFO ---------- */
-const INFO = [["home", "Home address / area", "Street, city, state. Plans and maps start here."],
-  ["people", "People in the household", "Names, ages, special needs, pets"],
-  ["medical", "Medical conditions, medications & allergies", "Who takes what, doses, allergies, blood types"],
-  ["contacts", "Emergency contacts & phone numbers", "Family, doctor, neighbors, work"],
-  ["meeting", "Meeting places", "1) right outside  2) neighborhood spot  3) out-of-town place"],
-  ["outside_contact", "Out-of-area contact", "Someone far away everyone checks in with"],
-  ["vehicles", "Vehicles, fuel & range", "e.g. SUV, 400 mi range; EV, 250 mi"],
-  ["skills", "Skills & key gear", "First aid training, ham license, generator, water filter…"],
-  ["documents", "Where documents are kept", "Passports, deeds, insurance, go-bags"],
-  ["notes", "Other notes", ""]];
-tabs.info = async () => {
-  const prof = await J("/api/profile");
-  $("infoForm").innerHTML = INFO.map(([k, label, ph]) => `<label class="f" for="in-${k}">${esc(label)}</label><textarea class="tall" id="in-${k}" placeholder="${esc(ph)}">${esc(prof[k] || "")}</textarea>`).join("");
-};
-$("infoSave").onclick = async () => {
-  const body = {}; INFO.forEach(([k]) => body[k] = $("in-" + k).value);
-  await J("/api/profile", body); $("infoMsg").textContent = "Saved to the drive."; setTimeout(() => $("infoMsg").textContent = "", 2500);
-};
-
-/* ---------- READING SHELF ---------- */
-const _refreshLib = refreshLib;
-refreshLib = async function () {
-  await _refreshLib();
-  const books = await J("/api/books");
-  if (books.length) $("shelf").innerHTML = books.map(b => `<div class="item" style="grid-template-columns:1fr auto;padding:6px 0"><a href="/read/book/${b.path.split("/").map(encodeURIComponent).join("/")}" target="_blank">${esc(b.title)}</a><span class="muted" style="font-size:12px">${esc(b.band)}</span></div>`).join("");
-};
-
-boot();
-</script>
+<script src="/static/vendor/qrcode.js"></script>
+<script src="/static/js/core.js"></script>
+<script src="/static/js/home.js"></script>
+<script src="/static/js/plan.js"></script>
+<script src="/static/js/tools.js"></script>
+<script src="/static/js/library.js"></script>
+<script src="/static/js/board.js"></script>
+<script src="/static/js/start.js"></script>
+<script type="module" src="/static/js/map.js"></script>
 </body>
 </html>

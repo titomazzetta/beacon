@@ -49,12 +49,14 @@ class ManualIndex:
         self.db = sqlite3.connect(db_path, check_same_thread=False)
         self.ollama, self.embed_model = ollama, embed_model
         self.root = Path(root) if root else None
+        self.display: dict[str, str] = {}  # file -> the catalog's title for it, set by the app
         self.lock = threading.RLock()
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY, mtime REAL, chunks INT);
             CREATE TABLE IF NOT EXISTS chunks(
                 id INTEGER PRIMARY KEY, file TEXT, page INT, text TEXT, vec BLOB);
             CREATE INDEX IF NOT EXISTS chunks_file ON chunks(file);
+            CREATE TABLE IF NOT EXISTS titles(path TEXT PRIMARY KEY, title TEXT);
         """)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(files)")}
         for col in ("pages", "chars"):  # added in v0.2
@@ -113,13 +115,19 @@ class ManualIndex:
             cache[file] = title
         return cache[file]
 
+    @staticmethod
+    def pretty(file: str) -> str:
+        """'army/FM-3-05-70_survival.pdf' -> 'FM 3 05 70 survival'."""
+        return re.sub(r"[-_]+", " ", Path(file).stem).strip() or Path(file).name
+
     def files(self) -> list[dict]:
         out = []
         with self.lock:
             rows = self.db.execute("SELECT path, chunks, pages, chars FROM files ORDER BY path").fetchall()
+            titles = dict(self.db.execute("SELECT path, title FROM titles").fetchall())
         for p, c, pages, chars in rows:
-            scanned = p.lower().endswith(".pdf") and pages and chars / max(pages, 1) < 40
-            out.append({"file": Path(p).name, "path": p, "chunks": c,
+            scanned = (p.lower().endswith(".pdf") or p.startswith("zim:")) and pages and chars / max(pages, 1) < 40
+            out.append({"file": Path(p).name, "path": p, "chunks": c, "title": titles.get(p, ""),
                         "pages": pages, "scanned": bool(scanned)})
         return out
 
@@ -180,12 +188,78 @@ class ManualIndex:
             continue
         with self.lock:
             for (p,) in self.db.execute("SELECT path FROM files").fetchall():
-                if p not in seen:  # deleted from the folder (or an old absolute-path key)
+                if p not in seen and not p.startswith("zim:"):  # deleted from the folder (or an old key)
                     self.db.execute("DELETE FROM chunks WHERE file=?", (p,))
                     self.db.execute("DELETE FROM files WHERE path=?", (p,))
             self.db.commit()
         self._load_matrix()
         return {"indexed": added, "unchanged": skipped, "total_chunks": len(self.meta)}
+
+    def ingest_zim_pdfs(self, kiwix, progress=print, max_entries: int = 50000) -> dict:
+        """Some Kiwix archives (the "zimgit" collections) are bundles of PDF books that Kiwix's
+        own search can't read. Pull the text out of those PDFs so the AI can use them."""
+        import io
+        from pypdf import PdfReader
+        seen_books, added = set(), 0
+        for book, archive in getattr(kiwix, "books", {}).items():
+            seen_books.add(book)
+            if archive.entry_count > max_entries:  # big encyclopedias have their own full-text search
+                continue
+            zim_path = Path(archive.filename) if hasattr(archive, "filename") else None
+            stamp = f"{zim_path.stat().st_size}:{int(zim_path.stat().st_mtime)}" if zim_path and zim_path.exists() else "?"
+            with self.lock:
+                done = self.db.execute("SELECT COUNT(*) FROM files WHERE path LIKE ? AND mtime = ?",
+                                       (f"zim:{book}/%", stamp)).fetchone()[0]
+            if done:
+                continue
+            pdfs = []
+            for i in range(archive.entry_count):
+                try:
+                    entry = archive._get_entry_by_id(i)
+                    if entry.is_redirect:
+                        continue
+                    item = entry.get_item()
+                    if item.mimetype == "application/pdf":
+                        pdfs.append((entry.path, entry.title, item))
+                except Exception:
+                    continue
+            if not pdfs:
+                continue
+            progress(f"Reading {len(pdfs)} PDFs inside {book}...")
+            with self.lock:  # replace any older edition of this archive
+                for (old,) in self.db.execute("SELECT path FROM files WHERE path LIKE ?", (f"zim:{book}/%",)).fetchall():
+                    self.db.execute("DELETE FROM chunks WHERE file=?", (old,))
+                    self.db.execute("DELETE FROM files WHERE path=?", (old,))
+                self.db.commit()
+            for path, title, item in pdfs:
+                key = f"zim:{book}/{path}"
+                try:
+                    reader = PdfReader(io.BytesIO(bytes(item.content)))
+                    pages = [(n + 1, pg.extract_text() or "") for n, pg in enumerate(reader.pages)]
+                except Exception as e:
+                    progress(f"Skipped {title}: {str(e)[:60]}")
+                    continue
+                pieces = [(pg, c) for pg, txt in pages for c in chunk(txt)]
+                rows = []
+                for j in range(0, len(pieces), 32):
+                    batch = pieces[j:j + 32]
+                    vecs = self.ollama.embed(self.embed_model, [c for _, c in batch])
+                    rows += [(key, pg, c, np.asarray(v, dtype=np.float32).tobytes()) for (pg, c), v in zip(batch, vecs)]
+                with self.lock:
+                    self.db.executemany("INSERT INTO chunks(file, page, text, vec) VALUES (?,?,?,?)", rows)
+                    self.db.execute("INSERT OR REPLACE INTO files(path, mtime, chunks, pages, chars) VALUES (?,?,?,?,?)",
+                                    (key, stamp, len(pieces), len(pages), sum(len(t.strip()) for _, t in pages)))
+                    self.db.execute("INSERT OR REPLACE INTO titles(path, title) VALUES (?, ?)", (key, title or Path(path).stem))
+                    self.db.commit()
+                added += 1
+        with self.lock:  # archives that were removed from the drive
+            for (p,) in self.db.execute("SELECT path FROM files WHERE path LIKE 'zim:%'").fetchall():
+                if p.split("/", 1)[0][4:] not in seen_books:
+                    self.db.execute("DELETE FROM chunks WHERE file=?", (p,))
+                    self.db.execute("DELETE FROM files WHERE path=?", (p,))
+            self.db.commit()
+        self._load_matrix()
+        return {"indexed": added, "total_chunks": len(self.meta)}
 
     def search(self, question: str, k: int = 4, max_chars: int = 2500) -> list[dict]:
         if self.matrix is None:
@@ -201,13 +275,20 @@ class ManualIndex:
         out = []
         for i in np.argsort(-scores)[:k]:
             cid, file, page, text = self.meta[i]
+            if file.startswith("zim:"):  # a PDF book stored inside a Kiwix archive
+                book, path = file[4:].split("/", 1)
+                with self.lock:
+                    row = self.db.execute("SELECT title FROM titles WHERE path=?", (file,)).fetchone()
+                out.append({"kind": "zimpdf", "book": row[0] if row else Path(path).stem, "title": f"p. {page}",
+                            "file": file, "ref": f"{book}/{path}", "page": page, "text": text[:max_chars],
+                            "score": float(scores[i])})
+                continue
             if file.lower().endswith(".pdf"):
-                title = f"p. {page}"
+                book, title = self.display.get(file) or self.pretty(file), f"p. {page}"
             else:
-                title = self._heading(file)
-                if self.parts_total.get(file, 1) > 1:
-                    title += f" · part {self.part[cid]}"
-            out.append({"kind": "manual", "book": Path(file).name, "title": title, "file": file,
+                book = self.display.get(file) or self._heading(file)
+                title = f"part {self.part[cid]}" if self.parts_total.get(file, 1) > 1 else ""
+            out.append({"kind": "manual", "book": book, "title": title, "file": file,
                         "ref": f"{file}#page={page}", "text": text[:max_chars],
                         "score": float(scores[i])})
         return out

@@ -1,17 +1,20 @@
 #!/bin/bash
-# Build a Beacon USB drive. Run on a Mac with internet; the drive then runs offline on
-# Macs (macOS 14 Sonoma or newer) and Windows 10/11 PCs.
+# Build a Beacon drive. Run on a Mac with internet; the drive then runs offline on any Mac
+# with macOS 14 Sonoma or newer (Apple Silicon, or Intel Macs from about 2018 on).
 #
-#   ./scripts/build_usb.sh /Volumes/BEACON                      # asks a few questions
-#   ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Atlanta" --radius 300
-#   ./scripts/build_usb.sh /Volumes/BEACON --tier core --models "qwen3:4b" --no-windows
+#   ./scripts/build_usb.sh /Volumes/BEACON                    # asks a few questions
+#   ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
+#   ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
+#   ./scripts/build_usb.sh /Volumes/BEACON --ollama-version v0.40.2   # pin a tested engine
+#   ./scripts/build_usb.sh /Volumes/BEACON --no-mesh                  # skip the Meshtastic radio add-on
 #
 # Safe to re-run any time: finished downloads are skipped, interrupted ones resume.
+# Every program it downloads is checked against a published or pinned SHA-256 hash first.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-}"; [ $# -gt 0 ] && shift
-TIER=""; MODELS=""; REGION=""; RADIUS="300"; WINDOWS=1; MAPS=1
+TIER=""; MODELS=""; REGION=""; RADIUS="300"; MAPS=1; OLLAMA_VERSION="latest"; MESH=1; VERIFY=1
 PY_VER="3.12"
 
 while [ $# -gt 0 ]; do
@@ -20,41 +23,61 @@ while [ $# -gt 0 ]; do
     --models) MODELS="$2"; shift 2 ;;
     --region) REGION="$2"; shift 2 ;;
     --radius) RADIUS="$2"; shift 2 ;;
-    --no-windows) WINDOWS=0; shift ;;
+    --ollama-version) OLLAMA_VERSION="$2"; shift 2 ;;
     --no-maps) MAPS=0; shift ;;
+    --no-mesh) MESH=0; shift ;;
+    --no-verify) VERIFY=0; shift ;;     # only if a publisher stops posting checksums
     *) echo "Unknown option $1"; exit 1 ;;
   esac
 done
 
 say()  { printf "\n\033[1;33m▸ %s\033[0m\n" "$*"; }
 warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
-[ -n "$TARGET" ] && [ -d "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_USB [--tier core|extended|complete|everything] [--region CITY] [--models \"...\"] [--no-windows] [--no-maps]"; exit 1; }
+[ -n "$TARGET" ] && [ -d "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_DRIVE [--tier core|extended|complete|everything] [--region CITY] [--models \"...\"]"; exit 1; }
 [ "$(uname)" = "Darwin" ] || { echo "Run this on a Mac."; exit 1; }
+
+# ---- the drive's format
+FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}')"
+case "$FS" in
+  *FAT32*|*MS-DOS*)
+    warn "This drive is FAT32, which can't hold files over 4 GB."
+    warn "In Disk Utility, erase it as APFS (best for Macs) and run this again."
+    exit 1 ;;
+  *ExFAT*|*exFAT*)
+    COPY=(rsync -rLt)       # exFAT has no symlinks or Unix permissions: copy real files
+    echo "Note: this drive is exFAT. That works, but APFS is faster and more reliable on Macs." ;;
+  *)
+    COPY=(rsync -a) ;;
+esac
+
+# ---- encryption: the household info and your notes live on this drive
+ENC="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/FileVault|Encrypted/{gsub(/^ +/,"",$2); print $2; exit}')"
+case "$ENC" in
+  Yes*) echo "Drive encryption: on." ;;
+  *) warn "This drive isn't encrypted. Anyone who finds it could read your household info."
+     warn "To lock it with a password (APFS drives): in Finder, Control-click the drive and choose Encrypt." ;;
+esac
 
 # ---- a few questions if run without options
 if [ -z "$TIER" ] && [ -t 0 ]; then
   echo; echo "Which library tier?"
-  echo "  1) Core        essentials (64 GB drive)"
+  echo "  1) Core        the essentials (64 GB drive)"
   echo "  2) Extended    + repair, off-grid, homesteading, reading shelf (128 GB)"
-  echo "  3) Complete    + WikiHow and Wikipedia intros (256 GB)"
-  echo "  4) Everything  + all of Wikipedia (512 GB+)"
+  echo "  3) Complete    + WikiHow, Wikipedia intros, learning (256 GB)"
+  echo "  4) Everything  + all of Wikipedia (512 GB or more)"
   read -r -p "Choose 1-4 [1]: " n
   TIER=$(case "${n:-1}" in 2) echo extended;; 3) echo complete;; 4) echo everything;; *) echo core;; esac)
   read -r -p "Detailed map around which town or city? (Enter to skip): " REGION
 fi
 TIER="${TIER:-core}"
-MODELS="${MODELS:-qwen3:4b qwen3:14b}"   # light brain for 8 GB machines + strong brain for 16 GB+
+MODELS="${MODELS:-qwen3:4b qwen3:14b}"   # light brain for 8 GB Macs + strong brain for 16 GB+
 
 L="$TARGET/Beacon"
-mkdir -p "$L"/{app,runtime,ollama,models,library/zim,library/manuals,library/books,maps,data}
-
-FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}')"
-if echo "$FS" | grep -qi "FAT32"; then
-  warn "This drive is FAT32, which can't store files over 4 GB."
-  warn "Reformat it as exFAT in Disk Utility (works on Mac and Windows), then re-run."
-  exit 1
-fi
-echo "Drive: $TARGET (${FS:-unknown filesystem}) · free: $(df -h "$TARGET" | awk 'NR==2{print $4}') · tier: $TIER"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/beacon-build.XXXX")"
+trap 'rm -rf "$WORK"' EXIT
+mkdir -p "$L"/{app,runtime,ollama/mac,models,library/zim,library/manuals,library/books,maps,data}
+touch "$TARGET/.metadata_never_index"     # keep Spotlight from crawling gigabytes of archives
+echo "Drive: $TARGET (${FS:-unknown format}), $(df -h "$TARGET" | awk 'NR==2{print $4}') free, $TIER tier"
 
 fetch() { # url dest: resumable, skips if complete
   local url="$1" dest="$2" size have
@@ -65,7 +88,21 @@ fetch() { # url dest: resumable, skips if complete
   curl -fL --retry 3 -C - -o "$dest" "$url" --progress-bar
 }
 
-gh_assets() { # repo -> list of download URLs for the latest release (no API rate limit)
+verify() { # file sums_file: the file's SHA-256 must match its line in the publisher's checksum list
+  local file="$1" sums="$2" want got
+  [ $VERIFY = 1 ] || { warn "Skipping checksum check for $(basename "$file") (--no-verify)"; return 0; }
+  want="$(grep -E "[ */]$(basename "$file" | sed 's/[.+]/\\&/g')\$" "$sums" | awk '{print $1}' | head -1)"
+  [ -n "$want" ] || { warn "No published checksum for $(basename "$file"). Stopping to be safe (or rerun with --no-verify)."; exit 1; }
+  got="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$want" != "$got" ]; then
+    rm -f "$file"
+    warn "$(basename "$file") didn't match its published checksum, so it was deleted. Run this again."
+    exit 1
+  fi
+  echo "  ✓ checksum verified: $(basename "$file")"
+}
+
+gh_assets() { # repo -> download URLs of the latest release (no API rate limit), API as fallback
   local repo="$1" tag
   tag="$(curl -sI "https://github.com/$repo/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | sed 's#.*/tag/##' | tr -d '\r')"
   if [ -n "$tag" ]; then
@@ -76,71 +113,96 @@ gh_assets() { # repo -> list of download URLs for the latest release (no API rat
   fi
 }
 
-# ---------------------------------------------------------------- app
-say "Copying the Beacon app"
-rsync -a --delete --exclude .git --exclude data --exclude library --exclude config.json \
-  --exclude __pycache__ --exclude tests --exclude .github --exclude docs "$REPO/" "$L/app/"
-rsync -a "$REPO/library/manuals/" "$L/library/manuals/"
+# ---------------------------------------------------------------- the app
+say "Copying Beacon"
+rsync -rt --delete --exclude .git --exclude data --exclude library --exclude config.json --exclude __pycache__ \
+  --exclude tests --exclude .github --exclude docs --exclude platforms "$REPO/" "$L/app/"
+chmod +x "$L/app/scripts/launch.sh" 2>/dev/null || true
+rsync -rt "$REPO/library/manuals/" "$L/library/manuals/"
 cp "$REPO/START-HERE.txt" "$TARGET/START-HERE.txt"; cp "$REPO/START-HERE.txt" "$L/START-HERE.txt"
-cp "$REPO/scripts/Beacon.command" "$L/Beacon.command"; chmod +x "$L/Beacon.command"
-cp "$REPO/scripts/Beacon.bat" "$L/Beacon.bat"
+cp "$REPO/scripts/Beacon (with Terminal).command" "$L/"; chmod +x "$L/Beacon (with Terminal).command" 2>/dev/null || true
+
+say "Building Beacon.app"
+osacompile -o "$WORK/Beacon.app" "$REPO/scripts/Beacon.applescript"
+cp "$REPO/scripts/Beacon.icns" "$WORK/Beacon.app/Contents/Resources/applet.icns"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Beacon" "$WORK/Beacon.app/Contents/Info.plist" 2>/dev/null || true
+rm -rf "$L/Beacon.app"; "${COPY[@]}" "$WORK/Beacon.app" "$L/"
+echo "  ✓ Beacon.app"
 
 # ---------------------------------------------------------------- portable Python
-say "Portable Python $PY_VER (Mac Apple Silicon, Mac Intel$( [ $WINDOWS = 1 ] && echo ", Windows"))"
-PYURLS="$(gh_assets astral-sh/python-build-standalone | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-[a-z0-9_]+-[a-z0-9_-]+-install_only\.tar\.gz$" || true)"
-TRIPLES="arm64:aarch64-apple-darwin x86_64:x86_64-apple-darwin"
-[ $WINDOWS = 1 ] && TRIPLES="$TRIPLES windows:x86_64-pc-windows-msvc"
-for pair in $TRIPLES; do
+say "Portable Python $PY_VER (Apple Silicon and Intel)"
+ASSETS="$(gh_assets astral-sh/python-build-standalone)"
+PYURLS="$(echo "$ASSETS" | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-[a-z0-9_]+-apple-darwin-install_only\.tar\.gz$" || true)"
+SUMS_URL="$(echo "$ASSETS" | grep -E '/SHA256SUMS$' | head -1)"
+for pair in "arm64:aarch64" "x86_64:x86_64"; do
   name="${pair%%:*}"; triple="${pair##*:}"
-  if [ -e "$L/runtime/python-$name/bin/python3" ] || [ -e "$L/runtime/python-$name/python.exe" ]; then echo "  ✓ python-$name"; continue; fi
-  url="$(echo "$PYURLS" | grep -- "-$triple-install_only" | head -1)"
-  [ -n "$url" ] || { warn "Couldn't find a Python download for $name"; exit 1; }
-  fetch "$url" "$L/runtime/py-$name.tar.gz"
-  mkdir -p "$L/runtime/python-$name"
-  tar -xzf "$L/runtime/py-$name.tar.gz" -C "$L/runtime/python-$name" --strip-components 1
-  rm -f "$L/runtime/py-$name.tar.gz"
+  if [ -e "$L/runtime/python-$name/bin/python3" ]; then echo "  ✓ python-$name"; continue; fi
+  url="$(echo "$PYURLS" | grep -- "-$triple-apple-darwin-install_only" | head -1)"
+  [ -n "$url" ] || { warn "Couldn't find a Python download for $name Macs"; exit 1; }
+  fname="$(basename "$url" | sed 's/%2[Bb]/+/g')"     # GitHub writes the + in Python's file names as %2B
+  fetch "$url" "$WORK/$fname"
+  [ -s "$WORK/py-SHA256SUMS" ] || { [ -n "$SUMS_URL" ] && curl -fsSL "$SUMS_URL" -o "$WORK/py-SHA256SUMS" || true; }
+  verify "$WORK/$fname" "$WORK/py-SHA256SUMS"
+  mv "$WORK/$fname" "$WORK/py-$name.tar.gz"
+  echo "python-$name $fname $(shasum -a 256 "$WORK/py-$name.tar.gz" | awk '{print $1}')" >> "$WORK/sbom.txt"
+  mkdir -p "$WORK/python-$name"
+  tar -xzf "$WORK/py-$name.tar.gz" -C "$WORK/python-$name" --strip-components 1   # on the Mac's own disk
+  "${COPY[@]}" "$WORK/python-$name/" "$L/runtime/python-$name/"                     # then onto the drive
 done
 
 HOST_ARCH="$(uname -m)"; [ "$(sysctl -in sysctl.proc_translated 2>/dev/null)" = "1" ] && HOST_ARCH="arm64"
-HPY="$L/runtime/python-$HOST_ARCH/bin/python3"
+HPY="$WORK/python-$HOST_ARCH/bin/python3"
+[ -x "$HPY" ] || HPY="$L/runtime/python-$HOST_ARCH/bin/python3"
 
-say "Python packages"
-PLATS="arm64:macosx_14_0_arm64 x86_64:macosx_14_0_x86_64"
-[ $WINDOWS = 1 ] && PLATS="$PLATS windows:win_amd64"
-for pair in $PLATS; do
+say "Python packages (pinned and hash-checked)"
+for pair in "arm64:macosx_14_0_arm64" "x86_64:macosx_14_0_x86_64"; do
   name="${pair%%:*}"; plat="${pair##*:}"
-  "$HPY" -m pip install --target "$L/runtime/site-$name" --upgrade --only-binary=:all: \
-     --python-version "$PY_VER" --implementation cp --platform "$plat" -q \
-     -r "$REPO/requirements.txt" && echo "  ✓ site-$name" || warn "Package install failed for $name"
+  PIP=("$HPY" -m pip install --target "$L/runtime/site-$name" --upgrade --only-binary=:all:
+       --python-version "$PY_VER" --implementation cp --platform "$plat" -q --require-hashes)
+  "${PIP[@]}" -r "$REPO/scripts/requirements-mac.lock" && echo "  ✓ site-$name" || { warn "Package install failed for $name Macs"; exit 1; }
+  if [ $MESH = 1 ]; then  # optional Meshtastic radio support (GPL-3.0), USB and Wi-Fi only
+    "${PIP[@]}" --no-deps -r "$REPO/scripts/requirements-mesh.lock" && echo "  ✓ Meshtastic add-on ($name)" || warn "Meshtastic add-on failed for $name Macs"
+  fi
 done
 
-# ---------------------------------------------------------------- Ollama (the AI engine)
-say "AI engine (Ollama)"
+# ---------------------------------------------------------------- the AI engine
+say "AI engine (Ollama $OLLAMA_VERSION)"
 if [ -z "$(find "$L/ollama/mac" -type f -name ollama 2>/dev/null | head -1)" ]; then
-  mkdir -p "$L/ollama/mac"
-  fetch "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz" "$L/ollama/ollama-darwin.tgz"
-  tar -xzf "$L/ollama/ollama-darwin.tgz" -C "$L/ollama/mac"; rm -f "$L/ollama/ollama-darwin.tgz"
-fi
-if [ $WINDOWS = 1 ] && [ ! -f "$L/ollama/windows/ollama.exe" ]; then
-  mkdir -p "$L/ollama/windows"
-  fetch "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip" "$L/ollama/ollama-windows.zip"
-  ditto -x -k "$L/ollama/ollama-windows.zip" "$L/ollama/windows"; rm -f "$L/ollama/ollama-windows.zip"
+  if [ "$OLLAMA_VERSION" = "latest" ]; then
+    OURL="https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz"
+  else
+    OURL="https://github.com/ollama/ollama/releases/download/$OLLAMA_VERSION/ollama-darwin.tgz"
+  fi
+  fetch "$OURL" "$WORK/ollama-darwin.tgz"
+  curl -fsSL "${OURL%/ollama-darwin.tgz}/sha256sum.txt" -o "$WORK/ollama-sums.txt" || true
+  verify "$WORK/ollama-darwin.tgz" "$WORK/ollama-sums.txt"
+  echo "ollama $OLLAMA_VERSION ollama-darwin.tgz $(shasum -a 256 "$WORK/ollama-darwin.tgz" | awk '{print $1}')" >> "$WORK/sbom.txt"
+  mkdir -p "$WORK/ollama"; tar -xzf "$WORK/ollama-darwin.tgz" -C "$WORK/ollama"
+  "${COPY[@]}" "$WORK/ollama/" "$L/ollama/mac/"
 fi
 OLLAMA_BIN="$(find "$L/ollama/mac" -type f -name ollama | head -1)"
-chmod +x "$OLLAMA_BIN"; xattr -dr com.apple.quarantine "$L/ollama" 2>/dev/null || true
+chmod +x "$OLLAMA_BIN" 2>/dev/null || true; xattr -dr com.apple.quarantine "$L/ollama" 2>/dev/null || true
 echo "  ✓ $("$OLLAMA_BIN" --version 2>/dev/null | tail -1)"
 
 export OLLAMA_HOST="127.0.0.1:11435" OLLAMA_MODELS="$L/models"
 "$OLLAMA_BIN" serve >"$L/data/ollama-build.log" 2>&1 &
-OPID=$!; trap 'kill $OPID 2>/dev/null || true' EXIT
+OPID=$!; trap 'kill $OPID 2>/dev/null || true; rm -rf "$WORK"' EXIT
 for _ in $(seq 1 60); do curl -s "http://$OLLAMA_HOST/api/version" >/dev/null && break; sleep 0.5; done
 
 export BEACON_OLLAMA_URL="http://$OLLAMA_HOST" BEACON_DATA_ROOT="$L" PYTHONNOUSERSITE=1
-export PYTHONPATH="$L/runtime/site-$HOST_ARCH:$L/app"
+export PYTHONPATH="$L/runtime/site-$HOST_ARCH:$L/app" PYTHONPYCACHEPREFIX="$WORK/pycache"
 INSTALL=("$HPY" -m beacon.installer)
 
 say "AI brains: $MODELS"
 "${INSTALL[@]}" --models "$MODELS" || warn "Some models didn't download; add them later in the Library tab."
+
+say "Checking the AI runs from the drive"
+SMALLEST="$(echo "$MODELS" | awk '{print $1}')"
+if curl -s -m 300 "http://$OLLAMA_HOST/api/generate" -d "{\"model\":\"$SMALLEST\",\"prompt\":\"Reply with one word: READY\",\"stream\":false,\"options\":{\"num_predict\":8}}" | grep -q '"response"'; then
+  echo "  ✓ $SMALLEST answered from the drive"
+else
+  warn "The AI didn't answer. See $L/data/ollama-build.log. Try --ollama-version with an older release."
+fi
 
 say "Library: $TIER tier"
 "${INSTALL[@]}" --tier "$TIER" || warn "Some items failed; retry later in the Library tab."
@@ -154,14 +216,25 @@ if [ $MAPS = 1 ]; then
   fi
 fi
 
-say "Indexing manuals so the AI can search them"
-"$HPY" -m beacon.ingest_cli || warn "Indexing failed; use 'Index manuals folder' in the app."
+say "Indexing the manuals so the AI can search them"
+"$HPY" -m beacon.ingest_cli || warn "Indexing failed; use 'Index manuals' in the Library tab."
+
+say "Software list (what's on this drive, with versions and hashes)"
+{
+  echo "Beacon drive built $(date '+%Y-%m-%d %H:%M') on macOS $(sw_vers -productVersion)"
+  echo; echo "Downloaded programs (name, file, SHA-256):"; cat "$WORK/sbom.txt" 2>/dev/null || echo "  (already on the drive from an earlier build)"
+  echo; echo "AI engine: $("$OLLAMA_BIN" --version 2>/dev/null | tail -1)"
+  for name in arm64 x86_64; do
+    echo; echo "Python packages for $name Macs:"; "$HPY" -m pip list --path "$L/runtime/site-$name" --format=freeze 2>/dev/null
+  done
+  echo; echo "Bundled web libraries:"; cat "$REPO/static/vendor/VERSIONS.txt"
+} > "$L/data/SBOM.txt"
+echo "  ✓ Beacon/data/SBOM.txt"
 
 dot_clean -m "$L" 2>/dev/null || true
 say "Done. Free space left: $(df -h "$TARGET" | awk 'NR==2{print $4}')"
 cat <<EOF
 
-  Mac:     open the drive > Beacon > right-click Beacon.command > Open (first time only).
-  Windows: open the drive > Beacon > double-click Beacon.bat.
-  Read START-HERE.txt on the drive for everything else.
+  Open the drive, then the Beacon folder, and double-click Beacon.
+  START-HERE.txt at the top of the drive explains everything else.
 EOF

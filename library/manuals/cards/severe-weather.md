@@ -5,7 +5,7 @@
 ## Tornado
 - **Shelter**: lowest floor, small interior room or hallway with no windows (closet, bathroom, under stairs). Get under something sturdy. Cover your head and neck with arms, a mattress, helmets or pillows.
 - **Mobile homes are not safe.** Go to a sturdy building or storm shelter *before* the storm arrives.
-- **In a car**: don't hide under an overpass. Drive to a sturdy building if you can. As a last resort, stay buckled in with your head below the windows and covered, or lie in a ditch noticeably lower than the road, covering your head.
+- **In a car**: don't hide under an overpass. If you have time and traffic allows, **drive to the nearest sturdy building**. If debris starts flying, pull over and park: either stay buckled in with your head below the windows, covered with your hands or a blanket, or get out and lie in a spot noticeably lower than the road, covering your head.
 - **Signs**: dark greenish sky, large hail, a loud roar like a freight train, a low rotating cloud, debris in the air.
 
 ## Lightning

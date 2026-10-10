@@ -1,6 +1,7 @@
 """Startup resource check: what is this machine, and what brain should it run?"""
 import os
 import platform
+import plistlib
 import shutil
 import subprocess
 from pathlib import Path
@@ -43,6 +44,25 @@ def _battery() -> dict | None:
         return None
 
 
+def drive_info(path: str) -> dict:
+    """Which drive Beacon runs from, and whether it's encrypted (macOS; unknown elsewhere)."""
+    p = Path(path).resolve()
+    while not os.path.ismount(p) and p != p.parent:
+        p = p.parent
+    info = {"mount": str(p), "encrypted": None, "format": "", "internal": None}
+    if platform.system() != "Darwin" or not shutil.which("diskutil"):
+        return info
+    try:
+        out = subprocess.run(["diskutil", "info", "-plist", str(p)], capture_output=True, timeout=10).stdout
+        d = plistlib.loads(out)
+        info["format"] = d.get("FilesystemName") or d.get("FilesystemType") or ""
+        info["encrypted"] = bool(d.get("FileVault") or d.get("Encryption"))
+        info["internal"] = bool(d.get("Internal"))
+    except Exception:
+        pass
+    return info
+
+
 def check(data_root: str, installed_models: list[str]) -> dict:
     ram = models.system_ram_gb()
     avail = None
@@ -69,6 +89,10 @@ def check(data_root: str, installed_models: list[str]) -> dict:
         notes.append("Less than 5 GB free on the drive. You won't be able to add much more.")
     if "CPU only" in _gpu():
         notes.append("No GPU acceleration: expect slower answers. The light model keeps it usable.")
+    drive = drive_info(data_root)
+    if drive["encrypted"] is False and not drive["internal"]:
+        notes.append("This drive isn't encrypted, so anyone who finds it can read your household info. "
+                     "START-HERE.txt shows how to lock it with a password.")
 
     return {
         "os": f"{platform.system()} {platform.release()}",
@@ -88,4 +112,5 @@ def check(data_root: str, installed_models: list[str]) -> dict:
                    "installed": any(models._same(t["model"], m) for m in installed_models)}
                   for t in models.TIERS],
         "notes": notes,
+        "drive": drive,
     }

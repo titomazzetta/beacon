@@ -1,916 +1,1335 @@
 {
- "_about": "Everything Beacon can download, grouped into topic bands. Tiers are cumulative: extended includes core, etc. ZIM entries are looked up in the live Kiwix catalog by 'name' (and 'flavour'); if that fails, by 'query'. Only public-domain works, openly licensed works, or files the publisher offers as free downloads at the URL given are downloaded automatically. 'link' items open the publisher's page instead.",
- "tiers": [
-  {
-   "id": "core",
-   "title": "Core",
-   "about": "The essentials. Fits a 64 GB drive."
+  "_about": "Everything Beacon can download, grouped into topic bands. Tiers are cumulative: extended includes core, etc. ZIM entries are looked up in the live Kiwix catalog by 'name' (and 'flavour'); if that fails, by 'query'. Only public-domain works, openly licensed works, or files the publisher offers as free downloads at the URL given are downloaded automatically. 'link' items open the publisher's page instead.",
+  "tiers": [
+    {
+      "id": "core",
+      "title": "Core",
+      "about": "The essentials. Fits a 64 GB drive."
+    },
+    {
+      "id": "extended",
+      "title": "Extended",
+      "about": "Repair, off-grid, homesteading and deeper references. ~128 GB drive."
+    },
+    {
+      "id": "complete",
+      "title": "Complete",
+      "about": "Adds WikiHow and Wikipedia intros. ~256 GB drive."
+    },
+    {
+      "id": "everything",
+      "title": "Everything",
+      "about": "Full Wikipedia and every band. 512 GB+ drive."
+    }
+  ],
+  "bands": [
+    {
+      "id": "medical",
+      "title": "Medical & First Aid",
+      "items": [
+        {
+          "id": "wikimed",
+          "type": "zim",
+          "tier": "core",
+          "name": "mdwiki_en_all",
+          "flavour": "maxi",
+          "query": "WikiMed medical encyclopedia",
+          "title": "WikiMed medical encyclopedia",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "zimgit-medicine",
+          "type": "zim",
+          "tier": "core",
+          "name": "zimgit-medicine_en",
+          "query": "zimgit medicine",
+          "title": "Field medicine & first aid books",
+          "license": "Various open"
+        },
+        {
+          "id": "atp4-02-11",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN46159-ATP_4-02.11-000-WEB-1.pdf",
+          "file": "ATP-4-02.11-Army-First-Aid-and-Casualty-Care-2026.pdf",
+          "title": "Army First Aid & Casualty Care (ATP 4-02.11, 2026; replaces TC 4-02.1)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "stop-the-bleed",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://stopthebleed.usuhs.edu/pdf/jit.pdf",
+          "file": "Stop-the-Bleed-Instructions.pdf",
+          "title": "Stop the Bleed: step-by-step bleeding control",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "combat-lifesaver",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://archive.org/download/MManuals/CombatLifesaver0825.pdf",
+          "file": "Army-Combat-Lifesaver-Course.pdf",
+          "title": "US Army Combat Lifesaver course",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "wikem",
+          "type": "zim",
+          "tier": "extended",
+          "name": "wikem_en_all",
+          "flavour": "maxi",
+          "query": "WikEM emergency medicine",
+          "title": "WikEM emergency medicine",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "medlineplus",
+          "type": "zim",
+          "tier": "extended",
+          "query": "MedlinePlus",
+          "title": "MedlinePlus (US National Library of Medicine)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "field-sanitation",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://archive.org/download/MManuals/CommunicableDiseasesAndFieldSanitationSubcourseMd0535Edition100.pdf",
+          "file": "Army-Communicable-Diseases-Field-Sanitation.pdf",
+          "title": "Army communicable diseases & field sanitation",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "wtnd",
+          "type": "link",
+          "tier": "core",
+          "url": "https://languages.hesperian.org/pages/en/pdf.html",
+          "title": "Where There Is No Doctor + Where There Is No Dentist (Hesperian)",
+          "note": "Free chapter PDFs from the publisher, who asks for downloads from their page. Save them to library/manuals."
+        },
+        {
+          "id": "ews",
+          "type": "link",
+          "tier": "extended",
+          "url": "https://medcoe.army.mil/borden-tb-ews",
+          "title": "Emergency War Surgery, 5th ed. (Borden Institute)",
+          "note": "Free US Army textbook. Download the PDF from this page."
+        },
+        {
+          "id": "cdc-snakes",
+          "type": "page",
+          "tier": "extended",
+          "url": "https://www.cdc.gov/niosh/bulletin/2019/venomous-snakes.html",
+          "file": "CDC-Venomous-Snakes.md",
+          "title": "CDC: venomous snakes and snakebite first aid",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "fda-insulin",
+          "type": "page",
+          "tier": "core",
+          "title": "FDA: storing insulin in an emergency",
+          "url": "https://www.fda.gov/drugs/emergencypreparedness/ucm085213.htm",
+          "file": "fda-insulin-emergency.md",
+          "license": "Public domain (FDA)"
+        }
+      ]
+    },
+    {
+      "id": "water-food",
+      "title": "Water, Food & Foraging",
+      "items": [
+        {
+          "id": "zimgit-water",
+          "type": "zim",
+          "tier": "core",
+          "name": "zimgit-water_en",
+          "query": "zimgit water",
+          "title": "Water sourcing, treatment & sanitation",
+          "license": "Various open"
+        },
+        {
+          "id": "zimgit-food",
+          "type": "zim",
+          "tier": "core",
+          "name": "zimgit-food-preparation_en",
+          "query": "zimgit food preparation",
+          "title": "Food preparation & preservation",
+          "license": "Various open"
+        },
+        {
+          "id": "epa-disinfect",
+          "type": "page",
+          "tier": "core",
+          "url": "https://www.epa.gov/ground-water-and-drinking-water/emergency-disinfection-drinking-water",
+          "file": "EPA-Emergency-Disinfection-of-Drinking-Water.md",
+          "title": "EPA: emergency disinfection of drinking water",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "cooking-se",
+          "type": "zim",
+          "tier": "extended",
+          "name": "cooking.stackexchange.com_en_all",
+          "query": "cooking stackexchange",
+          "title": "Cooking & food safety Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "fao-fermented",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://www.fao.org/3/i2477e/i2477e.pdf",
+          "file": "FAO-Traditional-Fermented-Foods.pdf",
+          "title": "FAO: fermented foods & beverages",
+          "license": "Free from publisher (UN FAO)"
+        },
+        {
+          "id": "mdc-mushrooms",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://mdc.mo.gov/sites/default/files/2021-03/MushroomGuide.pdf",
+          "file": "Missouri-Edible-and-Poisonous-Mushrooms.pdf",
+          "title": "Edible & poisonous mushrooms (Missouri Dept. of Conservation)",
+          "license": "Free from publisher (state agency)"
+        },
+        {
+          "id": "usda-canning",
+          "type": "pdf",
+          "tier": "extended",
+          "title": "USDA Complete Guide to Home Canning (2015, 8 parts)",
+          "license": "Public domain (US Gov)",
+          "url": "https://nchfp.uga.edu/papers/guide/INTRO_HomeCanrev0715.pdf",
+          "file": "usda-canning",
+          "files": [
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/INTRO_HomeCanrev0715.pdf",
+              "file": "0-Introduction.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE01_HomeCan_rev0715.pdf",
+              "file": "1-Principles-of-Home-Canning.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE02_HomeCan_rev0715.pdf",
+              "file": "2-Fruit-and-Fruit-Products.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE03_HomeCan_rev0715.pdf",
+              "file": "3-Tomatoes.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE04_HomeCan_rev0715.pdf",
+              "file": "4-Vegetables.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE05_HomeCan_rev0715.pdf",
+              "file": "5-Poultry-Meat-Seafood.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE06_HomeCan_rev0715.pdf",
+              "file": "6-Fermented-and-Pickled.pdf"
+            },
+            {
+              "url": "https://nchfp.uga.edu/papers/guide/GUIDE07_HomeCan_rev0715.pdf",
+              "file": "7-Jams-and-Jellies.pdf"
+            }
+          ]
+        },
+        {
+          "id": "cdc-bleach",
+          "type": "page",
+          "tier": "core",
+          "title": "CDC: cleaning and sanitizing with bleach after an emergency",
+          "url": "https://www.cdc.gov/natural-disasters/safety/how-to-safely-clean-and-sanitize-with-bleach.html",
+          "file": "cdc-bleach-cleaning.md",
+          "license": "Public domain (CDC)"
+        },
+        {
+          "id": "food-outage",
+          "type": "page",
+          "tier": "core",
+          "title": "FoodSafety.gov: food safety during a power outage",
+          "url": "https://www.foodsafety.gov/food-safety-charts/food-safety-during-power-outage",
+          "file": "food-safety-power-outage.md",
+          "license": "Public domain (USDA/HHS)"
+        }
+      ]
+    },
+    {
+      "id": "shelter-winter",
+      "title": "Shelter, Fire & Winter",
+      "items": [
+        {
+          "id": "zimgit-post-disaster",
+          "type": "zim",
+          "tier": "core",
+          "name": "zimgit-post-disaster_en",
+          "query": "zimgit post-disaster",
+          "title": "Post-disaster survival guides collection",
+          "license": "Various open"
+        },
+        {
+          "id": "shelters-shacks",
+          "type": "text",
+          "tier": "core",
+          "url": "https://www.gutenberg.org/cache/epub/28255/pg28255.txt",
+          "file": "Beard-Shelters-Shacks-and-Shanties-1914.txt",
+          "title": "Shelters, Shacks and Shanties (Beard, 1914)",
+          "license": "Public domain"
+        },
+        {
+          "id": "camp-lore",
+          "type": "text",
+          "tier": "extended",
+          "url": "https://www.gutenberg.org/cache/epub/44215/pg44215.txt",
+          "file": "Beard-Book-of-Camp-Lore-and-Woodcraft-1920.txt",
+          "title": "The Book of Camp-Lore and Woodcraft (Beard, 1920)",
+          "license": "Public domain"
+        },
+        {
+          "id": "nessmuk",
+          "type": "text",
+          "tier": "extended",
+          "url": "https://www.gutenberg.org/cache/epub/34607/pg34607.txt",
+          "file": "Nessmuk-Woodcraft-and-Camping-1884.txt",
+          "title": "Woodcraft and Camping (Nessmuk, 1884)",
+          "license": "Public domain"
+        },
+        {
+          "id": "kephart",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://archive.org/download/bookofcampingwoo02keph/bookofcampingwoo02keph.pdf",
+          "file": "Kephart-Book-of-Camping-and-Woodcraft-1906.pdf",
+          "title": "The Book of Camping and Woodcraft (Kephart, 1906)",
+          "license": "Public domain"
+        },
+        {
+          "id": "cold-region",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/attp3-97-11.pdf",
+          "file": "ATTP-3-97.11-Cold-Region-Operations.pdf",
+          "title": "Army: Cold Region Operations (ATTP 3-97.11)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "mountain-cold",
+          "type": "pdf",
+          "tier": "complete",
+          "url": "https://irp.fas.org/doddir/army/atp3-90-97.pdf",
+          "file": "ATP-3-90.97-Mountain-and-Cold-Weather.pdf",
+          "title": "Army: Mountain Warfare & Cold Weather Ops (ATP 3-90.97)",
+          "license": "Public domain (US Gov)"
+        }
+      ]
+    },
+    {
+      "id": "wilderness",
+      "title": "Wilderness, Navigation & Nature Signs",
+      "items": [
+        {
+          "id": "army-survival",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://irp.fas.org/doddir/army/atp3-50-21.pdf",
+          "file": "ATP-3-50.21-Army-Survival-2018.pdf",
+          "title": "Army Survival manual (ATP 3-50.21, 2018)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "land-nav",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://irp.fas.org/doddir/army/fm3-25-26.pdf",
+          "file": "FM-3-25.26-Map-Reading-Land-Navigation.pdf",
+          "title": "Map Reading & Land Navigation (FM 3-25.26)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "zimgit-knots",
+          "type": "zim",
+          "tier": "core",
+          "name": "zimgit-knots_en",
+          "query": "zimgit knots",
+          "title": "Knots",
+          "license": "Various open"
+        },
+        {
+          "id": "outdoors-se",
+          "type": "zim",
+          "tier": "core",
+          "name": "outdoors.stackexchange.com_en_all",
+          "query": "outdoors stackexchange",
+          "title": "Great Outdoors Q&A (camping, hiking, wilderness)",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "army-survival-2002",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/fm3-05-70.pdf",
+          "file": "FM-3-05.70-Army-Survival-2002.pdf",
+          "title": "Army Survival (FM 3-05.70, 2002; more plant detail)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "visual-signals",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/tc3-21-60.pdf",
+          "file": "TC-3-21.60-Visual-Signals.pdf",
+          "title": "Visual Signals (TC 3-21.60)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "bsa-1911",
+          "type": "text",
+          "tier": "extended",
+          "url": "https://www.gutenberg.org/cache/epub/29558/pg29558.txt",
+          "file": "Boy-Scouts-Handbook-1911.txt",
+          "title": "Boy Scouts Handbook (1911)",
+          "license": "Public domain"
+        },
+        {
+          "id": "mountaineering",
+          "type": "pdf",
+          "tier": "complete",
+          "url": "https://irp.fas.org/doddir/army/tc3-97-61.pdf",
+          "file": "TC-3-97.61-Military-Mountaineering.pdf",
+          "title": "Military Mountaineering (TC 3-97.61)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "earthscience-se",
+          "type": "zim",
+          "tier": "complete",
+          "name": "earthscience.stackexchange.com_en_all",
+          "query": "earth science stackexchange",
+          "title": "Earth science & weather Q&A",
+          "license": "CC BY-SA"
+        }
+      ]
+    },
+    {
+      "id": "civil-defense",
+      "title": "Weather, Disasters & Civil Defense",
+      "items": [
+        {
+          "id": "fema-ready",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://nehrpsearch.nist.gov/static/files/FEMA/PB2003102494.pdf",
+          "file": "FEMA-Are-You-Ready.pdf",
+          "title": "FEMA: Are You Ready? citizen preparedness guide",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "nwss",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://archive.org/download/MManuals/nuclear_war_survival_skills.pdf",
+          "file": "Kearny-Nuclear-War-Survival-Skills.pdf",
+          "title": "Nuclear War Survival Skills (Kearny, Oak Ridge)",
+          "license": "Free to reproduce (author)"
+        },
+        {
+          "id": "sweden-crisis",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://rib.msb.se/filer/pdf/30874.pdf",
+          "file": "Sweden-In-Case-of-Crisis-or-War-2024.pdf",
+          "title": "Sweden: In case of crisis or war (2024, English)",
+          "license": "Free from publisher (Swedish government)"
+        },
+        {
+          "id": "state-crisis",
+          "type": "page",
+          "tier": "core",
+          "url": "https://travel.state.gov/en/international-travel/help-abroad/crisis-response.html",
+          "file": "US-State-Dept-Crisis-Response-and-Evacuations.md",
+          "title": "US State Dept: crisis response and evacuations abroad",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "state-cant-do",
+          "type": "page",
+          "tier": "core",
+          "url": "https://travel.state.gov/content/travel/en/international-travel/before-you-go/crisis_and_disaster_abroad_be_ready/what-state-dept-can-cant-do-crisis.html",
+          "file": "US-State-Dept-What-We-Can-and-Cant-Do-in-a-Crisis.md",
+          "title": "US State Dept: what it can and can't do in a crisis",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "spotter",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://archive.org/download/MManuals/ADVANCED_SPOTTERS%20FIELD%20GUIDE.pdf",
+          "file": "NWS-Advanced-Spotters-Field-Guide.pdf",
+          "title": "NWS Advanced Spotters' Field Guide (reading the sky, tornado signs)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "readygov",
+          "type": "zim",
+          "tier": "core",
+          "query": "ready.gov",
+          "title": "Ready.gov (FEMA preparedness site)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "cdc",
+          "type": "zim",
+          "tier": "extended",
+          "query": "CDC Centers for Disease Control",
+          "title": "CDC health & emergency guidance",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "wikivoyage",
+          "type": "zim",
+          "tier": "extended",
+          "name": "wikivoyage_en_all",
+          "flavour": "maxi",
+          "query": "wikivoyage",
+          "title": "Wikivoyage travel guides (routes, borders, cities worldwide)",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "finland-72h",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://72tuntia.fi/wp-content/uploads/2023/08/72hour_esiteA5_verkkoon-SIVUT.pdf",
+          "file": "Finland-72-Hours-Home-Preparedness.pdf",
+          "title": "Finland: 72 hours home preparedness",
+          "license": "Free from publisher"
+        },
+        {
+          "id": "czech-72h",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://www.72h.gov.cz/public/files/2025-09/72-Hours-How-to-Prepare-for-Crisis-Situations-and-Overcome-Them-Together.pdf",
+          "file": "Czech-72-Hours-Prepare-for-Crisis-2025.pdf",
+          "title": "Czech Republic: 72 hours, how to prepare for crisis (2025)",
+          "license": "Free from publisher (Czech government)"
+        },
+        {
+          "id": "nws-winter",
+          "type": "page",
+          "tier": "extended",
+          "url": "https://www.weather.gov/safety/winter-during",
+          "file": "NWS-Caught-in-a-Winter-Storm.md",
+          "title": "NWS: what to do if caught in a winter storm",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "cdc-radiation",
+          "type": "page",
+          "tier": "core",
+          "title": "CDC: protecting yourself in a radiation emergency",
+          "url": "https://www.cdc.gov/radiation-emergencies/safety/",
+          "file": "cdc-radiation-safety.md",
+          "license": "Public domain (CDC)"
+        }
+      ]
+    },
+    {
+      "id": "comms",
+      "title": "Radio, Mesh, Signals & Community",
+      "items": [
+        {
+          "id": "cert-manual",
+          "type": "pdf",
+          "tier": "core",
+          "title": "FEMA CERT Basic Training participant manual (community emergency response)",
+          "url": "https://em.uci.edu/training/_pdf/cert-participant-manual-english.pdf",
+          "file": "cert-participant-manual.pdf",
+          "license": "Public domain (FEMA)",
+          "note": "Organizing neighbors: fire safety, triage, light search and rescue, team roles"
+        },
+        {
+          "id": "meshtastic-setup",
+          "type": "page",
+          "tier": "core",
+          "title": "Meshtastic: first setup (set the region first)",
+          "url": "https://meshtastic.org/docs/getting-started/initial-config/",
+          "file": "meshtastic-initial-config.md",
+          "license": "Meshtastic docs (GPL-3.0)"
+        },
+        {
+          "id": "meshtastic-channels",
+          "type": "page",
+          "tier": "core",
+          "title": "Meshtastic: channels and encryption keys",
+          "url": "https://meshtastic.org/docs/configuration/radio/channels/",
+          "file": "meshtastic-channels.md",
+          "license": "Meshtastic docs (GPL-3.0)"
+        },
+        {
+          "id": "meshtastic-tips",
+          "type": "page",
+          "tier": "core",
+          "title": "Meshtastic: recommended settings and device roles",
+          "url": "https://meshtastic.org/docs/configuration/tips/",
+          "file": "meshtastic-tips.md",
+          "license": "Meshtastic docs (GPL-3.0)"
+        },
+        {
+          "id": "ham-se",
+          "type": "zim",
+          "tier": "core",
+          "name": "ham.stackexchange.com_en_all",
+          "query": "amateur radio stackexchange",
+          "title": "Amateur (ham) radio Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "fm24-18",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/fm24-18.pdf",
+          "file": "FM-24-18-Field-Radio-Techniques.pdf",
+          "title": "Field radio techniques & improvised antennas (FM 24-18)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "arrl-ares",
+          "type": "link",
+          "tier": "extended",
+          "url": "https://www.arrl.org/getting-licensed",
+          "title": "Get a ham license (ARRL)",
+          "note": "A Technician license takes a weekend of study and opens local repeaters and nets."
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Security, Self-Defense & Evasion",
+      "items": [
+        {
+          "id": "ser-mttp",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://irp.fas.org/doddir/army/fm3-50-3.pdf",
+          "file": "FM-3-50.3-Survival-Evasion-Recovery.pdf",
+          "title": "Survival, Evasion & Recovery, multi-service (FM 3-50.3)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "ranger-handbook",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://irp.fas.org/doddir/army/tc3-21-76.pdf",
+          "file": "TC-3-21.76-Ranger-Handbook-2017.pdf",
+          "title": "Ranger Handbook (TC 3-21.76, 2017)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "warrior-skills",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/fm3-21-75.pdf",
+          "file": "FM-3-21.75-Soldier-Combat-Skills.pdf",
+          "title": "Soldier skills: security, observation, movement & fieldcraft (FM 3-21.75)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "afh10-644",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/usaf/afh10-644.pdf",
+          "file": "AFH-10-644-SERE-Operations.pdf",
+          "title": "Air Force SERE Operations handbook (AFH 10-644)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "ser-1999",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/fm21-76-1.pdf",
+          "file": "FM-21-76-1-Survival-Evasion-Recovery-1999.pdf",
+          "title": "Survival, Evasion & Recovery pocket guide (FM 21-76-1, 1999)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "combatives",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://archive.org/download/MManuals/Fm3-25.150Combatives.pdf",
+          "file": "FM-3-25.150-Combatives.pdf",
+          "title": "Army Combatives / hand-to-hand (FM 3-25.150)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "camouflage",
+          "type": "pdf",
+          "tier": "complete",
+          "url": "https://irp.fas.org/doddir/army/attp3-34-39.pdf",
+          "file": "ATTP-3-34.39-Camouflage-Concealment.pdf",
+          "title": "Camouflage, Concealment & Decoys (ATTP 3-34.39)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "eff-border",
+          "type": "page",
+          "tier": "core",
+          "title": "EFF: phones and laptops at borders and checkpoints",
+          "url": "https://ssd.eff.org/module/things-consider-when-crossing-us-border",
+          "file": "eff-crossing-borders.md",
+          "license": "CC BY (Electronic Frontier Foundation)"
+        }
+      ]
+    },
+    {
+      "id": "hunt-fish",
+      "title": "Hunting, Fishing, Trapping & Firearms",
+      "items": [
+        {
+          "id": "deadfalls",
+          "type": "text",
+          "tier": "core",
+          "url": "https://www.gutenberg.org/cache/epub/34110/pg34110.txt",
+          "file": "Harding-Deadfalls-and-Snares-1907.txt",
+          "title": "Deadfalls and Snares (Harding, 1907)",
+          "license": "Public domain"
+        },
+        {
+          "id": "pope-bow",
+          "type": "text",
+          "tier": "extended",
+          "url": "https://www.gutenberg.org/cache/epub/8084/pg8084.txt",
+          "file": "Pope-Hunting-with-the-Bow-and-Arrow-1923.txt",
+          "title": "Hunting with the Bow and Arrow (Pope, 1923)",
+          "license": "Public domain"
+        },
+        {
+          "id": "rifle-carbine",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://irp.fas.org/doddir/army/tc3-22-9.pdf",
+          "file": "TC-3-22.9-Rifle-and-Carbine.pdf",
+          "title": "Rifle & carbine marksmanship and safety (TC 3-22.9)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "hunter-ed",
+          "type": "link",
+          "tier": "core",
+          "url": "https://www.hunter-ed.com/",
+          "title": "Hunter education (your state's course)",
+          "note": "Free state hunter-ed manuals cover firearm and bow safety, tracking and field dressing. Seasons and licenses are set by your state."
+        }
+      ]
+    },
+    {
+      "id": "grow-hunt",
+      "title": "Growing Food & Homesteading",
+      "items": [
+        {
+          "id": "gardening-se",
+          "type": "zim",
+          "tier": "extended",
+          "name": "gardening.stackexchange.com_en_all",
+          "query": "gardening stackexchange",
+          "title": "Gardening & growing food Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "appropedia",
+          "type": "zim",
+          "tier": "extended",
+          "name": "appropedia_en_all",
+          "flavour": "maxi",
+          "query": "appropedia",
+          "title": "Appropedia: appropriate tech, homesteading",
+          "license": "CC BY-SA"
+        }
+      ]
+    },
+    {
+      "id": "vehicles",
+      "title": "Vehicles, Repair & Tools",
+      "items": [
+        {
+          "id": "mechanics-se",
+          "type": "zim",
+          "tier": "core",
+          "name": "mechanics.stackexchange.com_en_all",
+          "query": "motor vehicle maintenance repair stackexchange",
+          "title": "Motor vehicle maintenance & repair Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "ifixit",
+          "type": "zim",
+          "tier": "extended",
+          "name": "ifixit_en_all",
+          "flavour": "maxi",
+          "query": "iFixit",
+          "title": "iFixit repair guides (cars, appliances, electronics)",
+          "license": "CC BY-NC-SA"
+        },
+        {
+          "id": "diy-se",
+          "type": "zim",
+          "tier": "extended",
+          "name": "diy.stackexchange.com_en_all",
+          "query": "home improvement stackexchange",
+          "title": "Home repair: plumbing, electrical, carpentry Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "electronics-se",
+          "type": "zim",
+          "tier": "complete",
+          "name": "electronics.stackexchange.com_en_all",
+          "query": "electrical engineering stackexchange",
+          "title": "Electronics & electrical Q&A",
+          "license": "CC BY-SA"
+        }
+      ]
+    },
+    {
+      "id": "power",
+      "title": "Power & Off-Grid Living",
+      "items": [
+        {
+          "id": "energypedia",
+          "type": "zim",
+          "tier": "extended",
+          "name": "energypedia_en_all",
+          "flavour": "maxi",
+          "query": "energypedia",
+          "title": "Energypedia: solar, batteries, small hydro, generators",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "sustainability-se",
+          "type": "zim",
+          "tier": "complete",
+          "name": "sustainability.stackexchange.com_en_all",
+          "query": "sustainable living stackexchange",
+          "title": "Sustainable living Q&A",
+          "license": "CC BY-SA"
+        }
+      ]
+    },
+    {
+      "id": "mind-body",
+      "title": "Mind, Body & Discipline",
+      "items": [
+        {
+          "id": "h2f",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF",
+          "file": "FM-7-22-Holistic-Health-and-Fitness.pdf",
+          "title": "Army Holistic Health & Fitness (FM 7-22): training, sleep, nutrition, mental & spiritual readiness",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "nctsn-pfa",
+          "type": "pdf",
+          "tier": "core",
+          "url": "https://www.govinfo.gov/content/pkg/GOVPUB-VA-PURL-gpo1343/pdf/GOVPUB-VA-PURL-gpo1343.pdf",
+          "file": "Psychological-First-Aid-Field-Guide-NCTSN-NCPTSD.pdf",
+          "title": "Psychological First Aid field guide (NCTSN / National Center for PTSD)",
+          "license": "Public domain (US Gov)"
+        },
+        {
+          "id": "who-pfa",
+          "type": "pdf",
+          "tier": "extended",
+          "url": "https://iris.who.int/bitstream/handle/10665/44615/9789241548205_eng.pdf",
+          "file": "WHO-Psychological-First-Aid.pdf",
+          "title": "WHO: Psychological First Aid guide for field workers",
+          "license": "Free from publisher (WHO)"
+        },
+        {
+          "id": "fitness-se",
+          "type": "zim",
+          "tier": "extended",
+          "name": "fitness.stackexchange.com_en_all",
+          "query": "physical fitness stackexchange",
+          "title": "Physical fitness Q&A",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "meditations",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/2680/pg2680.txt",
+          "file": "Marcus-Aurelius-Meditations.txt",
+          "title": "Meditations (Marcus Aurelius)",
+          "license": "Public domain"
+        },
+        {
+          "id": "enchiridion",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/45109/pg45109.txt",
+          "file": "Epictetus-Enchiridion.txt",
+          "title": "The Enchiridion (Epictetus)",
+          "license": "Public domain"
+        },
+        {
+          "id": "man-thinketh",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/4507/pg4507.txt",
+          "file": "Allen-As-a-Man-Thinketh.txt",
+          "title": "As a Man Thinketh (James Allen)",
+          "license": "Public domain"
+        },
+        {
+          "id": "walden",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/205/pg205.txt",
+          "file": "Thoreau-Walden.txt",
+          "title": "Walden (Thoreau)",
+          "license": "Public domain"
+        },
+        {
+          "id": "hesperian-mh",
+          "type": "link",
+          "tier": "extended",
+          "url": "https://languages.hesperian.org/pages/en/pdf.html",
+          "title": "Promoting Community Mental Health (Hesperian)",
+          "note": "Free chapter PDFs: stress, trauma, grief and helping each other through hard times."
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "title": "Reading Shelf: Adventure, Strategy & Spirit",
+      "items": [
+        {
+          "id": "south",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/5199/pg5199.txt",
+          "file": "Shackleton-South.txt",
+          "title": "South: Shackleton's Endurance expedition (true survival story)",
+          "license": "Public domain"
+        },
+        {
+          "id": "crusoe",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/521/pg521.txt",
+          "file": "Defoe-Robinson-Crusoe.txt",
+          "title": "Robinson Crusoe (Defoe)",
+          "license": "Public domain"
+        },
+        {
+          "id": "swiss-family",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/3836/pg3836.txt",
+          "file": "Wyss-Swiss-Family-Robinson.txt",
+          "title": "Swiss Family Robinson (Wyss)",
+          "license": "Public domain"
+        },
+        {
+          "id": "mysterious-island",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/1268/pg1268.txt",
+          "file": "Verne-Mysterious-Island.txt",
+          "title": "The Mysterious Island (Verne): rebuilding from nothing",
+          "license": "Public domain"
+        },
+        {
+          "id": "call-wild",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/215/pg215.txt",
+          "file": "London-Call-of-the-Wild.txt",
+          "title": "The Call of the Wild (London)",
+          "license": "Public domain"
+        },
+        {
+          "id": "white-fang",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/910/pg910.txt",
+          "file": "London-White-Fang.txt",
+          "title": "White Fang (London)",
+          "license": "Public domain"
+        },
+        {
+          "id": "treasure-island",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/120/pg120.txt",
+          "file": "Stevenson-Treasure-Island.txt",
+          "title": "Treasure Island (Stevenson)",
+          "license": "Public domain"
+        },
+        {
+          "id": "monte-cristo",
+          "type": "text",
+          "tier": "extended",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/1184/pg1184.txt",
+          "file": "Dumas-Count-of-Monte-Cristo.txt",
+          "title": "The Count of Monte Cristo (Dumas): escape and patience",
+          "license": "Public domain"
+        },
+        {
+          "id": "art-of-war",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/132/pg132.txt",
+          "file": "Sun-Tzu-Art-of-War.txt",
+          "title": "The Art of War (Sun Tzu)",
+          "license": "Public domain"
+        },
+        {
+          "id": "bible-kjv",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/10/pg10.txt",
+          "file": "Bible-King-James.txt",
+          "title": "The Bible (King James Version)",
+          "license": "Public domain"
+        },
+        {
+          "id": "gita",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/2388/pg2388.txt",
+          "file": "Bhagavad-Gita-Arnold.txt",
+          "title": "Bhagavad Gita (The Song Celestial, Arnold)",
+          "license": "Public domain"
+        },
+        {
+          "id": "tao",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/216/pg216.txt",
+          "file": "Tao-Te-Ching-Legge.txt",
+          "title": "Tao Te Ching (Legge)",
+          "license": "Public domain"
+        },
+        {
+          "id": "dhammapada",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/2017/pg2017.txt",
+          "file": "Dhammapada-Muller.txt",
+          "title": "Dhammapada (Müller)",
+          "license": "Public domain"
+        },
+        {
+          "id": "quran",
+          "type": "text",
+          "tier": "core",
+          "shelf": true,
+          "url": "https://www.gutenberg.org/cache/epub/2800/pg2800.txt",
+          "file": "Quran-Rodwell.txt",
+          "title": "The Koran / Qur'an (Rodwell translation)",
+          "license": "Public domain"
+        }
+      ]
+    },
+    {
+      "id": "education",
+      "title": "Learning & Schooling",
+      "items": [
+        {
+          "id": "phet",
+          "type": "zim",
+          "tier": "complete",
+          "query": "PhET interactive simulations",
+          "title": "PhET science & math simulations",
+          "license": "CC BY"
+        },
+        {
+          "id": "wikiversity",
+          "type": "zim",
+          "tier": "complete",
+          "name": "wikiversity_en_all",
+          "flavour": "maxi",
+          "query": "Wikiversity",
+          "title": "Wikiversity: free courses",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "khan",
+          "type": "zim",
+          "tier": "everything",
+          "query": "Khan Academy",
+          "title": "Khan Academy lessons (if available in the Kiwix catalog)",
+          "license": "CC BY-NC-SA"
+        }
+      ]
+    },
+    {
+      "id": "wikipedia",
+      "title": "Wikipedia & General Knowledge",
+      "items": [
+        {
+          "id": "wp-medicine",
+          "type": "zim",
+          "tier": "core",
+          "name": "wikipedia_en_medicine",
+          "flavour": "maxi",
+          "query": "Wikipedia medicine",
+          "title": "Wikipedia: Medicine subset",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "wp-top",
+          "type": "zim",
+          "tier": "extended",
+          "name": "wikipedia_en_top",
+          "flavour": "maxi",
+          "query": "Wikipedia top articles",
+          "title": "Wikipedia: Top articles (most important topics)",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "wikibooks",
+          "type": "zim",
+          "tier": "extended",
+          "name": "wikibooks_en_all",
+          "flavour": "maxi",
+          "query": "wikibooks",
+          "title": "Wikibooks: open textbooks & manuals",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "wikihow",
+          "type": "zim",
+          "tier": "complete",
+          "name": "wikihow_en",
+          "flavour": "maxi",
+          "query": "wikihow",
+          "title": "WikiHow: illustrated how-tos",
+          "license": "CC BY-NC-SA"
+        },
+        {
+          "id": "wp-all-mini",
+          "type": "zim",
+          "tier": "complete",
+          "group": "wikipedia-full",
+          "name": "wikipedia_en_all",
+          "flavour": "mini",
+          "query": "Wikipedia",
+          "title": "All of Wikipedia: intros only (mini)",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "wp-all-nopic",
+          "type": "zim",
+          "tier": "everything",
+          "group": "wikipedia-full",
+          "name": "wikipedia_en_all",
+          "flavour": "nopic",
+          "query": "Wikipedia",
+          "title": "All of Wikipedia: full text, no images",
+          "license": "CC BY-SA"
+        },
+        {
+          "id": "wp-all-maxi",
+          "type": "zim",
+          "tier": "everything",
+          "group": "wikipedia-full",
+          "optional": true,
+          "name": "wikipedia_en_all",
+          "flavour": "maxi",
+          "query": "Wikipedia",
+          "title": "All of Wikipedia: full, with images (largest)",
+          "license": "CC BY-SA"
+        }
+      ]
+    }
+  ],
+  "buy_list": {
+    "_about": "The copyrighted books Reddit recommends most (number of different users recommending each, via redditreads.com, October 2026). Worth owning in print; Beacon doesn't download these.",
+    "books": [
+      "SAS Survival Handbook — John 'Lofty' Wiseman (r/preppers 28, r/Survival 28)",
+      "The Survival Medicine Handbook — Joseph & Amy Alton (r/preppers 26)",
+      "Bushcraft — Mors Kochanski (r/Bushcraft 23, r/Survival 13)",
+      "The Knowledge: How to Rebuild Civilization — Lewis Dartnell (r/preppers 21)",
+      "Pocket Ref — Thomas Glover (r/preppers 21)",
+      "The Modern Survival Manual (life during Argentina's collapse) — Fernando Aguirre (r/preppers 21)",
+      "Back to Basics — Reader's Digest (r/preppers 14 + 8, r/homestead 12)",
+      "The Encyclopedia of Country Living — Carla Emery (r/preppers 17 + 9)",
+      "Edible Wild Plants — a regional field guide (r/Survival 16, r/Bushcraft 11)",
+      "Bushcraft 101 — Dave Canterbury (r/Bushcraft 12)",
+      "98.6 Degrees — Cody Lundin (r/Survival 11)",
+      "The Self-Sufficient Life and How to Live It — John Seymour (r/homestead 16)",
+      "The Backyard Homestead — Carleen Madigan (r/homestead 16)",
+      "Deep Survival — Laurence Gonzales (r/Survival 8)",
+      "The Forager's Harvest and Nature's Garden — Samuel Thayer (r/Survival 7 each)",
+      "Ball Complete Book of Home Preserving (r/preppers 7)",
+      "Seed to Seed — Suzanne Ashworth (r/preppers 7)",
+      "Strategic Relocation — Joel Skousen (r/preppers 11)",
+      "Botany in a Day — Thomas Elpel (r/Bushcraft)",
+      "Man's Search for Meaning — Viktor Frankl",
+      "Fiction the community recommends: One Second After, Alas Babylon, Lucifer's Hammer, Going Home, Patriots",
+      "Where There Is No Doctor / No Dentist (r/preppers 20 / 14): free on Hesperian's site; buy the print edition to support them"
+    ]
   },
-  {
-   "id": "extended",
-   "title": "Extended",
-   "about": "Repair, off-grid, homesteading and deeper references. ~128 GB drive."
-  },
-  {
-   "id": "complete",
-   "title": "Complete",
-   "about": "Adds WikiHow and Wikipedia intros. ~256 GB drive."
-  },
-  {
-   "id": "everything",
-   "title": "Everything",
-   "about": "Full Wikipedia and every band. 512 GB+ drive."
+  "gear_list": {
+    "_about": "Things worth having before you need them. Product names are examples people commonly use, not endorsements; check current specs and reviews. Beacon doesn't sell anything.",
+    "groups": [
+      {
+        "title": "Power",
+        "items": [
+          {
+            "what": "A portable power station, 1,000 to 2,000 Wh, LiFePO4",
+            "why": "Runs phones, lights, the router, a CPAP or a fridge for a day or more, and recharges from the wall, a car or solar.",
+            "examples": "Anker SOLIX C2000 Gen 2 (2,048 Wh, 2,400 W, 800 W solar input); EcoFlow DELTA and Jackery Explorer series"
+          },
+          {
+            "what": "Foldable solar panels, 200 to 400 W",
+            "why": "Recharges the power station every sunny day. Match the station's solar input: watts, voltage and connector.",
+            "examples": ""
+          },
+          {
+            "what": "Battery-powered carbon monoxide alarms, one per floor",
+            "why": "Essential with any generator, grill or fuel heater anywhere near the house.",
+            "examples": ""
+          },
+          {
+            "what": "Power banks, cables and rechargeable batteries",
+            "why": "20,000 mAh banks keep phones and radios going; lithium AA/AAA batteries store for years and work in cold.",
+            "examples": "Panasonic eneloop rechargeables"
+          }
+        ]
+      },
+      {
+        "title": "Communications",
+        "items": [
+          {
+            "what": "A NOAA weather radio with SAME alerts, and a hand-crank AM/FM radio",
+            "why": "Official warnings with no internet or cell service.",
+            "examples": "Midland WR120B; Eton and American Red Cross crank radios"
+          },
+          {
+            "what": "Meshtastic radios, one per household (915 MHz in the US)",
+            "why": "Text messages and check-ins over miles with no towers and no license; plugs into Beacon.",
+            "examples": "LILYGO T-Echo; Heltec WiFi LoRa 32 V3; RAK WisBlock starter kit; Seeed SenseCAP T1000-E"
+          },
+          {
+            "what": "Walkie-talkies: FRS (no license) or GMRS (license, no exam)",
+            "why": "Instant voice for the family or the street.",
+            "examples": "Midland GMRS radios"
+          },
+          {
+            "what": "A ham radio handheld (2 m / 70 cm)",
+            "why": "Reaches repeaters and emergency nets across a region. Transmitting needs a license (the Technician exam).",
+            "examples": ""
+          }
+        ]
+      },
+      {
+        "title": "Water",
+        "items": [
+          {
+            "what": "Stored water: 1 gallon per person per day for 2 weeks",
+            "why": "The first thing to run out. Use food-grade jugs and rotate them.",
+            "examples": "7-gallon jugs; stackable water bricks"
+          },
+          {
+            "what": "A filter, plus plain unscented bleach",
+            "why": "Filters remove germs from clear water; bleach backs them up. See the Water card.",
+            "examples": "Sawyer Squeeze; Katadyn BeFree; a gravity filter for the house"
+          }
+        ]
+      },
+      {
+        "title": "First aid and medicine",
+        "items": [
+          {
+            "what": "Tourniquets, pressure bandages and hemostatic gauze",
+            "why": "Stops the bleeding that kills fastest. Buy from trusted sellers: fake tourniquets are common.",
+            "examples": "CAT or SOF-T Wide tourniquets; Israeli bandage; QuikClot gauze"
+          },
+          {
+            "what": "Two weeks of prescription medicines and a basic kit",
+            "why": "Pain and fever reducers, antihistamine, anti-diarrheal, oral rehydration packets, gloves, shears.",
+            "examples": ""
+          }
+        ]
+      },
+      {
+        "title": "Light, heat and shelter",
+        "items": [
+          {
+            "what": "Headlamps with a red mode, and LED lanterns",
+            "why": "Hands free, long battery life; red light keeps night vision.",
+            "examples": ""
+          },
+          {
+            "what": "Warm bedding and an indoor-rated heater",
+            "why": "Wool blankets and sleeping bags rated for your winters. A propane heater only if rated for indoor use with a low-oxygen shutoff, with ventilation and a CO alarm.",
+            "examples": "Mr. Heater Buddy (indoor-rated propane)"
+          }
+        ]
+      },
+      {
+        "title": "Food and cooking",
+        "items": [
+          {
+            "what": "Two weeks of food you already eat",
+            "why": "Rice, beans, oats, peanut butter and canned goods; rotate them into normal meals. Beacon's Supplies tool counts the days.",
+            "examples": ""
+          },
+          {
+            "what": "A manual can opener and a camp stove with fuel",
+            "why": "Cook outdoors only.",
+            "examples": ""
+          }
+        ]
+      },
+      {
+        "title": "Tools, documents and Beacon",
+        "items": [
+          {
+            "what": "Basic tools",
+            "why": "Multi-tool, fixed-blade knife, duct tape, zip ties, work gloves, a pry bar, an ABC fire extinguisher, a whistle for each person.",
+            "examples": ""
+          },
+          {
+            "what": "Cash and documents",
+            "why": "Small bills; copies of IDs, insurance and prescriptions on paper and on this encrypted drive; a paper road map and a compass.",
+            "examples": ""
+          },
+          {
+            "what": "A 1 TB portable SSD for Beacon, and the Mac's charger",
+            "why": "Fast enough to load the AI in seconds and big enough for the full library and maps. Format it as APFS (Encrypted).",
+            "examples": "Samsung T7 Shield; SanDisk Extreme; Crucial X9 or X10"
+          },
+          {
+            "what": "A small travel router that runs on USB power",
+            "why": "Makes a local Wi-Fi network anywhere, no internet needed, so phones can join Beacon from a car, a shelter or a campsite. Your home router does the same job as long as it has power.",
+            "examples": "GL.iNet travel routers"
+          }
+        ]
+      }
+    ]
   }
- ],
- "bands": [
-  {
-   "id": "medical",
-   "title": "Medical & First Aid",
-   "items": [
-    {
-     "id": "wikimed",
-     "type": "zim",
-     "tier": "core",
-     "name": "mdwiki_en_all",
-     "flavour": "maxi",
-     "query": "WikiMed medical encyclopedia",
-     "title": "WikiMed medical encyclopedia",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "zimgit-medicine",
-     "type": "zim",
-     "tier": "core",
-     "name": "zimgit-medicine_en",
-     "query": "zimgit medicine",
-     "title": "Field medicine & first aid books",
-     "license": "Various open"
-    },
-    {
-     "id": "combat-lifesaver",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://archive.org/download/MManuals/CombatLifesaver0825.pdf",
-     "file": "Army-Combat-Lifesaver-Course.pdf",
-     "title": "US Army Combat Lifesaver course",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "wikem",
-     "type": "zim",
-     "tier": "extended",
-     "name": "wikem_en_all",
-     "flavour": "maxi",
-     "query": "WikEM emergency medicine",
-     "title": "WikEM emergency medicine",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "medlineplus",
-     "type": "zim",
-     "tier": "extended",
-     "query": "MedlinePlus",
-     "title": "MedlinePlus (US National Library of Medicine)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "field-sanitation",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://archive.org/download/MManuals/CommunicableDiseasesAndFieldSanitationSubcourseMd0535Edition100.pdf",
-     "file": "Army-Communicable-Diseases-Field-Sanitation.pdf",
-     "title": "Army communicable diseases & field sanitation",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "wtnd",
-     "type": "link",
-     "tier": "core",
-     "url": "https://languages.hesperian.org/pages/en/pdf.html",
-     "title": "Where There Is No Doctor + Where There Is No Dentist (Hesperian)",
-     "note": "Free chapter PDFs from the publisher, who asks for downloads from their page. Save them to library/manuals."
-    },
-    {
-     "id": "ews",
-     "type": "link",
-     "tier": "extended",
-     "url": "https://medcoe.army.mil/borden-tb-ews",
-     "title": "Emergency War Surgery, 5th ed. (Borden Institute)",
-     "note": "Free US Army textbook. Download the PDF from this page."
-    }
-   ]
-  },
-  {
-   "id": "water-food",
-   "title": "Water, Food & Foraging",
-   "items": [
-    {
-     "id": "zimgit-water",
-     "type": "zim",
-     "tier": "core",
-     "name": "zimgit-water_en",
-     "query": "zimgit water",
-     "title": "Water sourcing, treatment & sanitation",
-     "license": "Various open"
-    },
-    {
-     "id": "zimgit-food",
-     "type": "zim",
-     "tier": "core",
-     "name": "zimgit-food-preparation_en",
-     "query": "zimgit food preparation",
-     "title": "Food preparation & preservation",
-     "license": "Various open"
-    },
-    {
-     "id": "cooking-se",
-     "type": "zim",
-     "tier": "extended",
-     "name": "cooking.stackexchange.com_en_all",
-     "query": "cooking stackexchange",
-     "title": "Cooking & food safety Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "fao-fermented",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://www.fao.org/3/i2477e/i2477e.pdf",
-     "file": "FAO-Traditional-Fermented-Foods.pdf",
-     "title": "FAO: fermented foods & beverages",
-     "license": "Free from publisher (UN FAO)"
-    },
-    {
-     "id": "mdc-mushrooms",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://mdc.mo.gov/sites/default/files/2021-03/MushroomGuide.pdf",
-     "file": "Missouri-Edible-and-Poisonous-Mushrooms.pdf",
-     "title": "Edible & poisonous mushrooms (Missouri Dept. of Conservation)",
-     "license": "Free from publisher (state agency)"
-    },
-    {
-     "id": "usda-canning",
-     "type": "link",
-     "tier": "extended",
-     "url": "https://nchfp.uga.edu/resources/entry/about-the-usda-guide-to-home-canning-2015-revision",
-     "title": "USDA Complete Guide to Home Canning",
-     "note": "Free from the National Center for Home Food Preservation. Save the PDFs to library/manuals."
-    }
-   ]
-  },
-  {
-   "id": "shelter-winter",
-   "title": "Shelter, Fire & Winter",
-   "items": [
-    {
-     "id": "zimgit-post-disaster",
-     "type": "zim",
-     "tier": "core",
-     "name": "zimgit-post-disaster_en",
-     "query": "zimgit post-disaster",
-     "title": "Post-disaster survival guides collection",
-     "license": "Various open"
-    },
-    {
-     "id": "shelters-shacks",
-     "type": "text",
-     "tier": "core",
-     "url": "https://www.gutenberg.org/cache/epub/28255/pg28255.txt",
-     "file": "Beard-Shelters-Shacks-and-Shanties-1914.txt",
-     "title": "Shelters, Shacks and Shanties (Beard, 1914)",
-     "license": "Public domain"
-    },
-    {
-     "id": "camp-lore",
-     "type": "text",
-     "tier": "extended",
-     "url": "https://www.gutenberg.org/cache/epub/44215/pg44215.txt",
-     "file": "Beard-Book-of-Camp-Lore-and-Woodcraft-1920.txt",
-     "title": "The Book of Camp-Lore and Woodcraft (Beard, 1920)",
-     "license": "Public domain"
-    },
-    {
-     "id": "nessmuk",
-     "type": "text",
-     "tier": "extended",
-     "url": "https://www.gutenberg.org/cache/epub/34607/pg34607.txt",
-     "file": "Nessmuk-Woodcraft-and-Camping-1884.txt",
-     "title": "Woodcraft and Camping (Nessmuk, 1884)",
-     "license": "Public domain"
-    },
-    {
-     "id": "kephart",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://archive.org/download/bookofcampingwoo02keph/bookofcampingwoo02keph.pdf",
-     "file": "Kephart-Book-of-Camping-and-Woodcraft-1906.pdf",
-     "title": "The Book of Camping and Woodcraft (Kephart, 1906)",
-     "license": "Public domain"
-    },
-    {
-     "id": "cold-region",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/attp3-97-11.pdf",
-     "file": "ATTP-3-97.11-Cold-Region-Operations.pdf",
-     "title": "Army: Cold Region Operations (ATTP 3-97.11)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "mountain-cold",
-     "type": "pdf",
-     "tier": "complete",
-     "url": "https://irp.fas.org/doddir/army/atp3-90-97.pdf",
-     "file": "ATP-3-90.97-Mountain-and-Cold-Weather.pdf",
-     "title": "Army: Mountain Warfare & Cold Weather Ops (ATP 3-90.97)",
-     "license": "Public domain (US Gov)"
-    }
-   ]
-  },
-  {
-   "id": "wilderness",
-   "title": "Wilderness, Navigation & Nature Signs",
-   "items": [
-    {
-     "id": "army-survival",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://irp.fas.org/doddir/army/atp3-50-21.pdf",
-     "file": "ATP-3-50.21-Army-Survival-2018.pdf",
-     "title": "Army Survival manual (ATP 3-50.21, 2018)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "land-nav",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://irp.fas.org/doddir/army/fm3-25-26.pdf",
-     "file": "FM-3-25.26-Map-Reading-Land-Navigation.pdf",
-     "title": "Map Reading & Land Navigation (FM 3-25.26)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "zimgit-knots",
-     "type": "zim",
-     "tier": "core",
-     "name": "zimgit-knots_en",
-     "query": "zimgit knots",
-     "title": "Knots",
-     "license": "Various open"
-    },
-    {
-     "id": "outdoors-se",
-     "type": "zim",
-     "tier": "core",
-     "name": "outdoors.stackexchange.com_en_all",
-     "query": "outdoors stackexchange",
-     "title": "Great Outdoors Q&A (camping, hiking, wilderness)",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "army-survival-2002",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/fm3-05-70.pdf",
-     "file": "FM-3-05.70-Army-Survival-2002.pdf",
-     "title": "Army Survival (FM 3-05.70, 2002; more plant detail)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "visual-signals",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/tc3-21-60.pdf",
-     "file": "TC-3-21.60-Visual-Signals.pdf",
-     "title": "Visual Signals (TC 3-21.60)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "bsa-1911",
-     "type": "text",
-     "tier": "extended",
-     "url": "https://www.gutenberg.org/cache/epub/29558/pg29558.txt",
-     "file": "Boy-Scouts-Handbook-1911.txt",
-     "title": "Boy Scouts Handbook (1911)",
-     "license": "Public domain"
-    },
-    {
-     "id": "mountaineering",
-     "type": "pdf",
-     "tier": "complete",
-     "url": "https://irp.fas.org/doddir/army/tc3-97-61.pdf",
-     "file": "TC-3-97.61-Military-Mountaineering.pdf",
-     "title": "Military Mountaineering (TC 3-97.61)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "earthscience-se",
-     "type": "zim",
-     "tier": "complete",
-     "name": "earthscience.stackexchange.com_en_all",
-     "query": "earth science stackexchange",
-     "title": "Earth science & weather Q&A",
-     "license": "CC BY-SA"
-    }
-   ]
-  },
-  {
-   "id": "civil-defense",
-   "title": "Weather, Disasters & Civil Defense",
-   "items": [
-    {
-     "id": "fema-ready",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://nehrpsearch.nist.gov/static/files/FEMA/PB2003102494.pdf",
-     "file": "FEMA-Are-You-Ready.pdf",
-     "title": "FEMA: Are You Ready? citizen preparedness guide",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "nwss",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://archive.org/download/MManuals/nuclear_war_survival_skills.pdf",
-     "file": "Kearny-Nuclear-War-Survival-Skills.pdf",
-     "title": "Nuclear War Survival Skills (Kearny, Oak Ridge)",
-     "license": "Free to reproduce (author)"
-    },
-    {
-     "id": "spotter",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://archive.org/download/MManuals/ADVANCED_SPOTTERS%20FIELD%20GUIDE.pdf",
-     "file": "NWS-Advanced-Spotters-Field-Guide.pdf",
-     "title": "NWS Advanced Spotters' Field Guide (reading the sky, tornado signs)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "readygov",
-     "type": "zim",
-     "tier": "core",
-     "query": "ready.gov",
-     "title": "Ready.gov (FEMA preparedness site)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "cdc",
-     "type": "zim",
-     "tier": "extended",
-     "query": "CDC Centers for Disease Control",
-     "title": "CDC health & emergency guidance",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "wikivoyage",
-     "type": "zim",
-     "tier": "extended",
-     "name": "wikivoyage_en_all",
-     "flavour": "maxi",
-     "query": "wikivoyage",
-     "title": "Wikivoyage travel guides (routes, borders, cities worldwide)",
-     "license": "CC BY-SA"
-    }
-   ]
-  },
-  {
-   "id": "comms",
-   "title": "Radio, Signals & Morse",
-   "items": [
-    {
-     "id": "ham-se",
-     "type": "zim",
-     "tier": "core",
-     "name": "ham.stackexchange.com_en_all",
-     "query": "amateur radio stackexchange",
-     "title": "Amateur (ham) radio Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "fm24-18",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/fm24-18.pdf",
-     "file": "FM-24-18-Field-Radio-Techniques.pdf",
-     "title": "Field radio techniques & improvised antennas (FM 24-18)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "arrl-ares",
-     "type": "link",
-     "tier": "extended",
-     "url": "https://www.arrl.org/getting-licensed",
-     "title": "Get a ham license (ARRL)",
-     "note": "A Technician license takes a weekend of study and opens local repeaters and nets."
-    }
-   ]
-  },
-  {
-   "id": "security",
-   "title": "Security, Self-Defense & Evasion",
-   "items": [
-    {
-     "id": "ser-mttp",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://irp.fas.org/doddir/army/fm3-50-3.pdf",
-     "file": "FM-3-50.3-Survival-Evasion-Recovery.pdf",
-     "title": "Survival, Evasion & Recovery, multi-service (FM 3-50.3)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "ranger-handbook",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://irp.fas.org/doddir/army/tc3-21-76.pdf",
-     "file": "TC-3-21.76-Ranger-Handbook-2017.pdf",
-     "title": "Ranger Handbook (TC 3-21.76, 2017)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "afh10-644",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/usaf/afh10-644.pdf",
-     "file": "AFH-10-644-SERE-Operations.pdf",
-     "title": "Air Force SERE Operations handbook (AFH 10-644)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "ser-1999",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/fm21-76-1.pdf",
-     "file": "FM-21-76-1-Survival-Evasion-Recovery-1999.pdf",
-     "title": "Survival, Evasion & Recovery pocket guide (FM 21-76-1, 1999)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "combatives",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://archive.org/download/MManuals/Fm3-25.150Combatives.pdf",
-     "file": "FM-3-25.150-Combatives.pdf",
-     "title": "Army Combatives / hand-to-hand (FM 3-25.150)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "camouflage",
-     "type": "pdf",
-     "tier": "complete",
-     "url": "https://irp.fas.org/doddir/army/attp3-34-39.pdf",
-     "file": "ATTP-3-34.39-Camouflage-Concealment.pdf",
-     "title": "Camouflage, Concealment & Decoys (ATTP 3-34.39)",
-     "license": "Public domain (US Gov)"
-    }
-   ]
-  },
-  {
-   "id": "hunt-fish",
-   "title": "Hunting, Fishing, Trapping & Firearms",
-   "items": [
-    {
-     "id": "deadfalls",
-     "type": "text",
-     "tier": "core",
-     "url": "https://www.gutenberg.org/cache/epub/34110/pg34110.txt",
-     "file": "Harding-Deadfalls-and-Snares-1907.txt",
-     "title": "Deadfalls and Snares (Harding, 1907)",
-     "license": "Public domain"
-    },
-    {
-     "id": "pope-bow",
-     "type": "text",
-     "tier": "extended",
-     "url": "https://www.gutenberg.org/cache/epub/8084/pg8084.txt",
-     "file": "Pope-Hunting-with-the-Bow-and-Arrow-1923.txt",
-     "title": "Hunting with the Bow and Arrow (Pope, 1923)",
-     "license": "Public domain"
-    },
-    {
-     "id": "rifle-carbine",
-     "type": "pdf",
-     "tier": "extended",
-     "url": "https://irp.fas.org/doddir/army/tc3-22-9.pdf",
-     "file": "TC-3-22.9-Rifle-and-Carbine.pdf",
-     "title": "Rifle & carbine marksmanship and safety (TC 3-22.9)",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "hunter-ed",
-     "type": "link",
-     "tier": "core",
-     "url": "https://www.hunter-ed.com/",
-     "title": "Hunter education (your state's course)",
-     "note": "Free state hunter-ed manuals cover firearm and bow safety, tracking and field dressing. Seasons and licenses are set by your state."
-    }
-   ]
-  },
-  {
-   "id": "grow-hunt",
-   "title": "Growing Food & Homesteading",
-   "items": [
-    {
-     "id": "gardening-se",
-     "type": "zim",
-     "tier": "extended",
-     "name": "gardening.stackexchange.com_en_all",
-     "query": "gardening stackexchange",
-     "title": "Gardening & growing food Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "appropedia",
-     "type": "zim",
-     "tier": "extended",
-     "name": "appropedia_en_all",
-     "flavour": "maxi",
-     "query": "appropedia",
-     "title": "Appropedia: appropriate tech, homesteading",
-     "license": "CC BY-SA"
-    }
-   ]
-  },
-  {
-   "id": "vehicles",
-   "title": "Vehicles, Repair & Tools",
-   "items": [
-    {
-     "id": "mechanics-se",
-     "type": "zim",
-     "tier": "core",
-     "name": "mechanics.stackexchange.com_en_all",
-     "query": "motor vehicle maintenance repair stackexchange",
-     "title": "Motor vehicle maintenance & repair Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "ifixit",
-     "type": "zim",
-     "tier": "extended",
-     "name": "ifixit_en_all",
-     "flavour": "maxi",
-     "query": "iFixit",
-     "title": "iFixit repair guides (cars, appliances, electronics)",
-     "license": "CC BY-NC-SA"
-    },
-    {
-     "id": "diy-se",
-     "type": "zim",
-     "tier": "extended",
-     "name": "diy.stackexchange.com_en_all",
-     "query": "home improvement stackexchange",
-     "title": "Home repair: plumbing, electrical, carpentry Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "electronics-se",
-     "type": "zim",
-     "tier": "complete",
-     "name": "electronics.stackexchange.com_en_all",
-     "query": "electrical engineering stackexchange",
-     "title": "Electronics & electrical Q&A",
-     "license": "CC BY-SA"
-    }
-   ]
-  },
-  {
-   "id": "power",
-   "title": "Power & Off-Grid Living",
-   "items": [
-    {
-     "id": "energypedia",
-     "type": "zim",
-     "tier": "extended",
-     "name": "energypedia_en_all",
-     "flavour": "maxi",
-     "query": "energypedia",
-     "title": "Energypedia: solar, batteries, small hydro, generators",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "sustainability-se",
-     "type": "zim",
-     "tier": "complete",
-     "name": "sustainability.stackexchange.com_en_all",
-     "query": "sustainable living stackexchange",
-     "title": "Sustainable living Q&A",
-     "license": "CC BY-SA"
-    }
-   ]
-  },
-  {
-   "id": "mind-body",
-   "title": "Mind, Body & Discipline",
-   "items": [
-    {
-     "id": "h2f",
-     "type": "pdf",
-     "tier": "core",
-     "url": "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF",
-     "file": "FM-7-22-Holistic-Health-and-Fitness.pdf",
-     "title": "Army Holistic Health & Fitness (FM 7-22): training, sleep, nutrition, mental & spiritual readiness",
-     "license": "Public domain (US Gov)"
-    },
-    {
-     "id": "fitness-se",
-     "type": "zim",
-     "tier": "extended",
-     "name": "fitness.stackexchange.com_en_all",
-     "query": "physical fitness stackexchange",
-     "title": "Physical fitness Q&A",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "meditations",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/2680/pg2680.txt",
-     "file": "Marcus-Aurelius-Meditations.txt",
-     "title": "Meditations (Marcus Aurelius)",
-     "license": "Public domain"
-    },
-    {
-     "id": "enchiridion",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/45109/pg45109.txt",
-     "file": "Epictetus-Enchiridion.txt",
-     "title": "The Enchiridion (Epictetus)",
-     "license": "Public domain"
-    },
-    {
-     "id": "man-thinketh",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/4507/pg4507.txt",
-     "file": "Allen-As-a-Man-Thinketh.txt",
-     "title": "As a Man Thinketh (James Allen)",
-     "license": "Public domain"
-    },
-    {
-     "id": "walden",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/205/pg205.txt",
-     "file": "Thoreau-Walden.txt",
-     "title": "Walden (Thoreau)",
-     "license": "Public domain"
-    },
-    {
-     "id": "hesperian-mh",
-     "type": "link",
-     "tier": "extended",
-     "url": "https://languages.hesperian.org/pages/en/pdf.html",
-     "title": "Promoting Community Mental Health (Hesperian)",
-     "note": "Free chapter PDFs: stress, trauma, grief and helping each other through hard times."
-    }
-   ]
-  },
-  {
-   "id": "reading",
-   "title": "Reading Shelf: Adventure, Strategy & Spirit",
-   "items": [
-    {
-     "id": "south",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/5199/pg5199.txt",
-     "file": "Shackleton-South.txt",
-     "title": "South: Shackleton's Endurance expedition (true survival story)",
-     "license": "Public domain"
-    },
-    {
-     "id": "crusoe",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/521/pg521.txt",
-     "file": "Defoe-Robinson-Crusoe.txt",
-     "title": "Robinson Crusoe (Defoe)",
-     "license": "Public domain"
-    },
-    {
-     "id": "swiss-family",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/3836/pg3836.txt",
-     "file": "Wyss-Swiss-Family-Robinson.txt",
-     "title": "Swiss Family Robinson (Wyss)",
-     "license": "Public domain"
-    },
-    {
-     "id": "mysterious-island",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/1268/pg1268.txt",
-     "file": "Verne-Mysterious-Island.txt",
-     "title": "The Mysterious Island (Verne): rebuilding from nothing",
-     "license": "Public domain"
-    },
-    {
-     "id": "call-wild",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/215/pg215.txt",
-     "file": "London-Call-of-the-Wild.txt",
-     "title": "The Call of the Wild (London)",
-     "license": "Public domain"
-    },
-    {
-     "id": "white-fang",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/910/pg910.txt",
-     "file": "London-White-Fang.txt",
-     "title": "White Fang (London)",
-     "license": "Public domain"
-    },
-    {
-     "id": "treasure-island",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/120/pg120.txt",
-     "file": "Stevenson-Treasure-Island.txt",
-     "title": "Treasure Island (Stevenson)",
-     "license": "Public domain"
-    },
-    {
-     "id": "monte-cristo",
-     "type": "text",
-     "tier": "extended",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/1184/pg1184.txt",
-     "file": "Dumas-Count-of-Monte-Cristo.txt",
-     "title": "The Count of Monte Cristo (Dumas): escape and patience",
-     "license": "Public domain"
-    },
-    {
-     "id": "art-of-war",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/132/pg132.txt",
-     "file": "Sun-Tzu-Art-of-War.txt",
-     "title": "The Art of War (Sun Tzu)",
-     "license": "Public domain"
-    },
-    {
-     "id": "bible-kjv",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/10/pg10.txt",
-     "file": "Bible-King-James.txt",
-     "title": "The Bible (King James Version)",
-     "license": "Public domain"
-    },
-    {
-     "id": "gita",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/2388/pg2388.txt",
-     "file": "Bhagavad-Gita-Arnold.txt",
-     "title": "Bhagavad Gita (The Song Celestial, Arnold)",
-     "license": "Public domain"
-    },
-    {
-     "id": "tao",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/216/pg216.txt",
-     "file": "Tao-Te-Ching-Legge.txt",
-     "title": "Tao Te Ching (Legge)",
-     "license": "Public domain"
-    },
-    {
-     "id": "dhammapada",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/2017/pg2017.txt",
-     "file": "Dhammapada-Muller.txt",
-     "title": "Dhammapada (Müller)",
-     "license": "Public domain"
-    },
-    {
-     "id": "quran",
-     "type": "text",
-     "tier": "core",
-     "shelf": true,
-     "url": "https://www.gutenberg.org/cache/epub/2800/pg2800.txt",
-     "file": "Quran-Rodwell.txt",
-     "title": "The Koran / Qur'an (Rodwell translation)",
-     "license": "Public domain"
-    }
-   ]
-  },
-  {
-   "id": "wikipedia",
-   "title": "Wikipedia & General Knowledge",
-   "items": [
-    {
-     "id": "wp-medicine",
-     "type": "zim",
-     "tier": "core",
-     "name": "wikipedia_en_medicine",
-     "flavour": "maxi",
-     "query": "Wikipedia medicine",
-     "title": "Wikipedia: Medicine subset",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "wp-top",
-     "type": "zim",
-     "tier": "extended",
-     "name": "wikipedia_en_top",
-     "flavour": "maxi",
-     "query": "Wikipedia top articles",
-     "title": "Wikipedia: Top articles (most important topics)",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "wikibooks",
-     "type": "zim",
-     "tier": "extended",
-     "name": "wikibooks_en_all",
-     "flavour": "maxi",
-     "query": "wikibooks",
-     "title": "Wikibooks: open textbooks & manuals",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "wikihow",
-     "type": "zim",
-     "tier": "complete",
-     "name": "wikihow_en",
-     "flavour": "maxi",
-     "query": "wikihow",
-     "title": "WikiHow: illustrated how-tos",
-     "license": "CC BY-NC-SA"
-    },
-    {
-     "id": "wp-all-mini",
-     "type": "zim",
-     "tier": "complete",
-     "group": "wikipedia-full",
-     "name": "wikipedia_en_all",
-     "flavour": "mini",
-     "query": "Wikipedia",
-     "title": "All of Wikipedia: intros only (mini)",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "wp-all-nopic",
-     "type": "zim",
-     "tier": "everything",
-     "group": "wikipedia-full",
-     "name": "wikipedia_en_all",
-     "flavour": "nopic",
-     "query": "Wikipedia",
-     "title": "All of Wikipedia: full text, no images",
-     "license": "CC BY-SA"
-    },
-    {
-     "id": "wp-all-maxi",
-     "type": "zim",
-     "tier": "everything",
-     "group": "wikipedia-full",
-     "optional": true,
-     "name": "wikipedia_en_all",
-     "flavour": "maxi",
-     "query": "Wikipedia",
-     "title": "All of Wikipedia: full, with images (largest)",
-     "license": "CC BY-SA"
-    }
-   ]
-  }
- ],
- "buy_list": {
-  "_about": "Most-recommended survival books (Reddit r/preppers and survival forums) that are still under copyright. Worth owning in print. Beacon does not download these.",
-  "books": [
-   "SAS Survival Handbook — John 'Lofty' Wiseman",
-   "The Encyclopedia of Country Living — Carla Emery",
-   "The Foxfire Book series — Eliot Wigginton (ed.)",
-   "The Survival Medicine Handbook — Joseph & Amy Alton",
-   "Bushcraft 101 — Dave Canterbury",
-   "The Knowledge: How to Rebuild Civilization — Lewis Dartnell",
-   "Ball Complete Book of Home Preserving",
-   "A Peterson or National Audubon field guide to edible wild plants for your region",
-   "Where There Is No Doctor — buy the print edition to support Hesperian"
-  ]
- }
 }

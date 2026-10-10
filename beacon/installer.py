@@ -4,7 +4,7 @@
   python -m beacon.installer --tier core
   python -m beacon.installer --tier extended --bands medical,water-food
   python -m beacon.installer --models "qwen3:4b qwen3:14b"
-  python -m beacon.installer --maps places,world --region "Atlanta" --radius 300
+  python -m beacon.installer --maps places,world --region "Denver" --radius 300
 """
 import argparse
 import sys
@@ -65,7 +65,8 @@ def main(argv=None):
     from pathlib import Path
     installed = library.Installed(str(Path(cfg["index_path"]).parent / "installed.json"), data_root)
     kcat = library.KiwixCatalog(str(Path(cfg["index_path"]).parent / "kiwix_catalog.json"))
-    dl = library.Downloader(installed)
+    integrity = library.Integrity(str(Path(cfg["index_path"]).parent / "integrity.json"), data_root)
+    dl = library.Downloader(installed, integrity=integrity)
 
     if a.models:
         ollama = Ollama(cfg["ollama_url"])
@@ -90,7 +91,8 @@ def main(argv=None):
         todo, total = [], 0
         print(f"\n▸ Library tier '{a.tier}': looking up {len(items)} items…")
         for it in items:
-            if installed.file_for(it["id"]) or (it["type"] != "zim" and library.destination(it, cfg).exists()):
+            if installed.file_for(it["id"]) or (it["type"] in ("pdf", "text", "page") and not it.get("files")
+                                                and library.destination(it, cfg).exists()):
                 continue
             try:
                 if it["type"] == "zim":
@@ -98,18 +100,16 @@ def main(argv=None):
                     if not r:
                         print(f"  ! not found in Kiwix catalog: {it['title']}")
                         continue
-                    todo.append((it, r["url"], library.destination(it, cfg, r), r["size"]))
                     total += r["size"]
-                else:
-                    todo.append((it, it["url"], library.destination(it, cfg), 0))
+                todo.append(it)
             except Exception as e:
                 print(f"  ! {it['title']}: {e}")
         free = library.free_bytes(data_root)
         print(f"  {len(todo)} to download, about {human(total)} (plus small PDFs). Free: {human(free)}")
         if total > free:
             print("  ! Not enough space for everything; downloads will stop when the drive is full.")
-        for it, url, dest, size in todo:
-            dl.add(it, url, dest, size)
+        for it in todo:
+            library.queue_item(it, dl, kcat, cfg)
         wait(dl, "Library")
 
     maps = [m for m in a.maps.split(",") if m]

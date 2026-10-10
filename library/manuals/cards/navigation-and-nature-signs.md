@@ -9,7 +9,7 @@
   1. Push a stick upright into flat ground. Mark the tip of its shadow with a stone. **This first mark is west.**
   2. Wait 15–30 minutes. Mark the new shadow tip. **This second mark is east.**
   3. A line from the first to the second mark runs west → east. Stand with the first mark on your left: you're facing **north**.
-- **Analog watch** (northern hemisphere): point the hour hand at the sun. **South** is halfway between the hour hand and 12 (use 1 instead of 12 during daylight saving time). Southern hemisphere: point 12 at the sun; halfway between 12 and the hour hand is **north**.
+- **Analog watch** (northern hemisphere): point the hour hand at the sun. **South** is halfway between the hour hand and 12 (use 1 instead of 12 during daylight saving time). Southern hemisphere: point 12 at the sun; halfway between 12 and the hour hand is **north**. It gets unreliable near the tropics and around midday; use the shadow stick there.
 
 ## Find north by night
 - **North Star (Polaris)**: find the Big Dipper. The two stars on the end of the "cup" point to Polaris, about 5 times the distance between them. Polaris sits almost exactly over true north, and its height above the horizon roughly equals your latitude.

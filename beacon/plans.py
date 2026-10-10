@@ -1,6 +1,9 @@
 """Plan templates: structured, printable plans the brain fills in from the library."""
 
+PHASES = ["Preparing ahead", "It's happening now", "Recovering after"]
+
 COMMON_FIELDS = [
+    {"id": "phase", "label": "When is this for?", "choices": PHASES},
     {"id": "location", "label": "Where are you?", "placeholder": "City, region or coordinates"},
     {"id": "people", "label": "Who's with you?", "placeholder": "e.g. 2 adults, 1 child, 1 dog, grandma uses a walker"},
     {"id": "resources", "label": "What do you have?", "placeholder": "Vehicle, fuel, cash, gear, medical needs, skills"},
@@ -17,7 +20,7 @@ TEMPLATES = [
     {"id": "leave-country", "title": "Leaving the country", "icon": "🛂",
      "search": "evacuation abroad border crossing passport documents embassy travel route",
      "fields": [{"id": "destination", "label": "Destination country (if known)", "placeholder": "Country you have citizenship, residency or family in"},
-                {"id": "documents", "label": "Passports & visas you hold", "placeholder": "e.g. US + Italian passports, valid until…"}],
+                {"id": "documents", "label": "Passports & visas you hold", "placeholder": "e.g. US passport (expires 2031), Canadian work permit"}],
      "sections": ["When leaving makes sense vs. sheltering", "Documents checklist (originals, copies, digital)",
                   "Money: cash, cards, currencies", "Route options: air, land border, sea; nearest legal crossings",
                   "Low-profile travel (blending in, situational awareness)", "Communication plan with family",
@@ -71,12 +74,35 @@ TEMPLATES = [
      "fields": [{"id": "terrain", "label": "Terrain & weather", "placeholder": "Forest, desert, mountains; temperature"}],
      "sections": ["STOP: Stop, Think, Observe, Plan", "Priorities in order (rule of 3s)", "Shelter for these conditions",
                   "Fire", "Water", "Signaling for rescue", "Navigation: stay or move?", "Food (only when safe)"]},
-    {"id": "home-security", "title": "Home security & self-defense plan", "icon": "🛡️",
-     "search": "home security situational awareness self defense deterrence safe room de-escalation",
-     "fields": [{"id": "home", "label": "Home & neighborhood", "placeholder": "House/apartment, rural/urban, neighbors"}],
-     "sections": ["Deterrence: lighting, locks, visibility", "Low profile: don't advertise supplies",
-                  "Safe room and family plan", "Avoidance & de-escalation first", "Self-defense: know your local laws",
-                  "Firearm safety & secure storage (if you own them)", "Neighbors & mutual aid"]},
+    {"id": "perimeter", "title": "Defensive perimeter (home or camp)", "icon": "🛡️",
+     "search": "perimeter security observation watch schedule early warning deterrence safe room de-escalation",
+     "fields": [{"id": "home", "label": "Home or camp", "placeholder": "House, apartment, farm, campsite; rural or urban"},
+                {"id": "threat", "label": "What are you worried about?", "placeholder": "Looters during an outage, unrest, wildlife at camp"}],
+     "sections": ["What you're protecting and from what", "Deter: look occupied, not worth it", "Detect: early warning and observation posts",
+                  "Watch schedule and sectors for your group", "Delay: doors, windows, gates, barriers", "Respond: roles, safe room, signals",
+                  "Fallback position and escape routes", "Legal and ethical limits (no booby traps)", "Working with neighbors"]},
+    {"id": "evade", "title": "Survive & evade to safety", "icon": "🧭",
+     "search": "evasion movement concealment hide site camouflage navigation border crossing recovery",
+     "fields": [{"id": "destination", "label": "Where is safety?", "placeholder": "A town, a border, family, a rescue point"},
+                {"id": "threat", "label": "What are you avoiding?", "placeholder": "Unrest, checkpoints, fighting, a storm zone"}],
+     "sections": ["Stay or go: decision and trigger", "Route: main, backup, rally points", "Timing: when to move, when to rest hidden",
+                  "Hiding places (BLISS) and camouflage", "Moving quietly: light, noise, phones", "Water, food and first aid on the move",
+                  "Navigation without GPS", "Signaling and reaching help", "Crossing a border legally", "If the group is separated"]},
+    {"id": "community", "title": "Neighborhood network & mutual aid", "icon": "🤝",
+     "search": "community neighbors mutual aid check-in communications plan radio meshtastic roles watch CERT",
+     "fields": [{"id": "group", "label": "Who's in it?", "placeholder": "12 houses on our street, 3 elders living alone, a nurse"},
+                {"id": "gear", "label": "Radios and gear you have", "placeholder": "4 FRS radios, 2 Meshtastic radios, a generator"}],
+     "sections": ["Who's in it: households, skills, needs, who's vulnerable", "Meeting place and daily check-in times",
+                  "Communications plan (Primary, Alternate, Contingency, Emergency)", "Radio and mesh channel plan",
+                  "Roles: lead, medical, comms, supplies, watch, kids and elders", "Watch rotation and safety rules",
+                  "Shared resources and how to share fairly", "Practice drill"]},
+    {"id": "power", "title": "Backup power for your home", "icon": "🔋",
+     "search": "backup power solar panels power station battery generator safety carbon monoxide fridge freezer medical devices",
+     "fields": [{"id": "needs", "label": "What must keep running?", "placeholder": "Fridge, CPAP, phones, Wi-Fi, a few lights"},
+                {"id": "gear", "label": "Power gear you have", "placeholder": "None yet / a 1,000 Wh power station / gas generator"}],
+     "sections": ["Power budget: what must run and for how long", "Battery and solar setup", "Generator safety (carbon monoxide)",
+                  "Fridge, freezer and food safety", "Medical devices and medicines", "Heating and cooling without the grid",
+                  "Charging rotation and schedule", "What to get, in order"]},
     {"id": "mind-body", "title": "Mind & body routine under stress", "icon": "🧘",
      "search": "stress resilience sleep breathing meditation exercise discipline holistic health",
      "fields": [{"id": "situation", "label": "What you're dealing with", "placeholder": "Outage, isolation, grief, long crisis"}],
@@ -89,10 +115,21 @@ PLAN_INSTRUCTIONS = """Write a practical, printable plan titled "{title}".
 Use these sections as headings, in this order: {sections}.
 Under each heading give short, specific numbered steps or checklists tailored to the details below.
 Cite SOURCES inline like [2]. Put life-safety warnings first. If a detail is missing, state the \
-assumption you made in one line. End with a 5-line "If you only remember this" summary.
+assumption you made in one line.
+{phase_rule}
+End with a 5-line "If you only remember this" summary.
 
 DETAILS:
 {details}"""
+
+PHASE_RULES = {
+    "Preparing ahead": "TIMING: preparing ahead. Before the sections, add \"What to get and set up now\": a checklist "
+                       "with quantities for this household, most important first. Add a short practice drill at the end.",
+    "It's happening now": "TIMING: it's happening now. Before the sections, add \"Next 15 minutes\": the few actions that "
+                          "matter most right now. Keep every step short. Skip shopping and long-term advice.",
+    "Recovering after": "TIMING: recovering after. Before the sections, add \"Safety checks first\": gas, power lines, "
+                        "water, structure, injuries. Include getting help, documenting damage for insurance, and health.",
+}
 
 
 def get(template_id: str) -> dict | None:
@@ -116,6 +153,7 @@ def build(template: dict, answers: dict, place_context: str = "") -> tuple[str, 
         lines.append(f"- Location facts: {place_context}")
     instruction = PLAN_INSTRUCTIONS.format(title=template["title"],
                                            sections="; ".join(template["sections"]),
+                                           phase_rule=PHASE_RULES.get((answers.get("phase") or "").strip(), ""),
                                            details="\n".join(lines))
     query = f"{template['search']} {answers.get('threat', '')} {answers.get('location', '')}".strip()
     return query, instruction

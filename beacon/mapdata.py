@@ -5,8 +5,8 @@ Runs on a computer with internet (from the Library tab or the installer). Uses:
 - Protomaps daily OpenStreetMap build (ODbL) + the pmtiles CLI to cut out what's needed
 """
 import datetime as dt
+import hashlib
 import io
-import os
 import platform
 import re
 import stat
@@ -70,30 +70,23 @@ def build_places(data_root: str, job: dict, http=requests) -> Path:
 
 # ------------------------------------------------------------------ pmtiles CLI + builds
 
+# The map cutter is a program Beacon runs, so it's pinned to one release and its exact bytes.
+# Hashes match GitHub's published SHA-256 digests for go-pmtiles v1.31.2 (checked 2026-10-10).
+PMTILES_VERSION = "1.31.2"
+PMTILES_FILES = {
+    "Darwin_arm64": ("go-pmtiles-1.31.2_Darwin_arm64.zip", "40528f7f616fcbf91207cd48c8fc023d213f6d86c0cbf1f748732803d1880f3d"),
+    "Darwin_x86_64": ("go-pmtiles-1.31.2_Darwin_x86_64.zip", "1f0dc02eee6c58312dd6c509faee1b5c32f0596568af1bf51f1b034e7a88a65b"),
+    "Linux_arm64": ("go-pmtiles_1.31.2_Linux_arm64.tar.gz", "f8bd47e7ea866863489cad588fbaf2f31f42e5821f7a03f009b3769f05801cb1"),
+    "Linux_x86_64": ("go-pmtiles_1.31.2_Linux_x86_64.tar.gz", "3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f"),
+    "Windows_x86_64": ("go-pmtiles_1.31.2_Windows_x86_64.zip", "a658baa4d7e55020aef6ca17bd9ff9faa1582671266b36f58c52db0ac8e785a1"),
+}
+
+
 def _asset_pattern() -> str:
     sysname, mach = platform.system(), platform.machine().lower()
     arch = "arm64" if mach in ("arm64", "aarch64") else "x86_64"
     return {"Darwin": f"Darwin_{arch}", "Windows": "Windows_x86_64",
             "Linux": f"Linux_{arch}"}.get(sysname, f"Linux_{arch}")
-
-
-def github_assets(repo: str, http=requests) -> list[tuple[str, str]]:
-    """(name, url) for a repo's latest release. Uses the public release page first (no API
-    rate limit), then the API."""
-    try:
-        r = http.get(f"https://github.com/{repo}/releases/latest", headers=UA, timeout=30,
-                     allow_redirects=False)
-        tag = r.headers.get("Location", "").rsplit("/tag/", 1)[-1]
-        if tag:
-            page = http.get(f"https://github.com/{repo}/releases/expanded_assets/{tag}",
-                            headers=UA, timeout=30).text
-            names = sorted(set(re.findall(rf'/{re.escape(repo)}/releases/download/{re.escape(tag)}/([^"?#]+)', page)))
-            if names:
-                return [(n, f"https://github.com/{repo}/releases/download/{tag}/{n}") for n in names]
-    except requests.RequestException:
-        pass
-    rel = http.get(f"https://api.github.com/repos/{repo}/releases/latest", headers=UA, timeout=30).json()
-    return [(a["name"], a["browser_download_url"]) for a in rel.get("assets", [])]
 
 
 def pmtiles_cli(data_root: str, http=requests) -> Path:
@@ -102,11 +95,14 @@ def pmtiles_cli(data_root: str, http=requests) -> Path:
     exe = tools / ("pmtiles.exe" if platform.system() == "Windows" else "pmtiles")
     if exe.exists():
         return exe
-    pat = _asset_pattern()
-    name, url = next((n, u) for n, u in github_assets("protomaps/go-pmtiles", http) if pat in n)
-    blob = http.get(url, headers=UA, timeout=300).content
-    asset = {"name": name}
-    if asset["name"].endswith(".zip"):
+    name, want = PMTILES_FILES[_asset_pattern()]
+    url = f"https://github.com/protomaps/go-pmtiles/releases/download/v{PMTILES_VERSION}/{name}"
+    r = http.get(url, headers=UA, timeout=300)
+    r.raise_for_status()
+    blob = r.content
+    if hashlib.sha256(blob).hexdigest() != want:
+        raise RuntimeError("The map tool didn't match its published checksum, so Beacon didn't use it. Try again.")
+    if name.endswith(".zip"):
         zf = zipfile.ZipFile(io.BytesIO(blob))
         member = next(n for n in zf.namelist() if n.split("/")[-1] in ("pmtiles", "pmtiles.exe"))
         exe.write_bytes(zf.read(member))

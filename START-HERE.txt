@@ -1,118 +1,256 @@
 =====================================================================
                            B E A C O N
-          Your offline survival guide, library and assistant.
-               Works with no internet, no cell service.
+       Offline survival guide, library and AI, on this drive.
+            Works with no internet and no cell service.
 =====================================================================
 
-WHAT IT IS
-  Beacon is a USB drive with a private AI assistant and a library of
-  survival manuals, medical guides, maps and books. You type a
-  question in plain English; it answers from the library and shows you
-  exactly which page or article it used. Nothing is sent anywhere.
+IN AN EMERGENCY, RIGHT NOW
+  1. If you can, call 911 (US and Canada) or 112 (Europe, and most
+     mobile phones worldwide). In many US areas you can text 911.
+  2. Open Beacon (next section) and click "I need help now" at the
+     top. Bleeding, CPR, choking, burns, shock and more, step by
+     step. No AI, no waiting.
+  3. If Beacon won't start, open this file on any computer, phone or
+     tablet:
+        Beacon > library > manuals > cards > BEACON-CLIFFNOTES.txt
+     The other files in that folder are the quick cards.
 
 ---------------------------------------------------------------------
-OPEN IT
+OPEN BEACON
 ---------------------------------------------------------------------
-  MAC
-    1. Plug in the drive. Open it in Finder, then open the Beacon folder.
-    2. FIRST TIME ONLY: right-click (or Control-click) "Beacon.command"
-       and choose Open, then Open again. macOS asks once.
-    3. After that, just double-click Beacon.command.
+  1. Plug the drive into a Mac. If it's locked, the Mac asks for the
+     password.
+  2. Open the drive in Finder, then the Beacon folder.
+  3. Double-click Beacon. Your web browser opens it. The first start
+     takes 1 to 3 minutes while the AI loads from the drive.
+  4. Ready when the status button at the top shows a green dot and
+     the AI's name (like qwen3:14b).
 
-  WINDOWS PC
-    1. Plug in the drive. Open it in File Explorer, then the Beacon folder.
-    2. Double-click "Beacon.bat".
-    3. If Windows says "Windows protected your PC": click "More info",
-       then "Run anyway".
+  Needs macOS 14 Sonoma or newer. Apple Silicon Macs (M1 and later)
+  are fast. Intel Macs work, but answers come slowly.
 
-  A black window opens (leave it open; closing it turns Beacon off)
-  and your web browser shows Beacon. No internet is needed.
+  The Mac says Beacon "can't be opened"? Control-click Beacon,
+  choose Open, then Open again. It only asks once.
+  Nothing happens? Double-click "Beacon (with Terminal)" instead.
+  It shows what's going on.
 
----------------------------------------------------------------------
-THE FIRST SCREEN: COMPUTER CHECK
----------------------------------------------------------------------
-  Beacon looks at the computer it's plugged into (memory, graphics,
-  battery, free space) and picks the strongest AI "brain" that
-  computer can run. Click Start.
-
----------------------------------------------------------------------
-WHAT EACH TAB DOES
----------------------------------------------------------------------
-  EMERGENCY (red button)  Instant first-aid steps. No AI, no waiting.
-  ASK      Type any question. Answers cite their sources; click a
-           [number] to read the original page.
-  PLAN     Pick a plan (evacuation, winter storm, tornado, leaving the
-           country, food, garden...). Fill in what you know. Beacon
-           writes a step-by-step plan you can print.
-  MAP      Type where you are (or coordinates) and where you need to
-           go. See the map, distance, compass direction and travel time.
-  LIBRARY  See what's installed. With internet, download more:
-           manuals, Wikipedia, maps, books, and bigger AI brains.
-  CHECK    Proves the AI can find every manual and library on the drive.
-  MY INFO  Your household: people, medical needs, contacts and meeting
-           places. Plans use it automatically. Prints in the binder.
+BEFORE YOU UNPLUG THE DRIVE
+  Click the status button at the top, then Quit. Then eject the
+  drive (Control-click it in Finder > Eject). Pulling it out while
+  Beacon runs can damage the library.
 
 ---------------------------------------------------------------------
-SAVE AS PDF / PRINT
+THE FIRST 15 MINUTES  (do this today, while things are calm)
 ---------------------------------------------------------------------
-  Click "Save as PDF" on any answer, plan or map.
-    Mac:     in the print window, click "PDF" (bottom left) > Save as PDF.
-    Windows: choose "Microsoft Print to PDF" as the printer.
-  PRINT THE BINDER: Library tab > "Print the binder" prints every quick
-  card, the cliff notes and your household info. Keep a paper copy
-  with your emergency supplies in case all power is gone.
+  [ ] 1. Open Beacon and wait for the green dot.            2 min
+  [ ] 2. Library > Health check > Run the health check.
+         Fix anything marked red; each line says how.         2 min
+  [ ] 3. Lock the drive with a password (see LOCK THE DRIVE). 1 min
+  [ ] 4. Plan > Your household: who lives with you, medical
+         needs, medicines, contacts, meeting places.          3 min
+  [ ] 5. Make one plan for your most likely emergency, with
+         "Preparing ahead". Click Save PDF and send it to
+         your family's phones.                                3 min
+  [ ] 6. Ask a test question. Click a [number] in the answer
+         to see the page it came from.                        1 min
+  [ ] 7. Share > Start sharing. On your phone, type one WRONG
+         code first: the Mac should alert you. Then join with
+         the right code. Stop sharing.                        2 min
+  [ ] 8. Library > Paper backup > print the binder. Quit
+         Beacon, eject, and keep the drive and the Mac's
+         charger with your emergency kit.                     1 min
 
 ---------------------------------------------------------------------
-TALK INSTEAD OF TYPING
+WHAT'S ON THE SCREEN
 ---------------------------------------------------------------------
-  Mac:     press the microphone key, or the Fn/Globe key twice, then speak.
-  Windows: press Windows key + H, then speak.
-  Click "Read aloud" under any answer to hear it.
+  I NEED HELP NOW  Emergency cards that open instantly. Some have
+                   tools inside: a CPR beat, a tourniquet timer.
+  HOME     Ask anything in plain English, by typing or talking.
+           Answers come from the library on this drive and show
+           their sources: click a [number] to read the original.
+  PLAN     Pick a plan: evacuation, shelter in place, winter storm,
+           hurricane, backup power, neighborhood network, leaving
+           the country, survive and evade, and more. Choose when
+           it's for: preparing ahead, happening now, or recovering
+           after. Beacon writes a step-by-step plan for your
+           household that you can save, print and share.
+  MAP      Where you are and where you're going: distance, compass
+           direction, travel time, nearest towns. Works offline.
+  BOARD    Check-ins (safe or need help), needs, offers and reports
+           from everyone on this Beacon, and from mesh radios.
+  TOOLS    CPR beat, tourniquet timer, rehydration drink, water
+           treatment with bleach, water to store, power budget,
+           supplies, Morse code, flashlight and SOS, heat and cold
+           risk, lightning distance, sun and moon times, translate,
+           unit conversions.
+  LIBRARY  Saved plans and answers, what's installed, the health
+           check, your own documents, the reading shelf, paper
+           backups, and gear worth having. With internet: download
+           more manuals, Wikipedia, maps and bigger AI brains.
+
+  The AI can be wrong. For medical, electrical, gas, weapons or
+  wild-food decisions, read the source it cites, and get trained
+  help whenever you can.
 
 ---------------------------------------------------------------------
-IF THE AI WON'T START
+SHARE WITH PHONES AND TABLETS
 ---------------------------------------------------------------------
-  Everything important is also plain text you can open directly:
-    Beacon > library > manuals > cards
-      BEACON-CLIFFNOTES.txt   <- the most important file. Start here.
-      first-aid-essentials.md, water.md, severe-weather.md, ...
-  Any computer, phone or tablet can open these.
+  Anyone on the same Wi-Fi can use Beacon in their phone's web
+  browser, powered by this Mac. Nothing to install on the phone.
+  1. Click Share at the top, then Start sharing. If the Mac asks
+     whether Python may accept incoming connections, click Allow.
+  2. On the phone, point the camera at the QR code. Or open
+     beacon.local (or the number address shown) and type the
+     4-digit code.
+  3. Keep the Mac plugged in with the lid open. Beacon stops it from
+     going to sleep while sharing.
+
+  No internet needed. A home Wi-Fi router keeps working during an
+  outage as long as it has power (a power station or a UPS keeps it
+  on). A small travel router, or a phone's hotspot, works too.
+
+  Guests can ask, plan, read, check in and save files to their
+  phone. They can't change settings, download anything new, see your
+  household info or quit Beacon.
+
+  WHO'S CONNECTED: Share > Connections lists every device signed in,
+  every wrong code and anything Beacon blocked, and the Mac pops up
+  an alert when someone fails or gets blocked. "Sign everyone out"
+  changes the code. "Stop sharing" disconnects everyone.
+
+---------------------------------------------------------------------
+SAVE, PRINT AND KEEP
+---------------------------------------------------------------------
+  - Every answer, plan and map has Save PDF.
+  - Plans made on this Mac are kept on the drive automatically;
+    answers when you click Save to Beacon. Find them in Library >
+    Saved and on the Plan tab. They open even with the AI off.
+  - "Share with everyone" puts a saved plan on every phone connected
+    to this Beacon.
+  - On a phone: Library > Paper backup > All quick cards saves every
+    card to the phone as plain text.
+  - Library > Paper backup > The binder: every quick card, the cliff
+    notes and your household info, ready to print. Keep a paper copy
+    with your supplies in case all power is gone.
+
+---------------------------------------------------------------------
+THE BOARD AND MESH RADIOS
+---------------------------------------------------------------------
+  Board > "We're safe" or "We need help" puts your household on the
+  roster everyone sees. Post needs, offers and reports. This Mac can
+  pin and remove posts.
+
+  Meshtastic radios (optional) send short texts radio to radio, with
+  no cell service or internet: a few blocks in a dense town, many
+  miles with a clear view. Plug one into this Mac with a DATA USB
+  cable, then Board > Connect. Messages from radios appear on the
+  Board, and anyone with a radio can check in by sending a text like:
+        SAFE The Garcias
+        HELP Unit 4B: out of insulin
+  Setup, private channels and range tips: the Meshtastic card.
+  Walkie-talkies, the check-in schedule and roles: the Community
+  card. Ask Beacon to make a "Neighborhood network" plan.
+
+---------------------------------------------------------------------
+LOCK THE DRIVE WITH A PASSWORD  (once)
+---------------------------------------------------------------------
+  Your household info, plans and notes live on this drive. Locked,
+  a lost drive is just a lost drive.
+  - In Finder, Control-click the drive and choose Encrypt. Pick a
+    password you won't forget. Keep it somewhere separate from the
+    drive. Encryption finishes in the background.
+  - No Encrypt option? The drive is exFAT, which can't be encrypted.
+    Copy off anything you added, erase the drive in Disk Utility as
+    "APFS (Encrypted)", and build it again.
+  - Only Macs can open an encrypted drive, and a forgotten password
+    can't be recovered.
+  The health check shows whether the drive is locked. To erase your
+  household info: Plan > Your household > Erase all of it.
+
+---------------------------------------------------------------------
+POWER
+---------------------------------------------------------------------
+  - Answering questions uses much more battery than reading. When
+    power is short, click the status button and turn on Low power:
+    the AI turns off, and cards, tools, maps and the library keep
+    working.
+  - Tools > Power budget: how long a power station or solar panels
+    will run the things you need.
+  - The Power card covers power stations, solar and generator safety.
+
+---------------------------------------------------------------------
+WHAT SIZE DRIVE
+---------------------------------------------------------------------
+  Best: a 1 TB portable SSD (USB-C), like a Samsung T7 Shield,
+  SanDisk Extreme or Crucial X9/X10. It holds everything plus bigger
+  AI brains and your own files, and loads the AI several times
+  faster than a thumb drive.
+
+    Library tier   Drive     What it adds
+    Core           64 GB     the essentials
+    Extended       128 GB    repair, off-grid, homesteading, books
+    Complete       256 GB    WikiHow, Wikipedia intros, learning
+    Everything     512 GB+   all of Wikipedia (1 TB recommended)
+
+  The Library tab shows exact sizes before you download anything.
 
 ---------------------------------------------------------------------
 ADD YOUR OWN DOCUMENTS
 ---------------------------------------------------------------------
   Copy PDFs or text files into  Beacon > library > manuals
-  (generator manual, medical records, insurance, house info, maps).
-  Then in Beacon: Library tab > "Index manuals folder".
-  Scanned PDFs (photos of pages) can be stored but not searched.
+  (generator and appliance manuals, medical records, insurance,
+  local maps, house notes). Then: Library > Manuals and guides >
+  Index new files. Scanned PDFs (photos of pages) are kept but can't
+  be searched.
 
 ---------------------------------------------------------------------
-GOOD TO KNOW
+TALK INSTEAD OF TYPING
 ---------------------------------------------------------------------
-  - The AI can make mistakes. For medical, electrical, gas, weapons or
-    wild food questions, click the source and read it yourself.
-    Call 911 / 112 whenever you can.
-  - On battery power the AI drains the laptop quickly. Use the quick
-    cards and the Emergency button when you need to save power.
-  - Laptops don't have GPS. Type your town or coordinates on the Map
-    tab (a phone's compass app or a paper map can give coordinates).
-  - Your household info is stored on this drive WITHOUT a password.
-    Keep the drive somewhere safe.
-  - To update the library: plug into any computer with internet, open
-    Beacon, go to the Library tab.
-  - Works best with 16 GB of memory or more. Older and Intel
-    computers use a smaller, slower brain, but everything still works.
+  Press the microphone key, or the Fn/Globe key twice, and speak.
+  (Turn it on in System Settings > Keyboard > Dictation. On Apple
+  Silicon Macs it works without internet.)
+  "Read aloud" under any answer reads it out.
+
+---------------------------------------------------------------------
+IF SOMETHING GOES WRONG
+---------------------------------------------------------------------
+  Beacon won't open
+      Double-click "Beacon (with Terminal)" to see why. Logs are in
+      Beacon > data > logs.
+  "The AI engine isn't running"
+      Click the status button, Quit, and open Beacon again.
+  "The AI model isn't on this drive"
+      Library > Brain. Downloading needs internet once.
+  Answers are very slow
+      Plug in the charger. Older and Intel Macs are slower: in
+      Library > Brain, choose a lighter brain.
+  A phone can't open beacon.local
+      Use the number address shown under Share. The phone must be on
+      the same Wi-Fi, and not a guest network (those often keep
+      devices apart).
+  Alerts about wrong codes you didn't expect
+      Share > Connections shows which device. Sign everyone out, or
+      Stop sharing.
+  The mesh radio isn't found
+      Use a data USB cable (some only charge) and another port. Set
+      the radio's region in the Meshtastic app first.
+  Anything else
+      Ask Beacon. It has the cards, the manuals and your documents.
 
 ---------------------------------------------------------------------
 WHERE THINGS ARE ON THE DRIVE
 ---------------------------------------------------------------------
-  Beacon.command / Beacon.bat   start Beacon (Mac / Windows)
-  library/manuals               PDFs and quick cards (searchable)
-  library/zim                   offline Wikipedia, medical, repair...
-  library/books                 reading shelf (novels, spiritual texts)
-  maps                          offline world and region maps
-  models                        the AI brains
-  data                          search index, your household info
+  Beacon/Beacon                      start Beacon (double-click)
+  Beacon/Beacon (with Terminal)      start it and show what happens
+  Beacon/library/manuals/cards       quick cards and the cliff notes
+  Beacon/library/manuals             manuals and your own documents
+  Beacon/library/zim                 Wikipedia, medical, repair...
+  Beacon/library/books               reading shelf
+  Beacon/maps                        offline maps and place names
+  Beacon/models                      the AI brains
+  Beacon/data                        household info, saved plans,
+                                     the Board, search index, logs,
+                                     SBOM.txt (software list)
 
 =====================================================================
   Stay calm. Stay together. Read the source. You've got this.

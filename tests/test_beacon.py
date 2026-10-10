@@ -46,6 +46,8 @@ class FakeOllama:
         yield {"status": "pulling", "total": 100, "completed": 50}
         yield {"status": "success"}
 
+    def unload(self, model): self.unloaded = model
+
 
 class FakeResp:
     def __init__(self, body=b"", status=200, headers=None, text=None):
@@ -147,12 +149,13 @@ def env(tmp_path, zim_dir):
     maps = root / "maps"; maps.mkdir(parents=True)
     (maps / "places.tsv").write_text(
         "Atlanta\tAtlanta\t33.749\t-84.38798\tUS\tGeorgia\tUnited States\t498715\n"
+        "Denver\tDenver\t39.73915\t-104.9847\tUS\tColorado\tUnited States\t715522\n"
         "Athens\tAthens\t33.96095\t-83.37794\tUS\tGeorgia\tUnited States\t127315\n"
         "Athens\tAthens\t37.98376\t23.72784\tGR\tAttica\tGreece\t664046\n"
         "Toronto\tToronto\t43.70011\t-79.4163\tCA\tOntario\tCanada\t2600000\n"
         "São Paulo\tSao Paulo\t-23.5475\t-46.63611\tBR\tSão Paulo\tBrazil\t10021295\n")
     (maps / "world.pmtiles").write_bytes(bytes(range(256)) * 40)
-    cfg = {"ollama_url": "x", "chat_model": "", "embed_model": "nomic-embed-text",
+    cfg = {"ollama_url": "http://127.0.0.1:11435", "chat_model": "", "embed_model": "nomic-embed-text",
            "zim_dir": str(zim_dir), "manuals_dir": str(man), "books_dir": str(root / "library" / "books"),
            "index_path": str(root / "data" / "idx.sqlite"), "data_root": str(root), "host": "127.0.0.1", "port": 1}
     ollama = FakeOllama()
@@ -167,7 +170,9 @@ def make_client(env, http=None, monkeypatch=None):
         monkeypatch.setattr("beacon.config.save", lambda u: None)
     app = create_app(dict(env["cfg"]), ollama=env["ollama"], kiwix=KiwixLibrary(str(env["zim_dir"])),
                      manuals=env["manuals"], http=http or FakeHTTP(online=False))
-    return app, app.test_client()
+    c = app.test_client()
+    c.environ_base["HTTP_X_BEACON"] = "1"          # what Beacon's own pages send with every action
+    return app, c
 
 
 def sse(resp):
@@ -230,7 +235,9 @@ def test_manual_index(tmp_path):
     assert idx.ingest_dir(str(d), progress=lambda m: None)["unchanged"] == 2
     assert idx.pending(str(d)) == []
     top = idx.search("what frequency is NOAA weather radio", k=1)[0]
-    assert top["book"] == "radio.md" and top["title"].startswith("Radio") and top["ref"].startswith("radio.md")
+    assert top["book"] == "Radio" and top["title"] == "" and top["ref"].startswith("radio.md")   # shown by its heading
+    idx.display = {"radio.md": "NOAA Weather Radio guide"}
+    assert idx.search("what frequency is NOAA weather radio", k=1)[0]["book"] == "NOAA Weather Radio guide"
     fire = idx.search("start a fire with tinder", k=1)[0]
     assert fire["ref"].startswith("sub/fire.txt")
     assert len(idx.samples()) == 2
@@ -267,9 +274,14 @@ def test_catalog_is_consistent():
         assert it["tier"] in tiers and it["title"]
         if it["type"] == "zim":
             assert it.get("name") or it.get("query")
-        elif it["type"] in ("pdf", "text"):
+        elif it.get("files"):                       # several PDFs that belong together
+            assert it["type"] == "pdf" and "license" in it
+            assert all(f["url"].startswith("https://") and f["file"] for f in it["files"])
+        elif it["type"] in ("pdf", "text", "page"):
             assert it["url"].startswith("https://") and it["file"]
             assert "license" in it
+            if it["type"] == "page":
+                assert it["file"].endswith(".md")
         elif it["type"] == "link":
             assert it["url"].startswith("https://")
         else:
@@ -397,13 +409,32 @@ def test_build_places_with_fake_downloads(tmp_path):
     assert Places(str(out)).search("toronto")
 
 
+def test_map_tool_is_pinned_and_checked_before_it_runs(tmp_path, monkeypatch):
+    import os
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("pmtiles", "#!/bin/sh\necho ok\n")
+    fake = buf.getvalue()
+    monkeypatch.setattr(mapdata, "_asset_pattern", lambda: "Darwin_arm64")
+    name, pinned = mapdata.PMTILES_FILES["Darwin_arm64"]
+    assert len(pinned) == 64 and all(len(h) == 64 for _, h in mapdata.PMTILES_FILES.values())
+    url = f"https://github.com/protomaps/go-pmtiles/releases/download/v{mapdata.PMTILES_VERSION}/{name}"
+    with pytest.raises(RuntimeError, match="checksum"):
+        mapdata.pmtiles_cli(str(tmp_path / "a"), FakeHTTP({url: fake}))              # not the published bytes
+    assert not (tmp_path / "a" / "tools" / "pmtiles").exists()
+    monkeypatch.setitem(mapdata.PMTILES_FILES, "Darwin_arm64", (name, hashlib.sha256(fake).hexdigest()))
+    exe = mapdata.pmtiles_cli(str(tmp_path / "b"), FakeHTTP({url: fake}))
+    assert exe.read_text().startswith("#!/bin/sh") and os.access(exe, os.X_OK)
+
+
 # ------------------------------------------------------------------ plans, system, checks
 
 def test_plan_build_includes_details():
     tpl = plans.get("leave-country")
-    q, instr = plans.build(tpl, {"location": "Atlanta", "destination": "Italy", "documents": "US + IT passports"},
-                           "Atlanta at 33.7, -84.4")
-    assert "Leaving the country" in instr and "US + IT passports" in instr and "Atlanta at 33.7" in instr
+    q, instr = plans.build(tpl, {"location": "Denver", "destination": "Canada", "documents": "US passport, Canadian work permit",
+                                 "phase": "It's happening now"}, "Denver at 39.7, -105.0")
+    assert "Next 15 minutes" in instr and "What to get" not in instr
+    assert "Leaving the country" in instr and "Canadian work permit" in instr and "Denver at 39.7" in instr
     assert "passport" in q
     assert len(plans.public_list()) == len(plans.TEMPLATES) >= 12
     assert all(t["sections"] for t in plans.TEMPLATES)
@@ -461,9 +492,9 @@ def test_no_model_installed_reports_error(env):
 
 def test_plan_uses_household_profile_and_places(env, monkeypatch):
     _, c = make_client(env, monkeypatch=monkeypatch)
-    assert c.post("/api/profile", json={"home": "Atlanta", "medical": "Dad: insulin", "bogus": "x"}).get_json()["saved"]
+    assert c.post("/api/profile", json={"home": "Denver", "medical": "Dad: insulin", "bogus": "x"}).get_json()["saved"]
     prof = c.get("/api/profile").get_json()
-    assert prof == {"home": "Atlanta", "medical": "Dad: insulin"}
+    assert prof == {"home": "Denver", "medical": "Dad: insulin"}
     ev = sse(c.post("/api/plan", json={"template": "evacuate", "answers": {"destination": "Toronto"}}))
     assert ev[-1][0] == "done"
     prompt = env["ollama"].last_messages[-1]["content"]
@@ -563,7 +594,7 @@ def test_drive_moves_between_computers_without_reindexing(tmp_path):
     idx2 = ManualIndex(str(b / "data" / "i.sqlite"), FakeOllama(), "e", str(b / "library" / "manuals"))
     assert idx2.pending(str(b / "library" / "manuals")) == []
     assert idx2.ingest_dir(str(b / "library" / "manuals"), progress=lambda m: None)["unchanged"] == 1
-    assert idx2.search("NOAA radio", k=1)[0]["title"].startswith("Radio")
+    assert idx2.search("NOAA radio", k=1)[0]["book"] == "Radio"
     inst2 = library.Installed(str(b / "data" / "installed.json"), str(b))
     assert inst2.file_for("fema") == str(b / "library" / "manuals" / "radio.md")
 
@@ -594,3 +625,686 @@ def test_damaged_pdf_is_skipped_not_fatal(tmp_path):
     log = []
     res = idx.ingest_dir(str(d), progress=log.append)
     assert res["indexed"] >= 1 and [f["file"] for f in idx.files()][-1] == "good.md"
+
+
+# ------------------------------------------------------------------ Wi-Fi sharing, guests, quitting
+
+GUEST = {"REMOTE_ADDR": "192.168.1.50"}
+
+
+def sharing(app, code="4821"):
+    """Pretend the Wi-Fi server is running without binding a real socket."""
+    share = app.config["share"]
+    share.server, share.code = object(), code
+    return share
+
+
+def test_guests_need_the_code_and_cant_change_things(env, monkeypatch):
+    app, c = make_client(env, monkeypatch=monkeypatch)
+    c.post("/api/profile", json={"home": "Denver", "medical": "Dad: insulin"})       # the host fills it in
+    r = c.get("/", environ_base=GUEST)
+    assert r.status_code == 401 and "isn't shared right now" in r.get_data(as_text=True)  # sharing is off
+    sharing(app)
+    assert "4-digit code" in c.get("/", environ_base=GUEST).get_data(as_text=True)
+    assert c.get("/api/status", environ_base=GUEST).status_code == 401
+    bad = c.get("/?code=0000", environ_base=GUEST)
+    assert bad.status_code == 401 and "match. Check the Beacon screen" in bad.get_data(as_text=True)
+    ok = c.get("/?code=4821", environ_base=GUEST)
+    cookie = ok.headers["Set-Cookie"]
+    assert ok.status_code == 302 and cookie.startswith("beacon_guest=") and "4821" not in cookie   # a token, not the code
+    assert "HttpOnly" in cookie and "SameSite=Lax" in cookie
+    assert c.get("/", environ_base=GUEST).status_code == 200                            # the cookie is remembered
+    assert c.get("/api/system", environ_base=GUEST).get_json()["guest"] is True
+    assert c.get("/api/system").get_json()["guest"] is False                            # the Mac itself
+    for path in ("/api/quit", "/api/profile", "/api/share", "/api/power", "/api/library/download", "/api/models/pull", "/api/ingest"):
+        assert c.post(path, json={}, environ_base=GUEST).status_code == 403, path
+    assert c.get("/api/profile", environ_base=GUEST).status_code == 403
+    assert "Dad: insulin" not in c.get("/binder", environ_base=GUEST).get_data(as_text=True)
+    assert "Dad: insulin" in c.get("/binder").get_data(as_text=True)
+    ev = sse(c.post("/api/plan", json={"template": "evacuate", "answers": {}}, environ_base=GUEST))
+    assert ev[-1][0] == "done" and "Dad: insulin" not in env["ollama"].last_messages[-1]["content"]
+    ev = sse(c.post("/api/ask", json={"question": "how long to boil water"}, environ_base=GUEST))
+    assert "token" in [k for k, _ in ev]                                                # guests can ask
+    assert c.get("/download/cards.zip", environ_base=GUEST).status_code == 200          # and save files
+    app.config["share"].server = None                                                   # sharing stopped
+    assert c.get("/api/status", environ_base=GUEST).status_code == 401
+
+
+def test_quit_stops_the_ai_engine_and_beacon(env, monkeypatch):
+    import os, subprocess, time
+    app, c = make_client(env)
+    engine = subprocess.Popen(["sleep", "30"])
+    run = Path(env["root"]) / "data" / "run"; run.mkdir(parents=True, exist_ok=True)
+    (run / "ollama.pid").write_text(str(engine.pid))
+    exited = []
+    monkeypatch.setattr(os, "_exit", lambda code: exited.append(code))
+    assert c.post("/api/quit", json={}).get_json() == {"stopping": True}
+    for _ in range(40):
+        if exited and engine.poll() is not None:
+            break
+        time.sleep(0.1)
+    assert exited == [0] and engine.poll() is not None and not (run / "ollama.pid").exists()
+
+
+def test_share_server_serves_beacon_on_the_network(env):
+    import socket, urllib.request
+    from beacon.share import Share
+    app, _ = make_client(env)
+    sh = Share(app, ports=(0,))                     # any free port
+    st = sh.start()
+    try:
+        assert st["on"] and len(st["code"]) == 4 and st["code"].isdigit()
+        assert st["join_url"].endswith("/?code=" + st["code"])
+        body = urllib.request.urlopen(f"http://127.0.0.1:{st['port']}/api/ping", timeout=5).read()
+        assert json.loads(body)["ok"] is True
+    finally:
+        assert sh.stop() == {"on": False, "error": ""}
+    blocker = socket.socket(); blocker.bind(("0.0.0.0", 0)); port = blocker.getsockname()[1]; blocker.listen()
+    try:
+        failed = Share(app, ports=(port,)).start()
+        assert failed["on"] is False and failed["error"]
+    finally:
+        blocker.close()
+
+
+def test_low_power_turns_the_ai_off_but_keeps_cards(env, monkeypatch):
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    assert c.post("/api/power", json={"low": True}).get_json() == {"low": True}
+    assert c.get("/api/system").get_json()["low_power"] is True
+    import time; time.sleep(0.2)
+    assert env["ollama"].unloaded == "qwen3:14b"                                       # memory freed right away
+    ev = sse(c.post("/api/ask", json={"question": "my friend is bleeding a lot"}))
+    kinds = [k for k, _ in ev]
+    assert kinds[0] == "card" and "error" in kinds and "token" not in kinds
+    assert "Low power" in dict(ev)["error"]
+    assert "error" in [k for k, _ in sse(c.post("/api/translate", json={"text": "water", "to": "Spanish"}))]
+    c.post("/api/power", json={"low": False})
+    assert "token" in [k for k, _ in sse(c.post("/api/ask", json={"question": "boil water"}))]
+
+
+def test_matching_quick_card(env, monkeypatch):
+    assert rag.match_card("Someone is bleeding badly from the leg") == "first-aid-essentials.md"
+    assert rag.match_card("A tornado warning was just issued") == "severe-weather.md"
+    assert rag.match_card("It's a heat wave and grandma is dizzy") == "severe-weather.md"
+    assert rag.match_card("How do we set up a perimeter and a watch schedule?") == "defensive-perimeter.md"
+    assert rag.match_card("How do I evade checkpoints and stay hidden?") == "evasion-basics.md"
+    assert rag.match_card("What's the capital of France?") is None
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    ev = sse(c.post("/api/ask", json={"question": "someone is bleeding from a deep cut"}))
+    assert ev[0] == ("card", {"file": "first-aid-essentials.md", "title": "Emergency First Aid Card"})
+    plan = sse(c.post("/api/plan", json={"template": "tornado", "answers": {}}))
+    assert ("card", {"file": "first-aid-essentials.md", "title": "Emergency First Aid Card"}) not in plan  # no such card on this test drive
+
+
+def test_translate_streams_plain_translation(env, monkeypatch):
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    ev = sse(c.post("/api/translate", json={"text": "We need clean water.", "to": "Spanish"}))
+    assert [k for k, _ in ev][-1] == "done" and "token" in [k for k, _ in ev]
+    msgs = env["ollama"].last_messages
+    assert "translate" in msgs[0]["content"].lower() and msgs[-1]["content"].startswith("Translate into Spanish")
+    assert c.post("/api/translate", json={"text": "", "to": "Spanish"}).status_code == 400
+
+
+def make_pdf(text: str) -> bytes:
+    """A tiny one-page PDF with real, extractable text."""
+    stream = f"BT /F1 18 Tf 72 720 Td ({text}) Tj ET".encode()
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+            b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    out, offsets = b"%PDF-1.4\n", []
+    for n, o in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % n + o + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % x for x in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    return out
+
+
+def test_pdfs_inside_kiwix_archives_are_searchable(tmp_path):
+    from libzim.writer import Creator, Hint, Item, StringProvider
+
+    class Doc(Item):
+        def __init__(self, path, title, body, mime):
+            super().__init__()
+            self.p, self.t, self.b, self.m = path, title, body, mime
+        def get_path(self): return self.p
+        def get_title(self): return self.t
+        def get_mimetype(self): return self.m
+        def get_contentprovider(self): return StringProvider(self.b)
+        def get_hints(self): return {Hint.FRONT_ARTICLE: self.m == "text/html"}
+
+    zims = tmp_path / "zim"; zims.mkdir()
+    with Creator(str(zims / "fieldmanuals_en_2026-01.zim")).config_indexing(True, "eng") as c:
+        c.set_mainpath("index")
+        c.add_metadata("Title", "Field Manuals")
+        c.add_item(Doc("index", "Index", "<html><body><p>List of manuals.</p></body></html>", "text/html"))
+        c.add_item(Doc("files/fm-4-25.pdf", "FM 4-25.11 First Aid", make_pdf("Apply the tourniquet two inches above the wound"), "application/pdf"))
+    kiwix = KiwixLibrary(str(zims))
+    idx = ManualIndex(str(tmp_path / "i.sqlite"), FakeOllama(), "e", str(tmp_path / "manuals"))
+    (tmp_path / "manuals").mkdir()
+    res = idx.ingest_zim_pdfs(kiwix, progress=lambda m: None)
+    assert res["indexed"] == 1
+    f = idx.files()[0]
+    assert f["path"] == "zim:fieldmanuals_en_2026-01/files/fm-4-25.pdf" and f["title"] == "FM 4-25.11 First Aid"
+    hit = idx.search("tourniquet above the wound", k=1)[0]
+    assert hit["kind"] == "zimpdf" and hit["book"] == "FM 4-25.11 First Aid" and hit["page"] == 1
+    assert hit["ref"] == "fieldmanuals_en_2026-01/files/fm-4-25.pdf"
+    assert idx.ingest_zim_pdfs(kiwix, progress=lambda m: None)["indexed"] == 0       # unchanged: skipped
+    idx.ingest_dir(str(tmp_path / "manuals"), progress=lambda m: None)               # doesn't drop them
+    assert idx.files()
+    content, mime = kiwix.article_html("fieldmanuals_en_2026-01", "files/fm-4-25.pdf")
+    assert mime == "application/pdf" and content.startswith(b"%PDF")
+    idx.ingest_zim_pdfs(KiwixLibrary(str(tmp_path / "empty")), progress=lambda m: None)  # archive removed
+    assert idx.files() == []
+
+
+def test_multi_file_and_web_page_downloads(env):
+    cat = library.load_catalog()
+    multi = next(i for i in library.all_items(cat) if i.get("files"))
+    page = next(i for i in library.all_items(cat) if i["type"] == "page")
+    routes = {f["url"]: b"%PDF-1.4 part" for f in multi["files"]}
+    routes[page["url"]] = "<html><body><h1>Shelter</h1><p>Stay inside and listen to the radio.</p><script>x()</script></body></html>"
+    app, c = make_client(env, http=FakeHTTP(routes))
+    r = c.post("/api/library/download", json={"ids": [multi["id"], page["id"]]}).get_json()
+    assert r["queued"] == 2 and not r["errors"]
+    app.config["downloader"].worker.join(10)
+    jobs = app.config["downloader"].jobs
+    assert jobs[multi["id"]]["state"] == "done" and jobs[page["id"]]["state"] == "done", jobs
+    folder = Path(env["cfg"]["manuals_dir"]) / multi["band"] / multi["id"]
+    assert sorted(p.name for p in folder.iterdir()) == sorted(f["file"] for f in multi["files"])
+    saved = (Path(env["cfg"]["manuals_dir"]) / page["band"] / page["file"]).read_text()
+    assert saved.startswith("# " + page["title"]) and "Source: " + page["url"] in saved
+    assert "Stay inside and listen to the radio." in saved and "x()" not in saved
+    items = {i["id"]: i for b in c.get("/api/library").get_json()["bands"] for i in b["items"]}
+    assert items[multi["id"]]["installed"] and items[page["id"]]["installed"]
+
+
+def test_files_save_to_a_phone(env):
+    (Path(env["root"]) / "START-HERE.txt").write_text("Start here.")
+    _, c = make_client(env)
+    z = zipfile.ZipFile(io.BytesIO(c.get("/download/cards.zip").data))
+    assert {"Beacon cards/first-aid-essentials.md", "Beacon cards/BEACON-CLIFFNOTES.txt", "Beacon cards/START-HERE.txt"} <= set(z.namelist())
+    for url in ("/read/manual/cards/first-aid-essentials.md?download=1", "/binder?download=1",
+                "/read/book/reading/Test-Book.txt?download=1"):
+        r = c.get(url)
+        assert r.status_code == 200 and r.headers["Content-Disposition"].startswith("attachment"), url
+
+
+def test_ui_files_are_served_and_wired():
+    """Every element the scripts look up by id exists in the page (or is created by the scripts)."""
+    import re
+    app = create_app({"ollama_url": "x", "chat_model": "", "embed_model": "e", "zim_dir": "/nonexistent",
+                      "manuals_dir": "/nonexistent", "books_dir": "/nonexistent", "index_path": "/tmp/beacon-ui-test/i.sqlite",
+                      "data_root": "/tmp/beacon-ui-test", "host": "127.0.0.1", "port": 1}, ollama=FakeOllama(), kiwix=None)
+    c = app.test_client()
+    page = c.get("/").get_data(as_text=True)
+    for asset in re.findall(r'(?:src|href)="(/static/[^"]+)"', page):
+        r = c.get(asset)
+        assert r.status_code == 200, asset
+        if asset.endswith((".js", ".mjs")):
+            assert "javascript" in r.headers["Content-Type"], asset
+    static = ROOT / "static"
+    scripts = {p.name: p.read_text() for p in (static / "js").glob("*.js")}
+    known = set(re.findall(r'\bid="([\w-]+)"', page))
+    for text in scripts.values():
+        known |= set(re.findall(r'\bid="([\w-]+)"', text))
+        known |= set(re.findall(r'id="(\w+)-\$\{', text))  # ids built from a prefix, like pf-${...}
+    for name, text in scripts.items():
+        for ref in re.findall(r'\$\("([\w-]+)"\)', text):
+            assert ref in known or any(ref.startswith(k + "-") for k in known), f"{name} looks up #{ref}"
+        for ref in re.findall(r'\$\("([\w]+)-" \+', text):
+            assert ref in known, f"{name} builds ids from {ref}-"
+
+
+# ------------------------------------------------------------------ security controls
+
+def test_only_answers_to_its_own_names(env):
+    """DNS rebinding: another website pointing its own domain at this Mac gets nothing."""
+    _, c = make_client(env)
+    assert c.get("/api/profile", headers={"Host": "evil.example"}).status_code == 403
+    assert c.get("/api/profile", headers={"Host": "evil.example:8642"}).status_code == 403
+    for host in ("127.0.0.1:8642", "localhost:8642", "[::1]:8642", "beacon.local", "beacon.local:8643",
+                 "Studio-MacBook.local", "192.168.1.23:8643"):
+        assert c.get("/api/ping", headers={"Host": host}).status_code == 200, host
+
+
+def test_actions_need_beacons_own_header(env, monkeypatch):
+    """CSRF: a web page elsewhere can't make Beacon do things, even on this Mac."""
+    app, c = make_client(env, monkeypatch=monkeypatch)
+    plain = app.test_client()                      # like a form on another website: no X-Beacon header
+    for path in ("/api/quit", "/api/profile", "/api/profile/erase", "/api/share", "/api/ingest", "/api/check"):
+        assert plain.post(path, data="x", content_type="text/plain").status_code == 403, path
+    assert plain.post("/api/profile", json={"home": "x"}).status_code == 403
+    assert c.post("/api/profile", json={"home": "x"}, headers={"Origin": "https://evil.example"}).status_code == 403
+    assert c.post("/api/profile", json={"home": "Denver"}, headers={"Origin": "http://localhost"}).status_code == 200
+    assert plain.get("/api/status").status_code == 200   # reading is fine; the host check covers other sites
+
+
+def test_wrong_codes_are_rate_limited_and_rotate_the_code(env):
+    from beacon import share as share_mod
+    app, c = make_client(env)
+    sh = sharing(app, "4821")
+    for _ in range(share_mod.MAX_TRIES):
+        assert "match. Check the Beacon screen" in c.get("/?code=1111", environ_base=GUEST).get_data(as_text=True)
+    locked = c.get("/?code=4821", environ_base=GUEST)                    # even the right code, for now
+    assert locked.status_code == 401 and "Too many wrong codes" in locked.get_data(as_text=True)
+    assert c.get("/?code=4821", environ_base={"REMOTE_ADDR": "192.168.1.51"}).status_code == 302  # other devices fine
+    for n in range(share_mod.ROTATE_AFTER):                              # someone sweeping from many addresses
+        sh.check_code(f"10.0.0.{n}", "0000")
+    assert sh.code != "4821" and sh.alert                                 # the code changed by itself
+
+
+def test_guest_sessions_end_when_signed_out_or_stopped(env):
+    app, c = make_client(env)
+    sh = sharing(app, "4821")
+    c.get("/?code=4821", environ_base=GUEST)
+    assert c.get("/api/status", environ_base=GUEST).status_code == 200
+    assert sh.status()["guests"] == 1
+    sh.sign_out_all()
+    assert c.get("/api/status", environ_base=GUEST).status_code == 401 and sh.code != "4821"
+    c.get(f"/?code={sh.code}", environ_base=GUEST)
+    assert c.get("/api/status", environ_base=GUEST).status_code == 200
+    sh.server = None; sh.tokens.clear()                                  # what stop() does
+    assert c.get("/api/status", environ_base=GUEST).status_code == 401
+
+
+def test_security_headers_and_sandboxed_library_pages(env):
+    _, c = make_client(env)
+    r = c.get("/")
+    csp = r.headers["Content-Security-Policy"]
+    assert "script-src 'self'" in csp and "connect-src 'self'" in csp and "unsafe-inline" not in csp.split("script-src")[1].split(";")[0]
+    assert r.headers["X-Content-Type-Options"] == "nosniff" and r.headers["Referrer-Policy"] == "no-referrer"
+    assert r.headers["X-Frame-Options"] == "SAMEORIGIN"
+    page = r.get_data(as_text=True)
+    assert "<script>" not in page and " on" + "click=" not in page                # nothing inline for the CSP to allow
+    art = c.get("/read/kiwix/testbook/water")
+    assert art.headers["Content-Security-Policy"].startswith("sandbox") and "script-src 'none'" in art.headers["Content-Security-Policy"]
+    assert "connect-src 'none'" in c.get("/binder").headers["Content-Security-Policy"]
+    assert "connect-src 'none'" in c.get("/read/book/reading/Test-Book.txt").headers["Content-Security-Policy"]
+    (Path(env["cfg"]["manuals_dir"]) / "trap.html").write_text("<script>steal()</script>")
+    trap = c.get("/read/manual/trap.html")
+    assert trap.headers["Content-Disposition"].startswith("attachment")         # never runs as a Beacon page
+    assert c.get("/api/status").headers["Cache-Control"] == "no-store"
+
+
+def test_library_scripts_stay_inert_and_log_exports_are_formula_safe(env):
+    import csv
+    lib = KiwixLibrary(str(env["zim_dir"]))
+    lib.article_html = lambda book, path: (b"fetch('/api/profile')", "application/javascript") if path.endswith(".js") else None
+    app = create_app(dict(env["cfg"]), ollama=env["ollama"], kiwix=lib, manuals=env["manuals"], http=FakeHTTP(online=False))
+    r = app.test_client().get("/read/kiwix/testbook/assets/app.js")
+    assert r.mimetype == "text/plain" and r.headers["X-Content-Type-Options"] == "nosniff"   # a <script> tag can't run it
+    audit = app.config["audit"]
+    audit.notify = None
+    audit.add("rejected-host", "192.168.1.9", "", '=HYPERLINK("http://evil.example","Open")', "alert")
+    row = list(csv.reader(io.StringIO(audit.csv())))[-1]
+    assert row[-1].startswith("'=HYPERLINK") and row[4] == "192.168.1.9"          # shown as text, never run
+
+
+def test_requests_are_size_limited(env, monkeypatch):
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    assert c.post("/api/ask", data="x" * (3 * 1024 * 1024), content_type="application/json").status_code == 413
+    ev = sse(c.post("/api/ask", json={"question": "boil " * 5000, "history": [{"role": "user", "content": "y" * 50000}] * 20}))
+    assert ev[-1][0] == "done"
+    sent = env["ollama"].last_messages
+    assert len(sent[-1]["content"]) < 4000 + 20000 and all(len(m["content"]) <= 8000 for m in sent[1:-1])
+
+
+def test_downloads_are_fingerprinted_and_checked_against_the_publisher(env, tmp_path):
+    zim_bytes = (env["zim_dir"] / "testbook.zim").read_bytes()
+    url = "https://download.kiwix.org/zim/other/mdwiki_en_all_maxi_2026-05.zim"
+    good = hashlib.sha256(zim_bytes).hexdigest()
+    new_zims = tmp_path / "zims"; new_zims.mkdir()
+    env["cfg"]["zim_dir"] = str(new_zims)
+    http = FakeHTTP({library.OPDS: OPDS, url + ".sha256": f"{good}  mdwiki_en_all_maxi_2026-05.zim\n", url: zim_bytes})
+    app, c = make_client(env, http=http)
+    c.post("/api/library/download", json={"ids": ["wikimed"]})
+    app.config["downloader"].worker.join(10)
+    job = app.config["downloader"].jobs["wikimed"]
+    assert job["state"] == "done" and job["verified"] and job["sha256"] == good
+    record = json.loads((Path(env["cfg"]["index_path"]).parent / "integrity.json").read_text())
+    assert any(v["sha256"] == good and v["publisher_checked"] for v in record.values())
+    # a tampered or corrupted download is thrown away
+    (new_zims / "mdwiki_en_all_maxi_2026-05.zim").unlink()
+    app2, c2 = make_client(env, http=FakeHTTP({library.OPDS: OPDS, url + ".sha256": "0" * 64, url: zim_bytes}))
+    app2.config["installed"].map.clear()
+    c2.post("/api/library/download", json={"ids": ["wikimed"]})
+    app2.config["downloader"].worker.join(10)
+    bad = app2.config["downloader"].jobs["wikimed"]
+    assert bad["state"] == "failed" and "checksum" in bad["error"]
+    assert not list(new_zims.glob("*.zim*"))
+
+
+def test_integrity_check_spots_changed_files(tmp_path):
+    f = tmp_path / "manual.pdf"; f.write_bytes(b"%PDF original")
+    integ = library.Integrity(str(tmp_path / "integrity.json"), str(tmp_path))
+    integ.record(f, library.sha256_file(f), "https://example.org/manual.pdf")
+    assert integ.verify() == [{"file": "manual.pdf", "ok": True, "skipped": False}]
+    f.write_bytes(b"%PDF changed by someone")
+    assert integ.verify()[0]["ok"] is False
+    res = checks.security({"ollama_url": "http://127.0.0.1:11435", "host": "127.0.0.1"}, {"encrypted": False}, integ, {"on": False})
+    by = {r["name"]: r for r in res}
+    assert by["AI engine is private"]["ok"] and by["Beacon itself is private"]["ok"]
+    assert by["Drive encryption"]["warn"] and not by["Downloaded files unchanged"]["ok"]
+    assert not checks.security({"ollama_url": "http://0.0.0.0:11434", "host": "127.0.0.1"}, {})[0]["ok"]
+
+
+def test_health_check_knocks_on_its_own_ports_from_the_network_side():
+    import socket
+    exposed = socket.socket(); exposed.bind(("0.0.0.0", 0)); exposed.listen(1)   # like an engine listening on every network
+    port = exposed.getsockname()[1]
+    cfg = {"ollama_url": f"http://127.0.0.1:{port}", "host": "127.0.0.1", "port": port}
+    try:
+        res = {r["name"]: r for r in checks.security(cfg, {}, lan_ip="127.0.0.1")}
+        assert not res["AI engine is private"]["ok"] and "Other devices can reach it" in res["AI engine is private"]["detail"]
+    finally:
+        exposed.close()
+    res = {r["name"]: r for r in checks.security(cfg, {}, lan_ip="127.0.0.1")}
+    assert res["AI engine is private"]["ok"] and "refuses connections" in res["AI engine is private"]["detail"]
+    assert res["Beacon itself is private"]["ok"]
+
+
+def test_household_info_can_be_erased(env, monkeypatch):
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    c.post("/api/profile", json={"home": "Denver", "medical": "Dad: insulin"})
+    path = Path(env["cfg"]["index_path"]).parent / "household.json"
+    assert path.exists()
+    assert c.post("/api/profile/erase", json={}).get_json() == {"erased": True}
+    assert not path.exists() and c.get("/api/profile").get_json() == {}
+    assert "Dad: insulin" not in c.get("/binder").get_data(as_text=True)
+
+
+def test_health_check_includes_security(env, monkeypatch):
+    import time
+    _, c = make_client(env, monkeypatch=monkeypatch)
+    c.post("/api/check", json={})
+    for _ in range(50):
+        r = c.get("/api/check").get_json()
+        if r["report"] and not r["running"]:
+            break
+        time.sleep(0.1)
+    sec = [x for x in r["report"]["results"] if x["kind"] == "security"]
+    assert {x["name"] for x in sec} >= {"AI engine is private", "Beacon itself is private", "Wi-Fi sharing"}
+
+
+# ------------------------------------------------------------------ connections monitor
+
+IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+
+
+def test_device_names_from_browsers():
+    from beacon.audit import describe
+    assert describe(IPHONE) == "iPhone, Safari"
+    assert describe("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36") == "Android phone, Chrome"
+    assert describe("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15") == "Mac, Safari"
+    assert describe("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 Edg/129.0") == "Windows PC, Edge"
+    assert describe("curl/8.7.1").startswith("Script or tool")
+    assert describe("") == "Unknown device"
+
+
+def test_connections_are_logged_and_alerted(env):
+    app, c = make_client(env)
+    audit = app.config["audit"]
+    notes = []
+    audit.notify = lambda title, msg: notes.append(msg)
+    sharing(app, "4821")
+    phone = {**GUEST, "HTTP_USER_AGENT": IPHONE}
+    c.get("/?code=1111", environ_base=phone)                                   # a wrong code
+    c.get("/?code=4821", environ_base=phone)                                   # then the right one
+    c.post("/api/quit", json={}, environ_base=phone)                           # pokes at a host-only action
+    c.get("/api/profile", headers={"Host": "evil.example"})                    # DNS-rebinding attempt
+    app.test_client().post("/api/profile", data="x", content_type="text/plain")  # CSRF attempt
+    view = c.get("/api/security").get_json()
+    kinds = [e["kind"] for e in view["events"]]
+    assert kinds == ["wrong-code", "signed-in", "host-only", "rejected-host", "blocked-request"]
+    wrong = view["events"][0]
+    assert wrong["device"] == "iPhone, Safari" and wrong["ip"] == "192.168.1.50" and wrong["level"] == "warn"
+    assert view["unseen"] == 4 and notes                                         # alerts raised (rate limited)
+    assert [s["device"] for s in view["sessions"]] == ["iPhone, Safari"] and view["sessions"][0]["active"]
+    # the log survives a restart, and exports for a report
+    lines = (Path(env["root"]) / "data" / "logs" / "security.log").read_text().splitlines()
+    assert len(lines) == 5 and json.loads(lines[0])["kind"] == "wrong-code"
+    csv_text = c.get("/api/security/log.csv").get_data(as_text=True)
+    assert csv_text.startswith("time,level,event,device,ip") and "iPhone, Safari" in csv_text
+    from beacon.audit import Audit
+    assert [e["kind"] for e in Audit(str(Path(env["root"]) / "data" / "logs" / "security.log")).since(0)] == kinds
+    # guests can't read the log; the host can mark alerts seen and sign one device out
+    assert c.get("/api/security", environ_base=phone).status_code == 403
+    assert c.post("/api/security/seen", json={}).get_json() == {"unseen": 0}
+    sid = view["sessions"][0]["id"]
+    assert c.post("/api/share/revoke", json={"id": sid}).get_json()["revoked"]
+    assert c.get("/api/status", environ_base=phone).status_code == 401
+    assert "signed-out" in [e["kind"] for e in c.get("/api/security/events?after=5").get_json()["events"]]
+
+
+def test_security_log_never_holds_questions_or_answers(env, monkeypatch):
+    app, c = make_client(env, monkeypatch=monkeypatch)
+    sharing(app, "4821")
+    c.get("/?code=4821", environ_base=GUEST)
+    sse(c.post("/api/ask", json={"question": "where can my insulin stay cool"}, environ_base=GUEST))
+    c.post("/api/board", json={"kind": "need", "name": "Unit 4B", "text": "out of insulin"}, environ_base=GUEST)
+    log = (Path(env["root"]) / "data" / "logs" / "security.log").read_text()
+    assert "signed-in" in log and "insulin" not in log and "Unit 4B" not in log
+
+
+def test_repeated_attempts_are_counted_not_flooded(env):
+    app, c = make_client(env)
+    sharing(app, "4821")
+    for _ in range(3):
+        c.get("/?code=1111", environ_base=GUEST)
+    ev = c.get("/api/security").get_json()["events"]
+    assert len(ev) == 1 and ev[0]["count"] == 3
+    for _ in range(3):
+        c.get("/?code=2222", environ_base=GUEST)                                # 5th wrong code: locked out
+    ev = c.get("/api/security").get_json()["events"]
+    assert [e["kind"] for e in ev] == ["wrong-code", "locked-out", "locked-out"]
+    assert ev[0]["count"] == 4 and ev[1]["detail"].startswith("Locked out") and ev[2]["detail"].startswith("Kept trying")
+    other = {**GUEST, "HTTP_USER_AGENT": "curl/8.7.1"}                         # a different device at the same address
+    app.config["share"].failures.clear()
+    c.get("/?code=3333", environ_base=other)
+    ev = c.get("/api/security").get_json()["events"]
+    assert ev[-1]["kind"] == "wrong-code" and ev[-1]["count"] == 1 and ev[-1]["device"].startswith("Script or tool")
+
+
+# ------------------------------------------------------------------ archive and PDFs
+
+def test_pdfs_are_real_and_readable(env):
+    from pypdf import PdfReader
+    from beacon.pdf import markdown_pdf
+    long = "## Water\n\n- Store **1 gallon** per person per day [1].\n\n| Item | Amount |\n|---|---|\n| Water | 14 gal |\n\n" + \
+           "\n\n".join("Keep the radio on for updates and check on neighbors who live alone. " * 5 for _ in range(30))
+    reader = PdfReader(io.BytesIO(markdown_pdf("Shelter in place — 2 weeks", long, "Springfield, October 10")))
+    assert len(reader.pages) >= 2 and reader.metadata["/Title"] == "Shelter in place — 2 weeks"
+    first = reader.pages[0].extract_text()
+    assert "Store 1 gallon per person per day [1]." in first and "Item Amount" in first
+    assert f"Page 1 of {len(reader.pages)}" in first
+    _, c = make_client(env)
+    r = c.post("/api/pdf", json={"title": "Boil water", "markdown": "Boil it for **1 minute** [1].",
+                                 "sources": [{"book": "EPA guide", "title": "p. 2"}], "meta": "Today"})
+    assert r.headers["Content-Type"] == "application/pdf" and 'filename="Beacon - Boil water.pdf"' in r.headers["Content-Disposition"]
+    text = PdfReader(io.BytesIO(r.data)).pages[0].extract_text()
+    assert "Boil it for 1 minute [1]." in text and "Sources" in text and "1. EPA guide, p. 2" in text
+    assert c.post("/api/pdf", json={"title": "x", "markdown": " "}).status_code == 400
+
+
+def test_plans_are_archived_privately_and_can_be_shared(env, monkeypatch):
+    from pypdf import PdfReader
+    app, c = make_client(env, monkeypatch=monkeypatch)
+    ev = sse(c.post("/api/plan", json={"template": "winter-storm", "answers": {"location": "Denver"}}))
+    saved = dict(ev)["saved"]
+    assert saved["shared"] is False
+    items = c.get("/api/archive").get_json()
+    assert items[0]["id"] == saved["id"] and items[0]["kind"] == "plan" and items[0]["meta"]["location"] == "Denver"
+    sharing(app, "4821")
+    c.get("/?code=4821", environ_base=GUEST)
+    assert c.get("/api/archive", environ_base=GUEST).get_json() == []                   # private: guests can't see it
+    assert c.get(f"/archive/{saved['id']}", environ_base=GUEST).status_code == 404
+    assert c.post(f"/api/archive/{saved['id']}/share", json={"shared": True}, environ_base=GUEST).status_code == 403
+    assert c.post(f"/api/archive/{saved['id']}/share", json={"shared": True}).get_json()["shared"] is True
+    assert [i["id"] for i in c.get("/api/archive", environ_base=GUEST).get_json()] == [saved["id"]]
+    page = c.get(f"/archive/{saved['id']}", environ_base=GUEST)
+    assert page.status_code == 200 and "Winter storm" in page.get_data(as_text=True) and "connect-src 'none'" in page.headers["Content-Security-Policy"]
+    pdf = c.get(f"/archive/{saved['id']}.pdf", environ_base=GUEST)
+    assert pdf.headers["Content-Type"] == "application/pdf" and "Winter storm" in PdfReader(io.BytesIO(pdf.data)).pages[0].extract_text()
+    assert c.post(f"/api/archive/{saved['id']}/delete", json={}, environ_base=GUEST).status_code == 403
+    assert c.post(f"/api/archive/{saved['id']}/delete", json={}).get_json() == {"deleted": True}
+    assert c.get("/api/archive").get_json() == []
+    guest_plan = sse(c.post("/api/plan", json={"template": "winter-storm", "answers": {}}, environ_base=GUEST))
+    assert "saved" not in dict(guest_plan)                                                 # guests choose to share
+
+
+def test_guests_share_answers_with_limits(env):
+    app, c = make_client(env)
+    sharing(app, "4821")
+    phone = {**GUEST, "HTTP_USER_AGENT": IPHONE}
+    c.get("/?code=4821", environ_base=phone)
+    r = c.post("/api/archive", json={"kind": "answer", "title": "Water", "markdown": "Boil it.", "shared": False}, environ_base=phone).get_json()
+    assert r["shared"] is True                                                             # guests can only share
+    item = c.get(f"/api/archive/{r['id']}").get_json()
+    assert item["by"] == "guest" and item["device"] == "iPhone, Safari"
+    for _ in range(9):
+        c.post("/api/archive", json={"title": "x", "markdown": "y"}, environ_base=phone)
+    assert c.post("/api/archive", json={"title": "x", "markdown": "y"}, environ_base=phone).status_code == 429
+    for bad in ("../../etc/passwd", "20261010-120000-zzzzzz", "x"):
+        assert c.get(f"/api/archive/{bad}").status_code == 404
+
+
+# ------------------------------------------------------------------ community board and the mesh
+
+def test_board_checkins_posts_and_moderation(env):
+    app, c = make_client(env)
+    sharing(app, "4821")
+    phone = {**GUEST, "HTTP_USER_AGENT": IPHONE}
+    other = {"REMOTE_ADDR": "192.168.1.77"}
+    c.get("/?code=4821", environ_base=phone); c.get("/?code=4821", environ_base=other)
+    assert c.post("/api/board", json={"kind": "checkin", "name": "", "status": "safe"}, environ_base=phone).status_code == 400
+    c.post("/api/board", json={"kind": "checkin", "name": "The Garcias", "status": "safe", "text": "All 4 of us"}, environ_base=phone)
+    c.post("/api/board", json={"kind": "checkin", "name": "Unit 4B", "status": "help", "text": "Out of insulin"}, environ_base=other)
+    need = c.post("/api/board", json={"kind": "need", "text": "Need a <b>generator</b> for a fridge"}, environ_base=other).get_json()
+    c.post("/api/board", json={"kind": "offer", "text": "Have 20 gallons of water"})                 # the host posts too
+    view = c.get("/api/board", environ_base=phone).get_json()
+    assert [r["name"] for r in view["roster"]] == ["Unit 4B", "The Garcias"]                      # help first
+    assert view["posts"][0]["text"] == "Have 20 gallons of water" and "ip" not in view["posts"][0]  # guests don't see addresses
+    assert any(p["text"] == "Need a <b>generator</b> for a fridge" for p in view["posts"])         # stored as text, escaped by the page
+    host_view = c.get("/api/board").get_json()
+    assert next(p for p in host_view["posts"] if p["kind"] == "need")["ip"] == "192.168.1.77"
+    # only the author (or the host) can resolve; only the host can pin or remove
+    assert c.post("/api/board/resolve", json={"id": need["id"]}, environ_base=phone).status_code == 403
+    assert c.post("/api/board/resolve", json={"id": need["id"]}, environ_base=other).get_json() == {"resolved": True}
+    assert c.post("/api/board/pin", json={"id": need["id"], "pinned": True}, environ_base=phone).status_code == 403
+    assert c.post("/api/board/pin", json={"id": need["id"], "pinned": True}).get_json() == {"pinned": True}
+    assert c.get("/api/board").get_json()["posts"][0]["id"] == need["id"]                         # pinned on top
+    assert c.post("/api/board/remove", json={"id": need["id"]}, environ_base=other).status_code == 403
+    assert c.post("/api/board/remove", json={"id": need["id"]}).get_json() == {"removed": True}
+    spammer = app.test_client()                                    # its own cookies, like a separate phone
+    spammer.environ_base.update({"REMOTE_ADDR": "192.168.1.90", "HTTP_X_BEACON": "1"})
+    assert spammer.post("/api/board", json={"kind": "note", "text": "spam"}).status_code == 401   # not signed in
+    spammer.get("/?code=4821")
+    codes = [spammer.post("/api/board", json={"kind": "note", "text": "spam"}).status_code for _ in range(13)]
+    assert codes == [200] * 12 + [429]
+    from beacon.board import Board
+    assert len(Board(str(Path(env["root"]) / "data" / "board.json")).posts) == len(c.get("/api/board").get_json()["posts"])
+
+
+class FakeRadio:
+    def __init__(self):
+        self.sent, self.closed = [], False
+        self.nodes = {"!a1b2c3d4": {"user": {"id": "!a1b2c3d4", "longName": "Ridge Relay", "shortName": "RDG"},
+                                    "lastHeard": 1760100000, "snr": 7.5, "hopsAway": 1,
+                                    "position": {"latitude": 33.80, "longitude": -84.30}, "deviceMetrics": {"batteryLevel": 88}}}
+    def sendText(self, text, destinationId="^all", channelIndex=0, **kw): self.sent.append((text, destinationId, channelIndex))
+    def getMyNodeInfo(self): return {"user": {"longName": "Beacon Base", "shortName": "BCN"}}
+    def close(self): self.closed = True
+
+
+def test_meshtastic_bridge_with_a_simulated_radio(env):
+    import time
+    app, c = make_client(env)
+    mesh, radio = app.config["mesh"], FakeRadio()
+    mesh.factory = lambda port, host: radio
+    assert c.get("/api/mesh").get_json()["state"] == "off"
+    c.post("/api/mesh/connect", json={"port": "/dev/cu.usbserial-0001"})
+    for _ in range(50):
+        if mesh.state == "connected":
+            break
+        time.sleep(0.02)
+    st = c.get("/api/mesh").get_json()
+    assert st["state"] == "connected" and st["me"] == "Beacon Base" and st["nodes"] == 1
+    assert st["nodes_list"][0]["name"] == "Ridge Relay" and st["nodes_list"][0]["lat"] == 33.8
+    # heard on the mesh -> the board; check-ins -> the roster, with a confirmation back to the sender
+    mesh.on_receive({"decoded": {"text": "Road washed out at Elm St bridge"}, "fromId": "!a1b2c3d4", "channel": 0})
+    mesh.on_receive({"decoded": {"text": "HELP Unit 4B: out of insulin"}, "fromId": "!a1b2c3d4", "channel": 1})
+    mesh.on_receive({"decoded": {"text": "safe"}, "fromId": "!a1b2c3d4"})
+    view = c.get("/api/board").get_json()
+    mesh_post = next(p for p in view["posts"] if p["kind"] == "mesh")
+    assert mesh_post["name"] == "Ridge Relay" and mesh_post["source"] == "mesh"
+    assert {(r["name"], r["status"]) for r in view["roster"]} == {("Unit 4B", "help"), ("Ridge Relay", "safe")}
+    assert radio.sent[0] == ("Beacon: checked in Unit 4B as NEEDS HELP.", "!a1b2c3d4", 1)
+    # posts can go out over the mesh: the host always, guests only when allowed
+    host_post = c.post("/api/board", json={"kind": "report", "name": "Base", "text": "Shelter open at the school", "mesh": True}).get_json()
+    assert host_post["sent_mesh"] and radio.sent[-1] == ("Base: Shelter open at the school", "^all", 0)
+    sharing(app, "4821"); c.get("/?code=4821", environ_base=GUEST)
+    n = len(radio.sent)
+    assert not c.post("/api/board", json={"kind": "note", "text": "hi", "mesh": True}, environ_base=GUEST).get_json()["sent_mesh"]
+    assert c.post("/api/mesh/settings", json={"allow_guests": True}, environ_base=GUEST).status_code == 403
+    c.post("/api/mesh/settings", json={"allow_guests": True})
+    assert c.post("/api/board", json={"kind": "note", "text": "hi", "mesh": True}, environ_base=GUEST).get_json()["sent_mesh"]
+    assert len(radio.sent) == n + 1
+    long = c.post("/api/board", json={"kind": "note", "text": "x" * 500, "mesh": True}).get_json()
+    assert len(radio.sent[-1][0]) <= 200 and len(long["text"]) == 500                          # the mesh gets a short version
+    for bad in ("abc", "-1", "99"):                                                           # nonsense channels fall back to 0
+        assert c.post("/api/board", json={"kind": "note", "text": "ch", "mesh": True, "channel": bad}).status_code == 200
+        assert radio.sent[-1][2] == 0
+    c.post("/api/mesh/disconnect", json={})
+    assert radio.closed and mesh.state == "off" and not mesh.send("anyone?")
+    assert c.post("/api/mesh/connect", json={"host": "bad host; rm -rf"}).status_code == 400
+
+
+def test_mesh_reports_a_missing_radio_plainly(env):
+    import time
+    app, c = make_client(env)
+    mesh = app.config["mesh"]
+    def no_radio(port, host):
+        raise OSError("[Errno 2] could not open port /dev/cu.usbserial-0001: No such file or directory")
+    mesh.factory = no_radio
+    c.post("/api/mesh/connect", json={})
+    for _ in range(50):
+        if mesh.state == "error":
+            break
+        time.sleep(0.02)
+    st = c.get("/api/mesh").get_json()
+    assert st["state"] == "error" and st["error"].startswith("No Meshtastic radio found")
+
+
+# ------------------------------------------------------------------ supplies and new cards
+
+def test_supplies_are_saved_for_the_host_only(env):
+    app, c = make_client(env)
+    assert c.get("/api/supplies").get_json() == {"people": 2, "items": []}
+    body = {"people": 4, "items": [{"id": "a", "cat": "water", "name": "Water, gallons", "qty": 20, "gal": 1},
+                                   {"id": "b", "cat": "food", "name": "Rice, 1 lb bag", "qty": "10", "kcal": 1650, "expires": "2027-03"},
+                                   {"id": "c", "cat": "food", "name": "x" * 500, "qty": -5, "kcal": "lots"}, "junk"]}
+    assert c.post("/api/supplies", json=body).get_json() == {"saved": True, "people": 4, "items": 3}
+    got = c.get("/api/supplies").get_json()
+    assert got["items"][1]["qty"] == 10 and len(got["items"][2]["name"]) == 80 and got["items"][2]["qty"] == 0
+    assert c.post("/api/supplies", json={"people": "many"}).status_code == 400
+    sharing(app, "4821"); c.get("/?code=4821", environ_base=GUEST)
+    assert c.get("/api/supplies", environ_base=GUEST).status_code == 403
+
+
+def test_new_cards_are_matched_and_well_formed():
+    cards = ROOT / "library" / "manuals" / "cards"
+    for card, _ in rag.CARD_KEYWORDS:
+        text = (cards / card).read_text()
+        assert text.startswith("# ") and "Sources:" in text, card
+    assert rag.match_card("How long do we stay inside after a dirty bomb?") == "radiation-chemical-pandemic.md"
+    assert rag.match_card("The water is off, what do we do about the toilet?") == "sanitation-and-hygiene.md"
+    assert rag.match_card("How do I set up a meshtastic node for my street?") == "meshtastic.md"
+    assert rag.match_card("Can a power station run my CPAP overnight?") == "off-grid-power.md"
+    assert rag.match_card("How do we organize neighbors for mutual aid?") == "community-network.md"
+    assert rag.match_card("Should I turn off Face ID before a checkpoint? Is my phone tracking me?") == "digital-safety.md"
+    lib = library.load_catalog()
+    assert lib["gear_list"]["groups"] and all(g["items"] for g in lib["gear_list"]["groups"])

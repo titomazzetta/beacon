@@ -1,4 +1,5 @@
 """Library Manager: catalog of bands/tiers, live Kiwix lookups, resumable downloads."""
+import hashlib
 import json
 import re
 import shutil
@@ -177,9 +178,60 @@ class Installed:
         return f if f and Path(f).exists() else None
 
 
+class Integrity:
+    """The SHA-256 fingerprint of every downloaded file, so later corruption or tampering
+    shows up in the health check. Paths are relative to the drive's Beacon folder."""
+    def __init__(self, path: str, root: str | None = None):
+        self.path, self.root = Path(path), Path(root) if root else None
+        self.lock = threading.Lock()
+        try:
+            self.map = json.loads(self.path.read_text())
+        except Exception:
+            self.map = {}
+
+    def _rel(self, file) -> str:
+        p = Path(file)
+        if self.root:
+            try:
+                return p.relative_to(self.root).as_posix()
+            except ValueError:
+                pass
+        return str(p)
+
+    def record(self, file, digest: str, source: str = "", publisher_checked: bool = False):
+        with self.lock:
+            self.map[self._rel(file)] = {"sha256": digest, "source": source,
+                                         "publisher_checked": publisher_checked, "at": int(time.time())}
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.write_text(json.dumps(self.map, indent=1))
+
+    def verify(self, max_bytes: int = 1024 ** 3) -> list[dict]:
+        """Re-hash recorded files (big ones are skipped: they were checked when downloaded)."""
+        out = []
+        for rel, meta in sorted(self.map.items()):
+            p = Path(rel) if Path(rel).is_absolute() or not self.root else self.root / rel
+            if not p.exists():
+                continue  # removed on purpose, or replaced by a newer edition
+            if p.stat().st_size > max_bytes:
+                out.append({"file": rel, "ok": True, "skipped": True})
+                continue
+            out.append({"file": rel, "ok": sha256_file(p) == meta["sha256"], "skipped": False})
+        return out
+
+
+def sha256_file(path, h=None) -> str:
+    h = h or hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
 def destination(item: dict, cfg: dict, resolved: dict | None = None) -> Path:
     if item["type"] == "zim":
         return Path(cfg["zim_dir"]) / (resolved or {}).get("filename", f"{item['id']}.zim")
+    if item.get("files"):  # several files that belong together get their own folder
+        return Path(cfg["manuals_dir"]) / item["band"] / item["id"]
     if item.get("shelf"):  # reading shelf: kept out of the search index
         return Path(cfg.get("books_dir") or Path(cfg["manuals_dir"]).parent / "books") / item["band"] / item["file"]
     return Path(cfg["manuals_dir"]) / item["band"] / item["file"]
@@ -203,21 +255,21 @@ def is_online(http=requests) -> bool:
 
 class Downloader:
     """One background worker, resumable downloads, progress you can poll."""
-    def __init__(self, installed: Installed, on_done=None, http=requests):
-        self.installed, self.on_done, self.http = installed, on_done, http
+    def __init__(self, installed: Installed, on_done=None, http=requests, integrity: Integrity | None = None):
+        self.installed, self.on_done, self.http, self.integrity = installed, on_done, http, integrity
         self.jobs: dict[str, dict] = {}
         self.queue: list[str] = []
         self.lock = threading.Lock()
         self.worker = None
 
-    def add(self, item: dict, url: str, dest: Path, size: int = 0):
+    def add(self, item: dict, url: str, dest: Path, size: int = 0, sha256_url: str | None = None):
         with self.lock:
             job = self.jobs.get(item["id"])
             if job and job["state"] in ("queued", "downloading"):
                 return
             self.jobs[item["id"]] = {"id": item["id"], "title": item["title"], "type": item["type"],
                                      "url": url, "dest": str(dest), "total": size, "done": 0,
-                                     "state": "queued", "error": ""}
+                                     "state": "queued", "error": "", "sha256_url": sha256_url}
             self.queue.append(item["id"])
             if not self.worker or not self.worker.is_alive():
                 self.worker = threading.Thread(target=self._run, daemon=True)
@@ -268,7 +320,21 @@ class Downloader:
             except Exception as e:  # network drop, disk full, 404...
                 job["state"], job["error"] = "failed", str(e)[:200]
 
-    def _download(self, job: dict):
+    def _publisher_sha256(self, job: dict) -> str | None:
+        """The checksum the publisher lists next to the file (Kiwix does), if any."""
+        url = job.get("sha256_url")
+        if not url:
+            return None
+        try:
+            r = self.http.get(url, headers=UA, timeout=20)
+            if r.status_code != 200:
+                return None
+            m = re.search(r"\b[0-9a-fA-F]{64}\b", r.text or "")
+            return m.group(0).lower() if m else None
+        except Exception:
+            return None
+
+    def _download(self, job: dict, record: bool = True):
         dest = Path(job["dest"])
         dest.parent.mkdir(parents=True, exist_ok=True)
         part = dest.with_name(dest.name + ".part")
@@ -277,14 +343,17 @@ class Downloader:
         if have:
             headers["Range"] = f"bytes={have}-"
         job["state"] = "downloading"
+        h = hashlib.sha256()  # fingerprint the file as it arrives: no second read of big files
         with self.http.get(job["url"], headers=headers, stream=True, timeout=30,
                            allow_redirects=True) as r:
             if r.status_code == 416:  # already complete
-                pass
+                sha256_file(part, h)
             else:
                 r.raise_for_status()
                 if have and r.status_code != 206:  # server ignored Range: start over
                     have = 0
+                if have:
+                    sha256_file(part, h)
                 length = int(r.headers.get("Content-Length") or 0)
                 if length:
                     job["total"] = have + length
@@ -297,8 +366,19 @@ class Downloader:
                         if job["state"] == "cancelled":
                             return
                         f.write(chunk)
+                        h.update(chunk)
                         job["done"] += len(chunk)
+        digest = h.hexdigest()
+        expected = self._publisher_sha256(job)
+        if expected and expected != digest:
+            part.unlink(missing_ok=True)
+            raise ValueError("The download didn't match the publisher's checksum, so Beacon deleted it. Try again.")
         part.replace(dest)
+        job["sha256"], job["verified"] = digest, bool(expected)
+        if self.integrity:
+            self.integrity.record(dest, digest, job.get("url", ""), bool(expected))
+        if not record:  # one file of a multi-file item; the caller records the whole item
+            return
         old = self.installed.stored(job["id"])
         if old and Path(old) != dest and Path(old).exists():  # replace an older edition
             Path(old).unlink()
@@ -306,3 +386,43 @@ class Downloader:
         self.installed.set(job["id"], str(dest))
         if self.on_done:
             self.on_done(job)
+
+
+def queue_item(it: dict, downloader: "Downloader", kcat: KiwixCatalog, cfg: dict, http=requests):
+    """Queue one catalog item for download, whatever its kind. Used by the app and the drive builder."""
+    if it["type"] == "zim":
+        def task(job, it=it):  # look up the newest edition in the background, then download
+            r = kcat.resolve(it)
+            if not r:
+                raise LookupError("not found in the Kiwix catalog")
+            job.update(url=r["url"], dest=str(destination(it, cfg, r)), total=r["size"],
+                       sha256_url=r["url"] + ".sha256")  # Kiwix publishes a checksum for every file
+            downloader._download(job)
+        downloader.add_task(it["id"], it["title"], task, "zim")
+    elif it.get("files"):  # several PDFs that belong together (e.g. the USDA canning guide)
+        def task(job, it=it):
+            folder = destination(it, cfg)
+            job["total"] = len(it["files"])
+            for n, f in enumerate(it["files"], 1):
+                job["detail"] = f"{n}/{len(it['files'])}: {f['file']}"
+                sub = {"id": f"{it['id']}#{n}", "title": f["file"], "state": "downloading",
+                       "url": f["url"], "dest": str(folder / f["file"]), "total": 0, "done": 0}
+                downloader._download(sub, record=False)
+                job["done"] = n
+            downloader.installed.set(it["id"], str(folder))
+        downloader.add_task(it["id"], it["title"], task, "pdf")
+    elif it["type"] == "page":  # a web page saved as plain text
+        def task(job, it=it):
+            from .kiwix_source import html_to_text
+            r = http.get(it["url"], headers=UA, timeout=60)
+            r.raise_for_status()
+            dest = destination(it, cfg)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(f"# {it['title']}\n\nSource: {it['url']}\nSaved: {time.strftime('%Y-%m-%d')}\n\n"
+                            + html_to_text(r.text), encoding="utf-8")
+            downloader.installed.set(it["id"], str(dest))
+            if downloader.integrity:
+                downloader.integrity.record(dest, sha256_file(dest), it["url"])
+        downloader.add_task(it["id"], it["title"], task, "page")
+    elif it["type"] in ("pdf", "text"):
+        downloader.add({**it}, it["url"], destination(it, cfg))

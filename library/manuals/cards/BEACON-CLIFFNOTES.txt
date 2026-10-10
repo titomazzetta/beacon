@@ -29,17 +29,21 @@ EMERGENCY NUMBERS
 2. LIFE-SAVING FIRST AID
 ---------------------------------------------------------------------
   NOT BREATHING NORMALLY: call 911, then CPR. Push hard and fast in
-    the center of the chest, at least 2 inches deep, 100-120 pushes a
-    minute. Hands-only is fine. Use an AED as soon as one arrives.
+    the center of the chest, 2 to 2.4 inches deep, 100-120 pushes a
+    minute. Hands-only is fine for adults; for children add 2 breaths
+    every 30 pushes. Babies: heel of one hand or two thumbs, 1.5 inches.
+    Use an AED as soon as one arrives.
   SEVERE BLEEDING: press hard on it and don't let go. Pack deep wounds
     with cloth. Arm or leg bleeding you can't stop: tourniquet 2-3
     inches above the wound (not on a joint), tighten until it stops,
-    write the time, leave it on.
+    write the time, leave it on. Still bleeding: second one above it.
   CHOKING: 5 back blows + 5 abdominal thrusts, repeat. Babies: back
-    blows + chest pushes, never abdominal thrusts.
-  BURNS: cool running water 10-20 minutes. No ice or butter.
+    blows + chest thrusts with the heel of one hand, never abdominal
+    thrusts.
+  BURNS: cool running water at least 10 minutes. No ice or butter.
   STROKE (FAST): Face droop, Arm weak, Speech slurred -> Time to call.
-  ALLERGIC REACTION: epinephrine auto-injector in the outer thigh, call.
+  ALLERGIC REACTION: epinephrine auto-injector in the outer thigh, call
+    911 even if they improve.
   HEAT STROKE (hot, confused): cool them NOW with water, ice, shade.
   HYPOTHERMIA (shivering, slurring, clumsy): get dry, insulate, warm
     the core, sweet warm drinks only if fully awake.
@@ -53,9 +57,10 @@ EMERGENCY NUMBERS
 3. WATER  (1 gallon / 4 liters per person per day)
 ---------------------------------------------------------------------
   BOIL: rolling boil 1 minute (3 minutes above 6,500 ft / 2,000 m).
-  BLEACH (plain, unscented): 6% bleach = 8 drops per gallon;
-    8.25% bleach = 6 drops per gallon. Double if cloudy (filter first
-    if you can). Wait 30 minutes; it should smell slightly of chlorine.
+  BLEACH (plain, unscented, under a year old): 6% bleach = 8 drops per
+    gallon; 8.25% bleach = 6 drops per gallon. Double if cloudy or very
+    cold (filter first if you can). Wait 30 minutes; it should smell
+    slightly of chlorine.
   HIDDEN WATER AT HOME: water heater tank, ice, toilet TANK (not bowl,
     no cleaner tablets), canned food liquid, pipes (open top faucet,
     drain from the lowest).
@@ -110,7 +115,8 @@ EMERGENCY NUMBERS
   NIGHT: Big Dipper's end-of-cup stars point to the North Star
   (about 5x the gap). North Star = north.
   WATCH (N. hemisphere): hour hand at the sun; south is halfway to 12
-  (to 1 during daylight saving time).
+  (to 1 during daylight saving time). S. hemisphere: 12 at the sun;
+  north is halfway to the hour hand. Unreliable near the tropics.
   Moss is NOT a reliable compass.
   Walking: ~5 km (3 mi) per hour on flat ground, +1 hour per 600 m
   (2,000 ft) of climb. Count paces: ~60-70 double steps per 100 m.
@@ -138,7 +144,8 @@ EMERGENCY NUMBERS
   CB Channel 9 (27.065 MHz) = emergency. CB 19 = highway.
   GMRS Channel 20 (462.675 MHz) = common emergency channel (license).
   Ham 2-meter calling: 146.520 MHz. Marine VHF Ch 16: 156.800 MHz.
-  In a life-threatening emergency, US law lets anyone use any radio.
+  Licensed hams may use any means in a life-or-death emergency; in
+  genuine distress, calling on any radio beats silence.
   DISTRESS CALL: "MAYDAY MAYDAY MAYDAY" - who - WHERE - what's wrong -
   how many - what you need. Repeat every few minutes.
   Texts often get through when calls don't.
@@ -148,7 +155,8 @@ EMERGENCY NUMBERS
 ---------------------------------------------------------------------
   WATCH = get ready.  WARNING = act now.
   TORNADO: lowest floor, interior room, no windows, cover your head.
-    Mobile homes are not safe. Not under overpasses.
+    Mobile homes are not safe. In a car: drive to a sturdy building if
+    you can; never shelter under an overpass.
   LIGHTNING: when thunder roars, go indoors; wait 30 min after the last
     thunder. Count flash-to-bang seconds / 5 = miles.
   FLOOD: Turn Around, Don't Drown. 12 inches of moving water floats a
@@ -175,7 +183,8 @@ EMERGENCY NUMBERS
   Stranded in snow: stay with the car, CLEAR THE TAILPIPE, run engine
   10 min/hour with a window cracked, bright cloth on the antenna.
   Car in water: Seatbelts off, Window open/break (side window),
-  Out, Children first.  Keep a window-breaker tool in reach.
+  Out, Children first (oldest first, to help the younger ones).
+  Keep a window-breaker tool in reach.
   Jump start: red to dead +, red to good +, black to good -, black to
   bare metal on the dead car.
   Overheating: heater on full, pull over, never open a hot radiator.
@@ -220,10 +229,47 @@ EMERGENCY NUMBERS
   Watch each other for hopelessness, not eating or sleeping, or talk
   of not wanting to live - stay with them and get help.
 
+---------------------------------------------------------------------
+16. SANITATION
+---------------------------------------------------------------------
+  Wash hands with soap: after the toilet, before food, after the sick.
+  Water off or pipes damaged: DON'T FLUSH. Bucket + heavy bag + sawdust
+  or litter after each use; double-bag; keep covered.
+  Latrines 200 ft (60 m) from water, downhill. Cover food from flies.
+  Dishes: wash, then 1 tbsp bleach per gallon. Floodwater surfaces:
+  1 cup bleach per 5 gallons. NEVER mix bleach with ammonia.
+
+---------------------------------------------------------------------
+17. RADIATION, CHEMICAL, OUTBREAK
+---------------------------------------------------------------------
+  Radiation: GET INSIDE, STAY INSIDE (24 hours+), STAY TUNED. Basement
+  or center of a brick/concrete building. Remove outer clothing (up to
+  90% of contamination), bag it, wash. KI only when officials say so.
+  Chemical: inside, windows/doors shut, HVAC off; interior room above
+  the ground floor; seal with plastic + tape if told. Outside: go
+  upwind and uphill. Rinse eyes 10-15 min. Poison Control 1-800-222-1222.
+  Outbreak: one caregiver, separate room, masks, fresh air, 2 weeks of
+  food, water and medicine.
+
+---------------------------------------------------------------------
+18. POWER & COMMUNITY
+---------------------------------------------------------------------
+  Watts x hours = watt-hours. Medical devices first, then phones and
+  radios, light, then the fridge. Solar per day ~ panel W x sun hours
+  x 0.75. Generators OUTSIDE, 20 ft from windows, CO alarms inside.
+  Insulin: 59-86 F for up to 28 days without a fridge; never frozen.
+  Neighbors: check in at set times (Safe / Need help); 2 missed
+  check-ins = go knock. PACE plan: phones, Beacon Wi-Fi, radios or
+  mesh, runners. Never broadcast addresses or supplies on the radio.
+  Phone safety: long passcode, Face ID off at checkpoints, Signal,
+  no live location posts, power off before borders.
+
 =====================================================================
   This is a memory aid, not a substitute for training. Take a CPR,
   first aid and Stop the Bleed class. Sources: American Heart
-  Association; American Red Cross; CDC; NOAA/National Weather Service;
+  Association (2025 guidelines); American Red Cross; Stop the Bleed;
+  EPA; CDC; NOAA/National Weather Service; US Army ATP 4-02.11;
   FEMA/Ready.gov; US Army ATP 3-50.21 Survival, FM 3-25.26 Land
-  Navigation, FM 7-22 Holistic Health & Fitness; USDA FSIS; FCC.
+  Navigation, FM 7-22 Holistic Health & Fitness; USDA FSIS; FCC; FDA;
+  OSHA; Meshtastic; EFF Surveillance Self-Defense.
 =====================================================================

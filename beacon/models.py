@@ -42,7 +42,7 @@ def chip() -> str:
                                            text=True).strip()
     except Exception:
         pass
-    return f"{platform.machine()} · {os.cpu_count()} cores"
+    return f"{platform.machine()}, {os.cpu_count()} cores"
 
 
 def _same(a: str, b: str) -> bool:

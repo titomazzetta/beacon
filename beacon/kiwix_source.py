@@ -86,6 +86,7 @@ def query_variants(question: str, limit: int = 8) -> list[str]:
 class KiwixLibrary:
     def __init__(self, zim_dir: str):
         self.books: dict[str, "Archive"] = {}
+        self.titles: dict[str, str] = {}
         if not HAVE_LIBZIM:
             return
         for path in sorted(Path(zim_dir).glob("*.zim")):
@@ -93,6 +94,11 @@ class KiwixLibrary:
                 self.books[path.stem] = Archive(str(path))
             except Exception as e:  # corrupt or partial download
                 print(f"[kiwix] skipping {path.name}: {e}")
+                continue
+            try:
+                self.titles[path.stem] = self.books[path.stem].get_metadata("Title").decode() or path.stem
+            except Exception:
+                self.titles[path.stem] = path.stem
 
     def summary(self) -> list[dict]:
         out = []
@@ -156,7 +162,7 @@ class KiwixLibrary:
                 if len(text) < 200:
                     continue
                 hits.append({
-                    "kind": "kiwix", "book": name, "title": entry.title,
+                    "kind": "kiwix", "book": self.titles.get(name, name), "title": entry.title,
                     "ref": f"{name}/{path}", "text": text[:max_chars],
                 })
         return hits

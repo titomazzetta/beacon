@@ -1,0 +1,17 @@
+# Optional Meshtastic add-on (GPL-3.0), installed with --no-deps so the Bluetooth stack isn't pulled in:
+# Beacon talks to radios over USB or Wi-Fi only. Hashes cover Apple Silicon and Intel Macs.
+meshtastic==2.7.11 \
+    --hash=sha256:adb020f2cd7ace53896c6bf487f2d2136498dd88052c41a2aa6fb7a4634971b5
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+protobuf==7.36.2 \
+    --hash=sha256:cbc70b17ee27e28894c7fee8bb04be1abead49e936bc70eb60052531eee2079e
+pypubsub==4.0.7 \
+    --hash=sha256:89c3e274e634fea19de881bb45152815d9c1aaa0120215f85200ba56843372f4
+pyserial==3.5 \
+    --hash=sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0
+pyyaml==6.0.3 \
+    --hash=sha256:7f047e29dcae44602496db43be01ad42fc6f1cc0d8cd6c83d342306c32270196 \
+    --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
+tabulate==0.10.0 \
+    --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3

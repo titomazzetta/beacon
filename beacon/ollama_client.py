@@ -43,7 +43,7 @@ class Ollama:
         try:
             with requests.post(f"{self.base}/api/chat", json=body, stream=True, timeout=600) as r:
                 if r.status_code == 404:
-                    raise OllamaError(f"Model '{model}' isn't downloaded. Run: ollama pull {model}")
+                    raise OllamaError(f"The AI model {model} isn't on this drive. Download it in Library, under Brain.")
                 r.raise_for_status()
                 for line in r.iter_lines():
                     if not line:
@@ -57,7 +57,7 @@ class Ollama:
                     if chunk.get("done"):
                         break
         except requests.ConnectionError as e:
-            raise OllamaError("Can't reach Ollama. Is it running? Start it with: ollama serve") from e
+            raise OllamaError("The AI engine isn't running. Quit Beacon and open it again.") from e
 
     def pull(self, model: str) -> Iterator[dict]:
         """Download a model; yields {'status', 'completed', 'total'} progress updates."""
@@ -81,3 +81,10 @@ class Ollama:
                                 "options": {"num_predict": 24}})
         r.raise_for_status()
         return r.json().get("response", "")
+
+    def unload(self, model: str):
+        """Free the model's memory right away (used by low power mode)."""
+        try:
+            requests.post(f"{self.base}/api/generate", json={"model": model, "keep_alive": 0}, timeout=30)
+        except requests.RequestException:
+            pass

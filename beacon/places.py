@@ -45,7 +45,7 @@ _DMS = re.compile(r"(\d+)\s*°\s*(\d+)?\s*['′]?\s*(\d+(?:\.\d+)?)?\s*[\"″]?\
 
 
 def parse_coords(text: str) -> tuple[float, float] | None:
-    """'33.75, -84.39'  '33.75N 84.39W'  33°45'N 84°23'W  → (lat, lon)."""
+    """'39.74, -104.99'  '39.74N 104.99W'  39°44'N 104°59'W  → (lat, lon)."""
     m = _COORD.match(text)
     if m:
         lat, ns, lon, ew = float(m.group(1)), m.group(2), float(m.group(3)), m.group(4)

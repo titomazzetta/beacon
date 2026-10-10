@@ -13,7 +13,7 @@
 ## Talk — license required (FCC)
 - **GMRS** (license, no exam, covers your family): Channel 20 (462.675 MHz) is widely used as an informal emergency/traveler channel. Repeaters greatly extend range.
 - **Amateur (ham) radio** (license with exam): 2-meter national simplex calling frequency **146.520 MHz**; 70-centimeter calling **446.000 MHz**. Local repeaters and nets reach across a metro area.
-- **In a real emergency**: FCC rules (47 CFR 97.403) allow anyone to use any radio means to communicate when there is an immediate threat to life or property and normal communication is unavailable.
+- **Emergency rules**: FCC rules let a **licensed amateur station** use any means of radio communication when there's an immediate threat to life or property and normal systems are down (47 CFR 97.403), and let a station in distress use any means to get help (97.405). They don't make unlicensed transmitting generally legal. In a genuine life-or-death emergency, calling for help on any radio beats staying silent; expect to explain afterward.
 
 ## How to make a distress call
 1. Say **"MAYDAY, MAYDAY, MAYDAY"** (life-threatening) or **"PAN-PAN"** (urgent, not life-threatening).
@@ -29,4 +29,4 @@ Alfa Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliett Kilo Lima Mike No
 - Keep spare batteries in the radio bag. Lithium AA/AAA batteries hold charge for years and work in cold.
 - A USB power bank or a car's 12V outlet can run most handheld radios and chargers.
 
-Sources: NOAA National Weather Service (NOAA Weather Radio); FCC 47 CFR Part 95 (CB, FRS, GMRS) and Part 97 (amateur radio). Frequencies are standard US allocations; check local repeater lists before you need them.
+Sources: NOAA National Weather Service (NOAA Weather Radio); FCC 47 CFR Part 95 (CB, FRS, GMRS) and Part 97 (amateur radio, §97.403 and §97.405). Frequencies are standard US allocations; check local repeater lists before you need them.

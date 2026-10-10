@@ -1,5 +1,7 @@
 name: tests
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     strategy:
@@ -11,6 +13,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt pytest
+      - run: pip install -r requirements.txt pytest pyflakes
+      - run: python -m pyflakes beacon tests
       - run: python -m pytest -q
-      - run: bash -n scripts/build_usb.sh && bash -n scripts/Beacon.command
+      - run: bash -n scripts/build_usb.sh && bash -n scripts/launch.sh && bash -n "scripts/Beacon (with Terminal).command"
+      - if: runner.os == 'macOS'
+        run: osacompile -o "$RUNNER_TEMP/Beacon.app" scripts/Beacon.applescript

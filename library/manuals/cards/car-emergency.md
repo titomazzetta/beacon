@@ -33,7 +33,7 @@ Blanket or sleeping bag, hat and gloves, ice scraper and small shovel, sand or c
 ## Water on the road
 - **Never drive through flood water.** 12 inches of moving water can float most cars.
 - **If your car goes into water: Seatbelts, Windows, Out, Children (SWOC).**
-  1. Unbuckle. 2. Open or break a **side window** right away; the windshield won't break. 3. Get the children out first, oldest helping youngest. 4. Climb out and swim away. Don't wait for the car to fill to open a door.
+  1. Unbuckle. 2. Open or break a **side window** right away; the windshield won't break. 3. Push the children out first, **starting with the oldest**, who can help the younger ones. 4. Climb out and swim away. Don't stop to call 911 and don't wait for the car to fill to open a door.
   - Keep a window-breaker / seatbelt-cutter tool within reach of the driver.
 
 ## Brakes fail
