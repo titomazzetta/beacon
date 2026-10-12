@@ -66,7 +66,7 @@ if [ -z "$TIER" ] && [ -t 0 ]; then
   echo "  3) Complete    + WikiHow, Wikipedia intros, learning (256 GB)"
   echo "  4) Everything  + all of Wikipedia (512 GB or more)"
   read -r -p "Choose 1-4 [1]: " n
-  TIER=$(case "${n:-1}" in 2) echo extended;; 3) echo complete;; 4) echo everything;; *) echo core;; esac)
+  case "${n:-1}" in 2) TIER=extended ;; 3) TIER=complete ;; 4) TIER=everything ;; *) TIER=core ;; esac
   read -r -p "Detailed map around which town or city? (Enter to skip): " REGION
 fi
 TIER="${TIER:-core}"
@@ -91,7 +91,7 @@ fetch() { # url dest: resumable, skips if complete
 verify() { # file sums_file: the file's SHA-256 must match its line in the publisher's checksum list
   local file="$1" sums="$2" want got
   [ $VERIFY = 1 ] || { warn "Skipping checksum check for $(basename "$file") (--no-verify)"; return 0; }
-  want="$(grep -E "[ */]$(basename "$file" | sed 's/[.+]/\\&/g')\$" "$sums" | awk '{print $1}' | head -1)"
+  want="$(grep -E "[ */]$(basename "$file" | sed 's/[.+]/\\&/g')\$" "$sums" | awk '{print $1}' | head -1 || true)"
   [ -n "$want" ] || { warn "No published checksum for $(basename "$file"). Stopping to be safe (or rerun with --no-verify)."; exit 1; }
   got="$(shasum -a 256 "$file" | awk '{print $1}')"
   if [ "$want" != "$got" ]; then
@@ -107,9 +107,9 @@ gh_assets() { # repo -> download URLs of the latest release (no API rate limit),
   tag="$(curl -sI "https://github.com/$repo/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | sed 's#.*/tag/##' | tr -d '\r')"
   if [ -n "$tag" ]; then
     curl -sL "https://github.com/$repo/releases/expanded_assets/$tag" \
-      | grep -oE "/$repo/releases/download/$tag/[^\"?#]+" | sort -u | sed 's#^#https://github.com#'
+      | grep -oE "/$repo/releases/download/$tag/[^\"?#]+" | sort -u | sed 's#^#https://github.com#' || true
   else
-    curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/'
+    curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/' || true
   fi
 }
 
@@ -132,12 +132,12 @@ echo "  ✓ Beacon.app"
 # ---------------------------------------------------------------- portable Python
 say "Portable Python $PY_VER (Apple Silicon and Intel)"
 ASSETS="$(gh_assets astral-sh/python-build-standalone)"
-PYURLS="$(echo "$ASSETS" | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-[a-z0-9_]+-apple-darwin-install_only\.tar\.gz$" || true)"
-SUMS_URL="$(echo "$ASSETS" | grep -E '/SHA256SUMS$' | head -1)"
+PYURLS="$(echo "$ASSETS" | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+(\+|%2[Bb])[0-9]+-[a-z0-9_]+-apple-darwin-install_only\.tar\.gz$" || true)"
+SUMS_URL="$(echo "$ASSETS" | grep -E '/SHA256SUMS$' | head -1 || true)"
 for pair in "arm64:aarch64" "x86_64:x86_64"; do
   name="${pair%%:*}"; triple="${pair##*:}"
   if [ -e "$L/runtime/python-$name/bin/python3" ]; then echo "  ✓ python-$name"; continue; fi
-  url="$(echo "$PYURLS" | grep -- "-$triple-apple-darwin-install_only" | head -1)"
+  url="$(echo "$PYURLS" | grep -- "-$triple-apple-darwin-install_only" | head -1 || true)"
   [ -n "$url" ] || { warn "Couldn't find a Python download for $name Macs"; exit 1; }
   fname="$(basename "$url" | sed 's/%2[Bb]/+/g')"     # GitHub writes the + in Python's file names as %2B
   fetch "$url" "$WORK/$fname"
