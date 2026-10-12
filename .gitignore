@@ -9,3 +9,4 @@ library/manuals/*
 !library/manuals/cards/
 .DS_Store
 ._*
+.venv/

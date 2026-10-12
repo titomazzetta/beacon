@@ -145,7 +145,7 @@ The builder installs Light and Strong by default; add others from the Library ta
 1. In Disk Utility, erase the drive as **APFS (Encrypted)** and name it `BEACON`. (exFAT also works, but can't be encrypted.)
 2. Run:
    ```bash
-   git clone https://github.com/<you>/beacon.git && cd beacon
+   git clone https://github.com/titomazzetta/beacon.git && cd beacon
    ./scripts/build_usb.sh /Volumes/BEACON
    ```
    It asks which tier and which town to map in detail. Or pass options:
