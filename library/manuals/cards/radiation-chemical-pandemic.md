@@ -1,4 +1,4 @@
-# Radiation, Chemical & Pandemic Card
+# Radiation, Chemical and Pandemic Card
 
 ## Nuclear blast or radiation release
 **Get inside. Stay inside. Stay tuned.**

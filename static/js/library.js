@@ -318,7 +318,7 @@ function renderDocs() {
     <div class="row-item"><div><div class="t">${esc(m.title || docTitle(m.path))}</div>
       <div class="d">${m.chunks ? m.chunks.toLocaleString() + " passages" : "No readable text"}${m.pages > 1 ? `, ${m.pages} pages` : ""}${m.scanned ? ". Mostly scanned images, so only part is searchable" : ""}</div></div>
       <div class="act"><a href="${esc(m.read)}" target="_blank" rel="noopener">Read</a>${m.save ? `<a href="${esc(m.save)}" download>Save</a>` : ""}</div></div>`).join("")}</div>`).join("")
-    : `<p class="hint">No manuals yet.${B.sys?.guest ? "" : " Download a level above, or add your own files."}</p>`;
+    : `<p class="hint">No manuals yet.${B.sys?.guest ? "" : " Download a tier under What's installed, or add your own files."}</p>`;
   if (!B.sys?.guest) {
     const pend = status.pending.length;
     $("ingestLog").textContent = status.ingest.running ? (status.ingest.log.at(-1) || "Indexing…") : pend ? `${pend} file${pend === 1 ? "" : "s"} waiting to be indexed.` : (status.ingest.log.at(-1) || "");

@@ -27,6 +27,10 @@ const SITUATIONS = [
    q: "I'm panicking and can't think straight. Walk me through calming down right now."},
   {icon: "signal", title: "Signal for rescue", sub: "SOS by light, sound or mirror",
    q: "How do I signal for rescue with a flashlight, whistle, mirror or fire?"},
+  {icon: "boxes", title: "Starting with nothing", sub: "Water, warmth and food from what's around",
+   q: "We have almost nothing: no stored water, no power and little food. What can we do with ordinary household items to get safe water, stay warm and eat?"},
+  {icon: "waves", title: "Stranded by water", sub: "Island, coast or a crossing",
+   q: "We're stranded on a coast or a small island. What do we do first for water, shelter, fire and getting rescued?"},
 ];
 
 $("situations").innerHTML = SITUATIONS.map((s, i) => `
@@ -88,7 +92,8 @@ async function ask(text) {
   const ctrl = new AbortController();
   setBusy(ctrl);
   let follow = true;
-  const res = await B.stream("/api/ask", {question: text, history: chatHistory.slice(-6), use_library: $("useLib").checked}, {
+  const res = await B.stream("/api/ask", {question: text, history: chatHistory.slice(-6), use_library: $("useLib").checked,
+                                          ...(B.sys?.guest && B.situation ? {situation: B.situation} : {})}, {
     signal: ctrl.signal,
     onStatus: s => { const t = ans.querySelector(".thinking span"); if (t) t.textContent = String(s).replace(/…$/, ""); },
     onCard: c => { entry.querySelector(".cardslot").innerHTML = cardNote(c); },
@@ -160,28 +165,11 @@ $("saveConvo").addEventListener("click", () => {
 });
 
 /* ---------------------------------------------------------------- quick cards and emergency */
-const CARD_ORDER = [
-  ["first-aid-essentials.md", "First aid"], ["severe-weather.md", "Weather"], ["water.md", "Water"],
-  ["power-outage.md", "Power out"], ["car-emergency.md", "Car"], ["evacuation-and-leaving.md", "Evacuate"],
-  ["defensive-perimeter.md", "Perimeter"], ["evasion-basics.md", "Evade"], ["low-profile-and-self-defense.md", "Self-defense"],
-  ["navigation-and-nature-signs.md", "Navigation"], ["morse-and-signals.md", "Signals"], ["emergency-radio.md", "Radio"],
-  ["sanitation-and-hygiene.md", "Sanitation"], ["radiation-chemical-pandemic.md", "Radiation and chemical"],
-  ["off-grid-power.md", "Power"], ["community-network.md", "Community"], ["meshtastic.md", "Mesh radio"],
-  ["digital-safety.md", "Phone safety"], ["wild-food-and-game.md", "Wild food"], ["firearms-safety.md", "Firearms"],
-  ["mind-and-body.md", "Mind and body"], ["BEACON-CLIFFNOTES.txt", "Cliff notes"],
-];
 let cardList = null, cardFile = null, cardText = "", cardTool = null;
-async function loadCardList() {
+async function loadCardList() {  // tab order and names come from Beacon (cards.py), plus any card added to the drive
   if (cardList) return cardList;
-  let onDrive = null;
-  try { onDrive = await B.api("/api/cards"); } catch {}
-  const known = new Set(CARD_ORDER.map(c => c[0]));
-  const present = f => !onDrive || onDrive.some(c => c.path === "cards/" + f);
-  cardList = CARD_ORDER.filter(([f]) => present(f)).map(([file, label]) => ({file, label}));
-  (onDrive || []).forEach(c => {  // cards someone added to the drive themselves
-    const f = c.path.replace(/^cards\//, "");
-    if (!known.has(f)) cardList.push({file: f, label: c.title});
-  });
+  try { cardList = (await B.api("/api/cards")).map(c => ({file: c.path.replace(/^cards\//, ""), label: c.label || c.title})); }
+  catch { return [{file: "first-aid-essentials.md", label: "First aid"}]; }
   return cardList;
 }
 async function openCards(file, opt = {}) {

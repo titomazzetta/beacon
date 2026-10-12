@@ -1,4 +1,4 @@
-# Safe Drinking Water Quick Card
+# Safe Drinking Water Card
 
 ## How much
 - Store **1 gallon per person per day** (drinking plus basic hygiene). Keep at least 3 days; 2 weeks is better. Add extra for pets and hot weather.

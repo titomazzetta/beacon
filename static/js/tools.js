@@ -45,7 +45,7 @@ function fracUp(v) {  // the next kitchen measure up, so the water always gets e
 const clock = d => d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
 const hms = ms => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0"); };
 const tzLabel = () => { const o = -new Date().getTimezoneOffset(); return "UTC" + (o >= 0 ? "+" : "−") + Math.floor(Math.abs(o) / 60) + (Math.abs(o) % 60 ? ":" + String(Math.abs(o) % 60).padStart(2, "0") : ""); };
-const readout = cells => `<div class="readout">${cells.map(([v, l, cls]) => `<div class="${cls || ""}"><b>${v}</b><span>${l}</span></div>`).join("")}</div>`;
+const readout = (cells, layout = "") => `<div class="readout ${layout}">${cells.map(([v, l, cls]) => `<div class="${cls || ""}"><b>${v}</b><span>${l}</span></div>`).join("")}</div>`;
 
 /* ---------------------------------------------------------------- CPR metronome */
 function cprTool(el) {
@@ -595,7 +595,7 @@ function unitsTool(el) {
 
 /* ---------------------------------------------------------------- power budget */
 const DEVICES = [  // rough typical figures; the card says to check labels
-  ["Phone charging", 15, 2], ["LED bulb", 9, 5], ["Wi-Fi router", 10, 24], ["Laptop", 45, 3], ["Beacon Mac running the AI", 60, 4],
+  ["Phone charging", 15, 2], ["LED bulb", 9, 5], ["Wi-Fi router", 10, 24], ["Laptop", 45, 3], ["Mac running Beacon's AI", 60, 4],
   ["CPAP (no heated humidifier)", 40, 8], ["Fridge (average while cycling)", 70, 24], ["Chest freezer (average)", 35, 24],
   ["Fan", 40, 8], ["TV", 80, 3], ["Electric blanket", 100, 8], ["Microwave", 1000, 0.25], ["Coffee maker", 900, 0.25],
   ["Oxygen concentrator", 350, 24], ["Well pump", 1000, 1], ["Space heater", 1500, 4]];
@@ -616,7 +616,7 @@ function powerTool(el) {
       <div><label class="field" for="pwPanels">Solar panels (W)</label><input id="pwPanels" type="number" inputmode="numeric" min="0" value="${st.panels}"></div>
       <div><label class="field" for="pwSun">Peak sun hours</label><input id="pwSun" type="number" inputmode="decimal" min="0" max="12" step="0.5" value="${st.sun}"></div>
     </div>
-    <p class="small-print">Example battery: a 2,048 Wh power station with 2,400 W of output (like the Anker SOLIX C2000 Gen 2). About 85% of a battery's watt-hours reach your devices through the inverter, and solar panels give about 75% of their rating times the sun hours. Device figures are typical; check your labels. See the Power card for safety.</p>`;
+    <p class="small-print">Example battery: a 2,048 Wh power station with 2,400 W of output (like the Anker SOLIX C2000 Gen 2). About 85% of a battery's watt-hours reach your devices through the inverter, and solar panels give about 75% of their rating times the sun hours. Device figures are typical; check your labels. See the Off-grid power card for safety.</p>`;
   function rows() {
     el.querySelector("#pwRows").innerHTML = st.rows.map((r, i) => `<div class="row-item" style="grid-template-columns:1fr auto">
       <div><div class="t">${esc(r[0])}</div><div class="d">
@@ -764,6 +764,119 @@ function suppliesTool(el) {
   return () => clearTimeout(timer);
 }
 
+/* ---------------------------------------------------------------- radio channels and calling for help */
+const FRS = [["1", "462.5625"], ["2", "462.5875"], ["3", "462.6125"], ["4", "462.6375"], ["5", "462.6625"], ["6", "462.6875"], ["7", "462.7125"],
+  ["8", "467.5625"], ["9", "467.5875"], ["10", "467.6125"], ["11", "467.6375"], ["12", "467.6625"], ["13", "467.6875"], ["14", "467.7125"],
+  ["15", "462.5500"], ["16", "462.5750"], ["17", "462.6000"], ["18", "462.6250"], ["19", "462.6500"], ["20", "462.6750"], ["21", "462.7000"], ["22", "462.7250"]];
+const PMR = Array.from({length: 16}, (_, i) => [String(i + 1), (446.00625 + i * .0125).toFixed(5)]);
+const NATO = {A: "Alfa", B: "Bravo", C: "Charlie", D: "Delta", E: "Echo", F: "Foxtrot", G: "Golf", H: "Hotel", I: "India", J: "Juliett",
+  K: "Kilo", L: "Lima", M: "Mike", N: "November", O: "Oscar", P: "Papa", Q: "Quebec", R: "Romeo", S: "Sierra", T: "Tango", U: "Uniform",
+  V: "Victor", W: "Whiskey", X: "X-ray", Y: "Yankee", Z: "Zulu", 0: "Zero", 1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five",
+  6: "Six", 7: "Seven", 8: "Eight", 9: "Niner"};
+const chanGrid = (rows, hi = []) => `<div class="chan-grid">${rows.map(([c, f]) => `<div class="${hi.includes(c) ? "hi" : ""}"><b>${c}</b><span>${f}</span></div>`).join("")}</div>`;
+const chanTable = rows => `<table class="chan"><tr><th>Channel</th><th>MHz</th><th>Use</th></tr>${rows.map(([c, f, use, hi]) =>
+  `<tr class="${hi ? "hi" : ""}"><td>${c}</td><td class="f">${f}</td><td>${use}</td></tr>`).join("")}</table>`;
+const notes = list => `<ul class="tool-notes">${list.map(n => `<li>${n}</li>`).join("")}</ul>`;
+const RADIO = {
+  walkie: () => `<h3 class="group-label">FRS and GMRS: the walkie-talkies sold in stores</h3>${chanGrid(FRS, ["20"])}
+    ${notes([
+      "<b>Channel 20</b> (462.675 MHz) is widely used for emergencies and travelers, and any FRS radio can reach it.",
+      "<b>Privacy codes don't make a channel private.</b> They only hide other people's talk from you. Set the code to 0 or off to hear everyone, especially in an emergency.",
+      "FRS needs no license, up to 2 watts. Channels 8 to 14 are limited to half a watt, so they reach the least far.",
+      "GMRS radios can use up to 50 watts on channels 15 to 22, and repeaters that carry them across a city. They need an FCC license: no exam, and one license covers your family.",
+      "Expect a mile or two in town and in trees, much more from a hilltop. Height beats power."])}
+    <h3 class="group-label">MURS: no license, VHF</h3>${chanTable([["1", "151.820", ""], ["2", "151.880", ""], ["3", "151.940", ""], ["4", "154.570", "Blue Dot"], ["5", "154.600", "Green Dot"]])}
+    ${notes(["Up to 2 watts. VHF carries better than FRS through woods and rolling country, and the channels are quieter."])}`,
+  cb: () => chanTable([["9", "27.065", "Emergencies and traveler help", true], ["19", "27.185", "Highway and trucker channel: road conditions, relays"]])
+    + notes(["No license needed. 40 channels on 27 MHz; most car and truck CBs use AM.",
+      "Fewer people listen on channel 9 than they used to, so try 19 too: truckers can relay a call for help.",
+      "A CB with a good antenna on a vehicle reaches several miles; handhelds much less."]),
+  marine: () => chanTable([["16", "156.800", "Distress, safety and calling. The Coast Guard listens.", true], ["9", "156.450", "Boaters' calling channel (US)"],
+      ["22A", "157.100", "Coast Guard safety broadcasts. They announce them on 16."], ["13", "156.650", "Ship to ship, about navigation"], ["70", "156.525", "Digital distress calls only (DSC), no voice"]])
+    + notes(["A radio with DSC has a red distress button. With a GPS and a registered number (MMSI), one press sends who you are and where.",
+      "Marine radios are for use on the water. In a real emergency, calling for help on 16 is what it's for.",
+      "Handheld range is about 5 miles boat to boat, farther to a tall Coast Guard antenna."]),
+  ham: () => chanTable([["2 m", "146.520", "National calling frequency (FM, simplex)", true], ["2 m", "146.550", "Common simplex chat frequency"],
+      ["70 cm", "446.000", "National calling frequency (FM, simplex)"], ["Europe", "145.500 / 433.500", "Calling frequencies in Europe"]])
+    + notes(["Listening is legal for anyone. Talking needs an amateur license (the Technician exam covers handhelds and local repeaters).",
+      "Repeaters carry a handheld across a whole metro area. Look up your local ones now (frequency, offset and tone) and write them down.",
+      "Many areas hold weekly emergency nets (ARES, RACES): listen in to learn who's out there.",
+      "The amateur rules let a station in distress use any means it has to get help (47 CFR 97.405)."]),
+  listen: () => chanTable([["WX 1 to 7", "162.400 to 162.550", "NOAA Weather Radio: official alerts around the clock", true],
+      ["AM / FM", "Local stations", "Emergency Alert System broadcasts. A car radio works when phones don't."]])
+    + notes(["AM carries much farther at night than by day.", "A hand-crank AM/FM/weather radio is the most useful single radio to own.",
+      "A scanner hears fire, ambulance and aviation radio where they aren't encrypted."]),
+  europe: () => `<h3 class="group-label">PMR446: Europe's licence-free walkie-talkies</h3>${chanGrid(PMR)}
+    ${notes(["No licence, half a watt, 16 channels. There's no official emergency channel: agree on one with your group in advance.",
+      "CB channel 9 is the emergency channel across most of Europe; 19 is the road channel in many countries.",
+      "Ham calling frequencies: 145.500 MHz (2 m) and 433.500 MHz (70 cm). Marine channel 16 is the same everywhere.",
+      "Phones: 112 reaches emergency services anywhere in Europe."])}`,
+};
+function radioTool(el, opt = {}) {
+  let tab = B.store.get("beacon-radiotab") || "walkie", urg = "mayday";
+  el.innerHTML = `
+    ${readout([["Ch 20", "Walkie-talkies (FRS and GMRS), 462.675 MHz"], ["Ch 9", "CB emergency, 27.065 MHz"],
+      ["Ch 19", "CB highway, 27.185 MHz: truckers can relay"], ["Ch 16", "Marine distress, 156.800 MHz"],
+      ["146.520", "Ham calling, MHz"], ["WX 1 to 7", "NOAA weather, 162.400 to 162.550 MHz"]], "cols-3")}
+    ${B.segHTML("rtab", [["walkie", "Walkie-talkies"], ["cb", "CB"], ["marine", "Marine"], ["ham", "Ham"], ["listen", "Listen"], ["europe", "Europe"]], tab)}
+    <div id="rBody"></div>
+    <h3 class="group-label" id="rCall" style="margin-top:30px">Call for help</h3>
+    ${B.segHTML("urg", [["mayday", "MAYDAY: a life is in danger"], ["pan", "PAN-PAN: urgent, not life-threatening"]], urg)}
+    <div class="tool-form" style="margin-top:4px">
+      <div><label class="field" for="rName">Who you are</label><input id="rName" autocomplete="off" placeholder="Your name or call sign"></div>
+      <div><label class="field" for="rWhere">Where you are</label><input id="rWhere" autocomplete="off" placeholder="Address, landmarks or coordinates"></div>
+      <div><label class="field" for="rWhat">What happened</label><input id="rWhat" autocomplete="off" placeholder="A fall; broken leg; can't walk"></div>
+      <div><label class="field" for="rWho">How many people</label><input id="rWho" autocomplete="off" placeholder="3 people, 1 hurt"></div>
+      <div><label class="field" for="rNeed">What you need</label><input id="rNeed" autocomplete="off" placeholder="Medical help and a carry-out"></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn small" id="rHere" type="button">${B.icon("locate")}Use my location</button></div>
+    <div class="script" id="rScript" aria-live="polite"></div>
+    <div class="row"><button class="btn small" id="rSpeak" type="button">Read aloud, slowly</button><button class="btn small" id="rCopy" type="button">Copy</button></div>
+    <ol class="tool-steps">
+      <li>Pick the channel most likely to be heard: walkie-talkies 20, CB 9 then 19, marine 16, or a ham repeater.</li>
+      <li>Listen for a few seconds so you don't talk over someone.</li>
+      <li>Hold the talk button, wait a second, then speak slowly with the radio a few inches from your mouth.</li>
+      <li>Let go and listen for at least a minute.</li>
+      <li>No answer? Repeat every few minutes, try other channels, and get higher: a hilltop or an upper floor can double your range.</li>
+      <li>Between tries, save the battery and write down everything you hear.</li>
+    </ol>
+    <h3 class="group-label" style="margin-top:24px">If you hear a call for help</h3>
+    ${notes(["Write down who, where and what, word for word.", "Answer: say their name, then \"this is\" and yours, then \"received\". Ask them to repeat anything you missed.",
+      "Pass it to 911 or 112 if you can reach them, or relay it to anyone who can help. Stay on the channel."])}
+    <h3 class="group-label" style="margin-top:24px">Spell it out</h3>
+    <div class="tool-form"><div><label class="field" for="rSpell">A name, call sign or street</label><input id="rSpell" autocomplete="off" placeholder="Garcia"></div></div>
+    <p class="morse-out" id="rSpelled" style="font-size:1.25rem;letter-spacing:0"></p>`;
+  const v = id => el.querySelector("#" + id).value.trim();
+  const show = () => { el.querySelector("#rBody").innerHTML = RADIO[tab](); };
+  function script() {
+    const name = v("rName") || "[your name]", where = v("rWhere") || "[where you are]";
+    const lines = urg === "mayday"
+      ? ["MAYDAY, MAYDAY, MAYDAY.", `This is ${name}, ${name}, ${name}.`, `MAYDAY, ${name}.`]
+      : ["PAN-PAN, PAN-PAN, PAN-PAN.", "All stations, all stations, all stations.", `This is ${name}, ${name}, ${name}.`];
+    lines.push(`We are at ${where}.`, (v("rWhat") || "[what happened]").replace(/\.?$/, "."), (v("rWho") || "[how many people, and who is hurt]").replace(/\.?$/, "."),
+      `We need ${v("rNeed") || "[what help you need]"}`.replace(/\.?$/, "."), "Over.");
+    el.querySelector("#rScript").textContent = lines.join("\n");
+  }
+  B.wireSeg(el, "rtab", t => { tab = t; B.store.set("beacon-radiotab", t); show(); });
+  B.wireSeg(el, "urg", u => { urg = u; script(); });
+  el.querySelector(".tool-form").addEventListener("input", script);
+  el.querySelector("#rHere").onclick = async () => {
+    let p = null;
+    try { const m = await B.api("/api/mesh"); p = m.state === "connected" && m.position ? m.position : null; } catch {}
+    const where = p ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : B.lastPlace?.label || B.situation?.place || "";
+    if (!where) { B.toast("No location yet: pick one on the Map, or type it."); return; }
+    el.querySelector("#rWhere").value = where; script();
+  };
+  el.querySelector("#rSpeak").onclick = e => B.speak(el.querySelector("#rScript").textContent.replace(/\[[^\]]*\]/g, ""), e.currentTarget, undefined, .8);
+  el.querySelector("#rCopy").onclick = () => B.copy(el.querySelector("#rScript").textContent);
+  el.querySelector("#rSpell").addEventListener("input", e => {
+    el.querySelector("#rSpelled").textContent = [...e.target.value.toUpperCase()].map(c => NATO[c] || (c === " " ? "/" : "")).filter(Boolean).join(" ");
+  });
+  show(); script();
+  if (opt.call) setTimeout(() => el.querySelector("#rCall").scrollIntoView({block: "start"}), 60);
+  return () => B.stopSpeaking();
+}
+
 /* ---------------------------------------------------------------- the toolbox */
 const TOOLS = [
   {id: "cpr", group: "First aid", icon: "pulse", title: "CPR metronome", sub: "Keeps the beat at 110 pushes a minute", run: cprTool},
@@ -775,6 +888,7 @@ const TOOLS = [
   {id: "power", group: "Supplies and power", icon: "power", title: "Power budget", sub: "Batteries, solar and what they can run", run: powerTool},
   {id: "light", group: "Signals", icon: "flashlight", title: "Flashlight and SOS", sub: "Turns the screen into a light", run: null},
   {id: "morse", group: "Signals", icon: "morse", title: "Morse code", sub: "Translate it, flash it, sound it", run: morseTool},
+  {id: "radio", group: "Signals", icon: "radio", title: "Radio channels", sub: "Who's listening where, and how to call for help", run: radioTool},
   {id: "weather", group: "Weather and sky", icon: "thermo", title: "Heat and cold", sub: "Heat index and frostbite risk", run: heatColdTool},
   {id: "lightning", group: "Weather and sky", icon: "bolt", title: "Lightning distance", sub: "Count from flash to thunder", run: lightningTool},
   {id: "sun", group: "Weather and sky", icon: "moon", title: "Sun and moon", sub: "Daylight, directions, moonlight", run: sunTool},

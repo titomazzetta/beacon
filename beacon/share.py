@@ -87,10 +87,26 @@ def _port_problem(port: int) -> str:
         probe.close()
 
 
+def name_taken(name: str, my_ip: str | None, timeout: float = 2.0) -> bool:
+    """Is this .local name already answered by another device? (Two Beacons on one network.)"""
+    found: list[str] = []
+
+    def look():
+        try:
+            found.extend(a[4][0] for a in socket.getaddrinfo(name, None, socket.AF_INET))
+        except OSError:
+            pass
+    t = threading.Thread(target=look, daemon=True)
+    t.start()
+    t.join(timeout)
+    return any(ip != my_ip and not ipaddress.ip_address(ip).is_loopback for ip in found)
+
+
 class Share:
-    def __init__(self, app, ports=(80, 8643)):
-        self.app, self.ports = app, ports
-        self.server = self.thread = self.mdns = self.awake = None
+    def __init__(self, app, ports=(80, 8643), node: dict | None = None):
+        self.app, self.ports, self.node = app, ports, node or {"id": "", "name": "Beacon"}
+        self.hostname = "beacon.local"
+        self.server = self.thread = self.mdns = self.mdns_link = self.awake = None
         self.port = self.code = self.ip = None
         self.error = ""
         self.alert = ""
@@ -197,13 +213,18 @@ class Share:
         self.code = self._new_code()
         self.ip = lan_ip()
         if self.ip and shutil.which("dns-sd"):
-            # Bonjour: makes http://beacon.local work on iPhones, iPads, Macs and most Androids.
+            # Bonjour: makes http://beacon.local work on iPhones, iPads, Macs and most Androids. A second
+            # Beacon on the same network takes its own name, and both advertise _beacon._tcp so they can link.
+            self.hostname = "beacon.local"
+            if name_taken(self.hostname, self.ip):
+                self.hostname = f"beacon-{(self.node.get('id') or secrets.token_hex(2))[:4]}.local"
             try:
                 self.mdns = subprocess.Popen(
-                    ["dns-sd", "-P", "Beacon", "_http._tcp", "local", str(self.port), "beacon.local", self.ip],
+                    ["dns-sd", "-P", "Beacon", "_http._tcp", "local", str(self.port), self.hostname, self.ip],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception:
                 self.mdns = None
+            self.advertise_link()
         if shutil.which("caffeinate"):
             # Phones lose Beacon if the Mac dozes off, so keep it awake while sharing.
             # (-i: no idle sleep; -s: no system sleep on power. -w: ends with Beacon.)
@@ -214,14 +235,30 @@ class Share:
                 self.awake = None
         return self.status()
 
+    def advertise_link(self):
+        """Announce this Beacon to other Beacons on the network (Bonjour _beacon._tcp), under its
+        current name. Called again after a rename."""
+        if self.mdns_link:
+            self.mdns_link.terminate()
+            self.mdns_link = None
+        if not (self.server and self.ip and shutil.which("dns-sd")):
+            return
+        try:
+            self.mdns_link = subprocess.Popen(
+                ["dns-sd", "-P", self.node.get("name") or "Beacon", "_beacon._tcp", "local", str(self.port), self.hostname,
+                 self.ip, f"id={self.node.get('id', '')}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            self.mdns_link = None
+
     def stop(self) -> dict:
         if self.server:
             self.server.shutdown()
             self.server.server_close()
-        for proc in (self.mdns, self.awake):
+        for proc in (self.mdns, self.mdns_link, self.awake):
             if proc:
                 proc.terminate()
-        self.server = self.thread = self.mdns = self.awake = None
+        self.server = self.thread = self.mdns = self.mdns_link = self.awake = None
         self.port = self.code = None
         with self.lock:
             self.tokens.clear()
@@ -234,7 +271,7 @@ class Share:
         if not self.on:
             return {"on": False, "error": self.error}
         port = "" if self.port == 80 else f":{self.port}"
-        name_url = f"http://beacon.local{port}"
+        name_url = f"http://{self.hostname}{port}"
         ip_url = f"http://{self.ip}{port}" if self.ip else None
         return {"on": True, "port": self.port, "code": self.code, "ip": self.ip,
                 "name_url": name_url if self.mdns else None, "ip_url": ip_url,

@@ -11,7 +11,7 @@ TIERS = [
     {"model": "gpt-oss:20b",  "min_ram_gb": 24, "size_gb": 14,  "label": "Heavy (24 GB Macs)"},
     {"model": "qwen3:14b",    "min_ram_gb": 16, "size_gb": 9.3, "label": "Strong (16 GB Macs)"},
     {"model": "qwen3:8b",     "min_ram_gb": 12, "size_gb": 5.2, "label": "Balanced (12 GB)"},
-    {"model": "qwen3:4b",     "min_ram_gb": 0,  "size_gb": 2.6, "label": "Light (8 GB & Intel Macs)"},
+    {"model": "qwen3:4b",     "min_ram_gb": 0,  "size_gb": 2.6, "label": "Light (8 GB and Intel Macs)"},
 ]
 EMBED_MODEL = "nomic-embed-text"
 

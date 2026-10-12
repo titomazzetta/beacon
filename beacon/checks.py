@@ -47,13 +47,13 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
                             "detail": str(e)[:120]})
     else:
         results.append({"kind": "brain", "name": "Answer test", "ok": False,
-                        "detail": "No chat model installed"})
+                        "detail": "No AI model installed"})
 
     # 2. Every manual: indexed, has real text, and is findable by search.
     pending = manuals.pending(manuals_dir)
     for rel in pending:
         results.append({"kind": "manual", "name": rel, "ok": False,
-                        "detail": "Not indexed yet. Click Index manuals."})
+                        "detail": "Not indexed yet. Click Index new files."})
     info = {f["path"]: f for f in manuals.files()}
     samples = dict(manuals.samples())
     for file, passage in samples.items():
@@ -64,7 +64,8 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
             found = any(h.get("file") == file for h in hits)
         except Exception:
             found = False
-        detail = f"{f.get('chunks', 0)} passages, findable" if found else "Indexed but search didn't find it"
+        n = f.get("chunks", 0)
+        detail = f"{n} passage{'' if n == 1 else 's'}, findable" if found else "Indexed but search didn't find it"
         if f.get("scanned"):
             detail += ". Mostly scanned images, so only part of the text is readable"
         results.append({"kind": "manual", "name": rel, "ok": found, "warn": f.get("scanned"),
@@ -72,7 +73,7 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
     for rel, f in info.items():  # indexed files that produced no passages at all
         if f["chunks"] == 0:
             results.append({"kind": "manual", "name": rel, "ok": False,
-                            "detail": "No readable text (scanned PDF). Needs OCR to be searchable."})
+                            "detail": "No readable text: it's a scanned PDF, which needs text recognition (OCR) before it can be searched."})
 
     # 3. Every Kiwix library: opens, and a random article is findable.
     for book in kiwix.summary():

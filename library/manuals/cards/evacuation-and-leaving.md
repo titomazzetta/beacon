@@ -1,4 +1,4 @@
-# Evacuation & Leaving the Country Card
+# Evacuation and Leaving the Country Card
 
 ## Leave early
 The hardest part is deciding. Pick **triggers in advance** ("if the mandatory evacuation order comes," "if the bridge closes," "if fighting reaches X") and act on them. Leaving early beats traffic, empty gas stations, closed borders and panic.
@@ -40,6 +40,6 @@ Passports and IDs · birth and marriage certificates · property deed or lease �
 - At official checkpoints: stay calm, keep hands visible, follow instructions, have documents ready.
 - Don't photograph police, soldiers or checkpoints.
 - Keep phone and battery packs charged. Download offline maps (or carry Beacon).
-- Keep a low profile (see the Low Profile card).
+- Keep a low profile (see the Self-defense card).
 
 Sources: FEMA / Ready.gov "Make a Plan"; US Department of State travel and STEP guidance; UNHCR; International Committee of the Red Cross.

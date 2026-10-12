@@ -5,8 +5,10 @@ const PLAN_ICONS = {
   "evacuate": "car", "leave-country": "globe", "shelter-in-place": "house", "winter-storm": "snow", "tornado": "tornado",
   "heat-wave": "sun", "flood-hurricane": "waves", "get-home": "route", "food-30": "can", "garden": "sprout",
   "wilderness": "tent", "perimeter": "shield", "evade": "eyeoff", "mind-body": "mind", "community": "board", "power": "power",
+  "homestead": "sprout", "island": "waves",
 };
-const WIDE = new Set(["people", "resources", "documents", "group", "needs"]);
+B.planIcon = id => PLAN_ICONS[id] || "plan";
+const WIDE = new Set(["people", "resources", "documents", "group", "needs", "land", "goals"]);
 const HOUSEHOLD = [
   ["home", "Home address or area", "Street, city, state. Plans and maps start here."],
   ["people", "People in the household", "Names, ages, special needs, pets"],
@@ -47,7 +49,10 @@ async function openPlan(id, prefill = {}) {
       };
     } catch {}
   }
-  const values = {...fromHousehold, ...Object.fromEntries(Object.entries(prefill).filter(([, v]) => v))};
+  // Your situation fills the basics, Your household's fuller details win, and what was passed in wins over both.
+  const fromSituation = B.situationPrefill ? await B.situationPrefill() : {};
+  const filled = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
+  const values = {...filled(fromSituation), ...filled(fromHousehold), ...filled(prefill)};
   $$("#tpls .index-row").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   $("tab-plan").classList.add("chosen");
   $("planEmpty").hidden = true;
@@ -63,10 +68,10 @@ async function openPlan(id, prefill = {}) {
     const box = ["location", "destination"].includes(f.id) ? `<div class="sugg">${input}<ul id="pfs-${esc(f.id)}" hidden></ul></div>` : input;
     return `<div class="${wide.trim()}"><label class="field" for="pf-${esc(f.id)}">${esc(f.label)}</label>${box}</div>`;
   };
-  const usedHousehold = Object.values(fromHousehold).some(Boolean);
+  const from = [Object.values(fromHousehold).some(Boolean) && "Your household", Object.keys(filled(fromSituation)).length && "your situation"].filter(Boolean);
   $("planForm").innerHTML = `
     <div class="plan-head"><h2>${esc(cur.title)}</h2>
-      <p>Fill in what you know. Blanks are fine: Beacon will say what it assumed.${usedHousehold ? " Some answers come from Your household." : ""}</p></div>
+      <p>Fill in what you know. Blanks are fine: Beacon will say what it assumed.${from.length ? ` Some answers come from ${from.join(" and ")}.` : ""}</p></div>
     <div class="formgrid">${cur.fields.map(field).join("")}
       <div class="full"><label class="field" for="pf-notes">Anything else?</label><textarea id="pf-notes" rows="2" placeholder="Deadlines, worries, what you've already done"></textarea></div>
     </div>
@@ -103,7 +108,7 @@ async function genPlan() {
   busy = new AbortController();
   $("genPlan").textContent = "Stop";
   const body = $("planBody");
-  const res = await B.stream("/api/plan", {template: cur.id, answers}, {
+  const res = await B.stream("/api/plan", {template: cur.id, answers, ...(B.sys?.guest && B.situation ? {situation: B.situation} : {})}, {
     signal: busy.signal,
     onStatus: s => { const t = body.querySelector(".thinking span"); if (t) t.textContent = String(s).replace(/…$/, ""); },
     onCard: c => { $("planDoc").querySelector(".cardslot").innerHTML = `<div class="cardnote noprint">${B.icon("card")}<span><b>${esc(c.title)}</b><br>The quick card for this situation, ready now.</span><button class="btn small" data-card="${esc(c.file)}">Open the card</button></div>`; },

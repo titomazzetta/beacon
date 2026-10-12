@@ -101,7 +101,7 @@ class ManualIndex:
             self.matrix = None
 
     def _heading(self, file: str) -> str:
-        """First markdown heading of a text manual, e.g. 'Safe Drinking Water Quick Card'."""
+        """First markdown heading of a text manual, like 'Safe Drinking Water Card'."""
         cache = self.__dict__.setdefault("_headings", {})
         if file not in cache:
             title = Path(file).stem.replace("-", " ").title()
@@ -114,6 +114,13 @@ class ManualIndex:
                 pass
             cache[file] = title
         return cache[file]
+
+    def _title_of(self, file: str) -> str:
+        if file.startswith("zim:"):
+            return Path(file).stem
+        if file.lower().endswith(".pdf"):
+            return self.display.get(file) or self.pretty(file)
+        return self.display.get(file) or self._heading(file)
 
     @staticmethod
     def pretty(file: str) -> str:
@@ -268,13 +275,21 @@ class ManualIndex:
         q /= np.linalg.norm(q) + 1e-9
         scores = self.matrix @ q
         words = {w for w in re.findall(r"[a-z0-9\-]{4,}", question.lower())}
-        if words:
-            for i, (_, _, _, text) in enumerate(self.meta):
+        if words:  # the question's words in a passage count a little, in its document's title a little more
+            titles = {}
+            for i, (_, file, _, text) in enumerate(self.meta):
+                if file not in titles:
+                    titles[file] = self._title_of(file).lower()
                 t = text.lower()
-                scores[i] += 0.03 * sum(w in t for w in words)
-        out = []
-        for i in np.argsort(-scores)[:k]:
+                scores[i] += 0.03 * sum(w in t for w in words) + 0.05 * sum(w in titles[file] for w in words)
+        out, per_file = [], {}
+        for i in np.argsort(-scores):
+            if len(out) >= k:
+                break
             cid, file, page, text = self.meta[i]
+            if per_file.get(file, 0) >= 2:  # at most two passages from one document, so others get a turn
+                continue
+            per_file[file] = per_file.get(file, 0) + 1
             if file.startswith("zim:"):  # a PDF book stored inside a Kiwix archive
                 book, path = file[4:].split("/", 1)
                 with self.lock:

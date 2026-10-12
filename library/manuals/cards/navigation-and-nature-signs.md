@@ -38,6 +38,6 @@
 - **Never drink** seawater or urine. Treat all wild water before drinking (see the Water card).
 
 ## Weather from the sky
-See "Reading the sky" on the Severe Weather card.
+See "Reading the sky" on the Weather card.
 
 Sources: US Army FM 3-25.26 Map Reading and Land Navigation; US Army ATP 3-50.21 Survival; NOAA geomagnetism (declination).

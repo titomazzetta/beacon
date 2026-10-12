@@ -1,4 +1,4 @@
-# Digital Safety & OPSEC Card
+# Phone and Digital Safety Card
 
 Phones keep people alive in a crisis. They can also give away where you are, who you know and what you have. Set this up before you need it.
 
@@ -7,7 +7,7 @@ Phones keep people alive in a crisis. They can also give away where you are, who
   - iPhone: hold the side button and a volume button for two seconds; Face ID stays off until the passcode is entered.
   - Android: turn on "Show lockdown option" in lock screen settings, then choose Lockdown from the power menu.
 - Phones are encrypted when a passcode is set. On a Mac, turn on FileVault.
-- For high-risk situations, iPhone has Lockdown Mode (Settings → Privacy & Security).
+- For high-risk situations, iPhone has Lockdown Mode (Settings > Privacy & Security).
 - Hide message previews on the lock screen. Do keep a medical ID and emergency contacts there.
 
 ## Location and tracking

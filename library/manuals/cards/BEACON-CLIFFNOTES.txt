@@ -65,7 +65,7 @@ EMERGENCY NUMBERS
     no cleaner tablets), canned food liquid, pipes (open top faucet,
     drain from the lowest).
   Boiling and bleach kill germs but do NOT remove fuel or chemicals.
-  DEHYDRATION DRINK: 1 liter clean water + 6 level tsp sugar +
+  REHYDRATION DRINK: 1 liter clean water + 6 level tsp sugar +
     1/2 level tsp salt.
   NEVER drink seawater or urine.
 
@@ -264,6 +264,46 @@ EMERGENCY NUMBERS
   Phone safety: long passcode, Face ID off at checkpoints, Signal,
   no live location posts, power off before borders.
 
+---------------------------------------------------------------------
+19. MAKE DO WITH WHAT'S AROUND
+---------------------------------------------------------------------
+  Hidden water: water heater tank (power/gas off first), toilet TANK,
+  ice, canned-food liquid. Never: seawater, urine, radiator, pool.
+  Clean water: settle + cloth filter, THEN boil 1 min, or 8 drops of
+  6% bleach per gallon, or SODIS: clear plastic bottle (2 L or less)
+  in full sun 6 hours (2 days if cloudy). Sand/charcoal = clearer,
+  NOT safe. Warmth: one small room, blankets on windows, a blanket
+  tent over a table, layers, sleep off the floor.
+
+---------------------------------------------------------------------
+20. SEA, ISLAND AND CROSSINGS
+---------------------------------------------------------------------
+  Cold water: 1 minute to control breathing, ~10 minutes of useful
+  movement: get out or onto something that floats. Rip current: swim
+  parallel to shore. Adrift: stay with the craft, shade, catch rain,
+  NEVER drink seawater, eat only if you have water. Island: shelter
+  above the high-tide line, green coconuts for water, signal fire
+  ready. River crossing: wide, shallow, slow; face upstream; never
+  floodwater. Improvised rafts can't sail upwind: last resort only.
+
+---------------------------------------------------------------------
+21. SATELLITE, GPS AND THE CAR
+---------------------------------------------------------------------
+  Phone GPS works with no cell service (open sky, be patient).
+  Many recent phones text 911 by satellite: try the demo now. A PLB
+  reaches rescuers anywhere, no subscription. Car: AM/FM for alerts,
+  12 V charging, heat only in the open with the tailpipe clear:
+  ~10 minutes of engine per hour with a window cracked.
+
+---------------------------------------------------------------------
+22. GROW FOOD
+---------------------------------------------------------------------
+  Calories: potatoes, sweet potatoes, squash, dry beans, corn.
+  Open-pollinated seeds can be saved; hybrids don't grow true.
+  1 inch of rain on 1,000 sq ft of roof = about 600 gallons.
+  Canning: low-acid foods (vegetables, beans, meat) need a PRESSURE
+  canner. Keep stored food while the garden learns to feed you.
+
 =====================================================================
   This is a memory aid, not a substitute for training. Take a CPR,
   first aid and Stop the Bleed class. Sources: American Heart
@@ -271,5 +311,6 @@ EMERGENCY NUMBERS
   EPA; CDC; NOAA/National Weather Service; US Army ATP 4-02.11;
   FEMA/Ready.gov; US Army ATP 3-50.21 Survival, FM 3-25.26 Land
   Navigation, FM 7-22 Holistic Health & Fitness; USDA FSIS; FCC; FDA;
-  OSHA; Meshtastic; EFF Surveillance Self-Defense.
+  OSHA; Meshtastic; EFF Surveillance Self-Defense; US Coast Guard;
+  NOAA SARSAT; Texas Water Development Board; NCHFP.
 =====================================================================

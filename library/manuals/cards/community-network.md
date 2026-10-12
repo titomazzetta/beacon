@@ -1,4 +1,4 @@
-# Community Network & Mutual Aid Card
+# Community Network and Mutual Aid Card
 
 For your street, building or camp: how people look after each other when outside help is slow to come.
 
@@ -12,7 +12,7 @@ For your street, building or camp: how people look after each other when outside
 - **Medical**: the first aid kit, and who needs medicines or powered medical devices.
 - **Comms**: radios, mesh radios, the check-in schedule, the Beacon Board.
 - **Supplies**: water, food, fuel, power stations; who has what to share.
-- **Watch**: the security rotation (see the Defensive Perimeter card).
+- **Watch**: the security rotation (see the Perimeter card).
 - **Kids and elders**: a calm space, routines, daily checks on people living alone.
 
 ## Check-ins

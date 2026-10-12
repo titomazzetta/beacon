@@ -45,6 +45,7 @@
   <!-- HOME -->
   <section class="tab on idle" id="tab-home" aria-label="Home">
     <div class="home-scroll" id="homeScroll">
+      <div class="alertbar" id="alertBar" role="status" hidden></div>
       <div class="hero">
         <svg class="contours" id="contours" aria-hidden="true"></svg>
         <div class="hero-in">
@@ -56,6 +57,10 @@
           </form>
           <p class="ondrive" id="onDrive"></p>
         </div>
+      </div>
+      <div class="foryou" id="forYou">
+        <section class="fy-steps" id="fySteps" aria-label="Your next steps"></section>
+        <section class="fy-updates" id="fyUpdates" aria-label="Updates" hidden></section>
       </div>
       <div class="situations-wrap">
         <h2>Common situations</h2>
@@ -73,7 +78,7 @@
         <div class="composer-opts">
           <label class="check"><input type="checkbox" id="useLib" checked> Search the library</label>
           <span class="spacer"></span>
-          <button type="button" class="link" id="saveConvo">Save as PDF</button>
+          <button type="button" class="link" id="saveConvo">Save PDF</button>
           <button type="button" class="link" id="printConvo">Print</button>
           <button type="button" class="link" id="newConvo">New conversation</button>
         </div>
@@ -137,6 +142,7 @@
       <label class="check" id="meshSendWrap" style="margin-top:8px" hidden><input type="checkbox" id="meshSend"> Also send over the mesh</label>
       <div class="row" style="margin-top:10px"><button class="btn primary" id="postBtn" type="button">Post</button></div>
       <div id="meshPanel"></div>
+      <div id="linksPanel" class="admin"></div>
     </aside>
     <div class="pane" id="boardPane">
       <div class="sec-head"><h2>Check-ins</h2><span class="meta" id="rosterMeta"></span><span class="spacer"></span><button class="btn small ghost noprint" id="printRoster" data-icon="print">Print</button></div>
@@ -151,7 +157,7 @@
   <section class="tab" id="tab-tools" aria-label="Tools">
     <div class="pane wide" id="toolsPane">
       <div id="toolIndex">
-        <div class="tools-head"><h2>Tools</h2><p>Everything here works offline, even with the AI turned off.</p></div>
+        <div class="tools-head"><h2>Tools</h2><p>Everything here works offline, and all but Translate work with the AI off.</p></div>
         <div id="toolGroups"></div>
       </div>
       <div class="tool-view" id="toolView" hidden></div>
@@ -169,7 +175,7 @@
       </section>
       <section id="lib-install" class="admin">
         <div class="sec-head"><h2>What's installed</h2><span class="meta" id="libMeta"></span></div>
-        <p class="sec-note">Install a level of the library. Each level includes everything below it. Downloads need internet once; everything works offline after.</p>
+        <p class="sec-note">Install a tier of the library. Each tier includes everything in the ones before it. Downloads need internet once; everything works offline after.</p>
         <div class="gauge" id="gauge"></div>
         <div id="tierDetail"></div>
       </section>
@@ -208,7 +214,7 @@
       </section>
       <section id="lib-check" class="admin">
         <div class="sec-head"><h2>Health check</h2></div>
-        <p class="sec-note">Proves the AI is running and that every manual and library on the drive can actually be found.</p>
+        <p class="sec-note">Proves the AI answers, every manual and library on the drive can be found, and Beacon is private and unchanged.</p>
         <button class="btn" id="runCheck">Run the health check</button>
         <div id="checkOut"></div>
       </section>
@@ -282,6 +288,7 @@
 <script src="/static/js/tools.js"></script>
 <script src="/static/js/library.js"></script>
 <script src="/static/js/board.js"></script>
+<script src="/static/js/situation.js"></script>
 <script src="/static/js/start.js"></script>
 <script type="module" src="/static/js/map.js"></script>
 </body>

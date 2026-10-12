@@ -1,4 +1,4 @@
-# Power: Batteries, Solar & Generators Card
+# Off-Grid Power Card: Batteries, Solar and Generators
 
 ## What do you need to run? (power budget)
 Watts × hours a day = watt-hours (Wh) a day. Add up everything you'd keep running. Rough typical figures; check the label on your own devices:
@@ -15,7 +15,7 @@ Watts × hours a day = watt-hours (Wh) a day. Add up everything you'd keep runni
 | Oxygen concentrator | 300–600 | runs continuously: plan carefully |
 | Space heater | about 1,500 | not practical on batteries |
 
-Beacon's **Tools → Power budget** adds this up for you.
+Beacon's **Tools > Power budget** adds this up for you.
 
 ## Portable power stations
 - A portable power station is a big battery with outlets and an inverter. Size it two ways: **watt-hours** (how long it lasts) and **continuous watts** (what it can run at once).
@@ -32,6 +32,15 @@ Beacon's **Tools → Power budget** adds this up for you.
 - **Only outdoors**, at least **20 feet** from doors, windows and vents. Never in a garage, basement, porch or tent: carbon monoxide kills quickly and has no smell.
 - Put battery-powered carbon monoxide alarms on every floor. Let the generator cool before refueling. Store fuel in approved cans, away from the house, with stabilizer.
 
+## Making your own power
+- **A solar kit** is the most dependable: panel, charge controller, battery (LiFePO4) and inverter. A 100 W panel makes roughly 300 to 450 Wh a day in good sun. Put a fuse near the battery on every circuit, and use wire thick enough for the current. A power station is everything but the panel in one box.
+- **Your car**: the alternator charges the car battery while the engine runs. Charge phones and small batteries from it (see the Satellite and car card).
+- **Pedals and cranks**: most people can keep up roughly 50 to 100 W on a bicycle generator for an hour. A hand crank makes a few watts: enough for a radio or a phone top-up, never a fridge.
+- **Moving water**: a stream with a good drop can run a small hydro turbine day and night, often the best off-grid source where it's possible. Energypedia in the library covers it.
+- **Wind**: small turbines need strong, steady wind well above trees and roofs. In most towns they disappoint.
+- **Heat**: thermoelectric gadgets on a stove or fire make a few watts, enough to charge a phone slowly.
+- **Never connect a generator to house wiring without a transfer switch.** Feeding power back into the lines can electrocute utility workers and neighbors.
+
 ## Food, medicine and medical devices
 - A closed fridge keeps food safe about **4 hours**; a full freezer about **48 hours** (24 if half full). Throw out perishables that sat above 40°F (4°C) for more than 2 hours.
 - In an emergency, insulin can be kept unrefrigerated at **59–86°F for up to 28 days** (FDA). Keep it as cool as you can and out of the sun, and never use insulin that froze.
@@ -40,4 +49,12 @@ Beacon's **Tools → Power budget** adds this up for you.
 ## Priorities when power is short
 1. Medical devices. 2. Communications: phones, radios, Beacon. 3. Light. 4. Keeping food cold. 5. Comfort.
 
-Sources: US Department of Energy (Energy Saver); CDC carbon monoxide guidance; FoodSafety.gov; FDA, insulin storage in an emergency; Anker SOLIX C2000 Gen 2 specifications. Product names are examples, not endorsements; check current specs.
+## With no power at all
+- **Warmth**: one room, layers, blankets over windows (see the Make do card). **Cooling**: shade, wet cloths, moving air.
+- **Light**: flashlights and headlamps first; candles only with care.
+- **Food**: keep the fridge and freezer shut, eat perishables first, cook outdoors.
+- **Water**: fill containers before pumps or pressure fail. Buckets and gravity still work.
+- **Phones**: airplane mode and low power mode; in a group, one phone on at a time.
+- **News**: a battery or hand-crank radio (see the Radio card).
+
+Sources: US Department of Energy (Energy Saver); Energypedia; CDC carbon monoxide guidance; OSHA and CPSC (generator backfeed); FoodSafety.gov; FDA, insulin storage in an emergency; Anker SOLIX C2000 Gen 2 specifications. Product names are examples, not endorsements; check current specs.

@@ -72,6 +72,10 @@ const ICONS = {
   radio: '<rect x="6" y="8" width="12" height="13" rx="2"/><path d="M9 8 15 3M9 13h6M9 16.5h6"/>',
   power: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10.5v3M11.5 9.5 9 12.5h3.5L10 15"/>',
   boxes: '<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>',
+  link: '<path d="M10 14a4.2 4.2 0 0 0 6 0l3-3a4.2 4.2 0 0 0-6-6l-1.2 1.2"/><path d="M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.2 4.2 0 0 0 6 6l1.2-1.2"/>',
+  alert: '<path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".9" fill="currentColor"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
 };
 function icon(name, cls = "") {
   return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -236,13 +240,14 @@ function closeSheet() {
 Object.assign(B, {openSheet, closeSheet});
 
 let speakingBtn = null;
-function speak(text, btn, lang) {
+function speak(text, btn, lang, rate) {
   if (!("speechSynthesis" in window)) { toast("This browser can't read aloud."); return; }
   const wasMine = speakingBtn === btn && speechSynthesis.speaking;
   speechSynthesis.cancel(); resetSpeakBtn();
   if (wasMine) return;
   const clean = String(text).replace(/<[^>]+>/g, " ").replace(/\[(\d+)\]/g, "").replace(/[#*`|>_]/g, " ").replace(/\s+/g, " ").trim();
   const u = new SpeechSynthesisUtterance(clean);
+  if (rate) u.rate = rate;
   if (lang) {
     u.lang = lang;
     const v = speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase()));
@@ -504,7 +509,8 @@ const ago = t => {
   if (s < 86400) return `${Math.round(s / 3600)} h ago`;
   return new Date(t * 1000).toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
 };
-const who = ev => ev.ip === "127.0.0.1" || ev.ip === "::1" ? (ev.kind.startsWith("sharing") || ev.kind.startsWith("signed-out") ? "this Mac" : "a web page on this Mac") : `${ev.device}, ${ev.ip}`;
+// Requests Beacon blocks from this Mac come from another web page; everything else local is the person at the Mac.
+const who = ev => ev.ip === "127.0.0.1" || ev.ip === "::1" ? (["blocked-request", "rejected-host"].includes(ev.kind) ? "a web page on this Mac" : "this Mac") : `${ev.device}, ${ev.ip}`;
 function alertBeep() {
   try {
     const a = B._audio || (B._audio = new (window.AudioContext || window.webkitAudioContext)());
@@ -594,19 +600,22 @@ function systemSheet(first = false) {
     </div>`;
   const notes = (!s.guest && s.notes?.length) ? `<ul class="notes">${s.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "";
   const el = openSheet(`
-    <h2>${s.guest ? "Connected to Beacon" : first ? "This computer" : "This computer"}</h2>
+    <h2>${s.guest ? "Connected to Beacon" : "This computer"}</h2>
     <p class="sheet-note">${s.guest
       ? "You're using Beacon over the Wi-Fi. The answers come from the AI on the Beacon computer; nothing goes to the internet."
       : first ? "Beacon checked this Mac and picked the strongest AI brain it can run." : "What Beacon is running on, and how it's set up."}</p>
     ${host}${brain}${notes}
     ${!s.guest && !recInstalled && s.recommended ? `<div class="sheet-actions" style="margin-top:12px"><button class="btn" id="getBrain">Get the recommended brain</button></div>` : ""}
+    ${first && B.situationEmpty?.() ? `<h3>Next</h3><p class="hint">Answer a few quick questions about what you're facing and what you have, and Beacon lays out what to do first.</p>
+      <div class="sheet-actions"><button class="btn primary big" id="firstSetup">Set up for your situation</button><button class="btn big ghost" data-close>Skip for now</button></div>`
+      : first ? `<div class="sheet-actions"><button class="btn primary big" data-close>Start</button></div>` : ""}
     <h3>Settings</h3>
     <div class="setting admin"><div><b>Low power</b><span>Turns the AI off to save battery. Cards, tools, maps and the library keep working.</span></div>
       <button class="switch" id="lowPower" role="switch" aria-checked="${!!s.low_power}" aria-label="Low power"></button></div>
     <div class="setting"><div><b>Theme</b><span>Red light keeps your night vision.</span></div>${segHTML("theme", THEMES, theme)}</div>
     <div class="setting"><div><b>Text size</b></div>${segHTML("size", SIZES, size)}</div>
-    ${s.guest ? "" : `<div class="setting"><div><b>Quit Beacon</b><span>Stops Beacon and its AI so you can eject the drive safely.</span></div><button class="btn" id="quitBtn">Quit</button></div>`}
-    ${first ? `<div class="sheet-actions"><button class="btn primary big" data-close>Start</button></div>` : ""}`);
+    ${s.guest ? "" : `<div class="setting"><div><b>Quit Beacon</b><span>Stops Beacon and its AI so you can eject the drive safely.</span></div><button class="btn" id="quitBtn">Quit</button></div>`}`);
+  el.querySelector("#firstSetup")?.addEventListener("click", () => B.openSetup());
   wireSeg(el, "theme", setTheme);
   wireSeg(el, "size", setSize);
   el.querySelector("#getBrain")?.addEventListener("click", () => { closeSheet(); showTab("library"); setTimeout(() => $("lib-brain")?.scrollIntoView({block: "start"}), 60); });
@@ -727,6 +736,7 @@ B.boot = async function boot() {
   showTab(TABS.includes(start) ? start : "home");
   const s = await loadSystem();
   if (s && !s.guest) { await loadShare(); pollSecurity(); }
+  if (s) await B.loadSituation?.();
   if (s && !s.guest && !session.get("checked")) { session.set("checked", "1"); systemSheet(true); }
   B.afterBoot?.forEach(f => { try { f(); } catch (e) { console.error(e); } });
   // The AI engine can take a little while to start after the drive is plugged in.

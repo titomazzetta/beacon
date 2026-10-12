@@ -1,6 +1,10 @@
 """The community board: check-ins, needs, offers and reports from everyone on this Beacon,
-and (with the mesh add-on) from Meshtastic radios nearby. Saved in data/board.json."""
+from Meshtastic radios nearby (with the mesh add-on), and from linked Beacons. Saved in data/board.json.
+
+Every post carries an origin, "<beacon id>:<post id>", so a post that travels between linked
+Beacons is stored once everywhere and never echoes back."""
 import json
+import math
 import re
 import secrets
 import threading
@@ -11,10 +15,20 @@ KINDS = ("checkin", "need", "offer", "report", "note", "mesh")
 CHECKIN = re.compile(r"^\s*(safe|ok|help|sos)\b[\s:,-]*(.*)$", re.I | re.S)
 
 
+def _when(t, now: float) -> float:
+    """A post's time, as sent by a linked Beacon: never in the future, never older than a month,
+    and always a real number (JSON can carry NaN and Infinity, which would break every browser)."""
+    try:
+        t = float(t)
+    except (TypeError, ValueError):
+        return now
+    return min(max(t, now - 30 * 86400), now) if math.isfinite(t) else now
+
+
 class Board:
-    def __init__(self, path: str | None, keep: int = 1000):
+    def __init__(self, path: str | None, keep: int = 1000, node: str = "local"):
         self.path = Path(path) if path else None
-        self.keep = keep
+        self.keep, self.node = keep, node
         self.lock = threading.Lock()
         self.posts: list[dict] = []
         if self.path and self.path.exists():
@@ -32,14 +46,20 @@ class Board:
         tmp.replace(self.path)
 
     def add(self, kind: str, text: str, name: str = "", status: str = "", source: str = "beacon",
-            ip: str = "", device: str = "", channel: int | None = None, mesh_id: str = "") -> dict:
+            ip: str = "", device: str = "", channel: int | None = None, mesh_id: str = "",
+            origin: str = "", via: str = "", t: float | None = None) -> dict | None:
         kind = kind if kind in KINDS else "note"
         if kind == "checkin":
             status = "help" if status == "help" else "safe"
-        post = {"id": secrets.token_hex(5), "t": time.time(), "kind": kind,
+        if origin and self.has(origin):
+            return None  # already here (it came round through another link)
+        pid = secrets.token_hex(5)
+        now = time.time()
+        post = {"id": pid, "t": _when(t, now), "kind": kind,
                 "name": " ".join(str(name).split())[:40], "text": str(text).strip()[:500],
                 "status": status if kind == "checkin" else "", "source": source, "ip": ip, "device": device[:80],
-                "channel": channel, "mesh_id": mesh_id[:20], "pinned": False, "resolved": False, "sent_mesh": False}
+                "channel": channel, "mesh_id": mesh_id[:20], "pinned": False, "resolved": False, "sent_mesh": False,
+                "origin": str(origin)[:40] or f"{self.node}:{pid}", "via": str(via)[:40]}
         with self.lock:
             self.posts.append(post)
             if len(self.posts) > self.keep:  # drop the oldest posts that aren't pinned
@@ -47,6 +67,12 @@ class Board:
                 self.posts = [p for p in self.posts if p["pinned"] or (drop := drop - 1) < 0]
             self._save()
         return post
+
+    def has(self, origin: str) -> bool:
+        return any(self.origin_of(p) == origin for p in self.posts)
+
+    def origin_of(self, post: dict) -> str:
+        return post.get("origin") or f"{self.node}:{post['id']}"
 
     def find(self, post_id: str) -> dict | None:
         return next((p for p in self.posts if p["id"] == post_id), None)
@@ -70,10 +96,11 @@ class Board:
 
     def view(self, for_guest: bool) -> list[dict]:
         """Newest first, pinned on top. Guests don't see other people's network addresses."""
-        posts = sorted(self.posts, key=lambda p: (not p["pinned"], -p["t"]))
+        posts = [{**p, "origin": self.origin_of(p), "via": p.get("via", "")}
+                 for p in sorted(self.posts, key=lambda p: (not p["pinned"], -p["t"]))]
         if for_guest:
             return [{k: v for k, v in p.items() if k not in ("ip", "device")} for p in posts]
-        return [dict(p) for p in posts]
+        return posts
 
     def roster(self) -> list[dict]:
         """The latest check-in from each name, people who need help first."""
@@ -81,8 +108,8 @@ class Board:
         for p in sorted(self.posts, key=lambda p: p["t"]):
             if p["kind"] == "checkin" and p["name"]:
                 latest[p["name"].lower()] = p
-        out = [{"name": p["name"], "status": p["status"], "t": p["t"], "text": p["text"], "source": p["source"]}
-               for p in latest.values()]
+        out = [{"name": p["name"], "status": p["status"], "t": p["t"], "text": p["text"], "source": p["source"],
+                "via": p.get("via", "")} for p in latest.values()]
         return sorted(out, key=lambda r: (r["status"] != "help", -r["t"]))
 
     @staticmethod

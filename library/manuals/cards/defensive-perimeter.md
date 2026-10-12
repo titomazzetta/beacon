@@ -35,6 +35,6 @@ The goal is that trouble **passes you by**, and if it doesn't, you see it early 
 ## Hard limits
 - **No booby traps or spring guns.** They're illegal almost everywhere, and they injure family members, neighbors, children and firefighters. Courts have held owners liable.
 - Use of force is governed by law even in emergencies, and the law varies by state and country. De-escalate, retreat when you can, and only defend life when there's no other choice.
-- Firearms: see the Firearms Safety card. Locked storage matters even more when stress is high and children are home.
+- Firearms: see the Firearms card. Locked storage matters even more when stress is high and children are home.
 
 Sources: US Army FM 3-21.75 (security, observation and sectors), TC 3-21.76 Ranger Handbook (security priorities); US Department of Justice Crime Prevention Through Environmental Design; FEMA / Ready.gov; National Park Service food-storage guidance.

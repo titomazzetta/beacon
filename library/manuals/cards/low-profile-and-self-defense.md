@@ -1,4 +1,4 @@
-# Low Profile & Personal Safety Card
+# Low Profile and Self-Defense Card
 
 ## Awareness is the best defense
 Use the "color code" for your state of mind:

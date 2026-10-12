@@ -1,4 +1,4 @@
-# Severe Weather Quick Card
+# Severe Weather Card
 
 **Watch** = conditions are right for it; get ready. **Warning** = it's happening or about to; act now.
 
@@ -25,12 +25,12 @@
 - Do hard work early morning or evening. Rest in shade often.
 - Above the mid-90s °F (about 35°C), **fans alone won't prevent heat illness**. Cool showers, wet cloths and a cool public building help.
 - **Never leave children, older adults or pets in a parked car**, even for a minute.
-- Check on older neighbors twice a day. Heat stroke is an emergency (see the First Aid card).
+- Check on older neighbors twice a day. Heat stroke is an emergency (see the First aid card).
 
 ## Winter storm and extreme cold
 - Stay off roads if you can. If you must drive, carry the winter car kit (see the Car card).
 - Dress in layers: wicking base, insulating middle, wind and waterproof shell. Hat, gloves, dry socks.
-- Never heat with a stove, oven, grill or generator indoors (carbon monoxide). See the Power Outage card.
+- Never heat with a stove, oven, grill or generator indoors (carbon monoxide). See the Power outage card.
 - **Frostbite** shows first on fingers, toes, ears, nose and cheeks: white or grayish, numb, waxy.
 
 ## Earthquake

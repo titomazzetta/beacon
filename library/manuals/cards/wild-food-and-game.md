@@ -1,4 +1,4 @@
-# Wild Food, Hunting & Fishing Safety Card
+# Wild Food, Hunting and Fishing Card
 
 ## The one rule
 **If you're not 100% sure what it is, don't eat it.** Learn the edible plants of your own region from a regional field guide *before* you need them, ideally with someone who knows them.

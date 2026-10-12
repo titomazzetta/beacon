@@ -1,4 +1,4 @@
-# Survive & Evade Card
+# Survive and Evade Card
 
 For getting yourself and others to safety when moving openly isn't safe: unrest, conflict, or a hostile area. Adapted from the US military's public survival, evasion and recovery manuals.
 

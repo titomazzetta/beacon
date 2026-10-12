@@ -1,4 +1,4 @@
-# Mind & Body Card
+# Mind and Body Card
 
 Stress is normal in a crisis. A steady mind makes better decisions, and it's trainable.
 

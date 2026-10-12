@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import signal
 import threading
 import time
@@ -17,12 +18,16 @@ from urllib.parse import urlparse
 from flask import Flask, Response, abort, jsonify, redirect, request, send_file, send_from_directory
 
 from . import checks, config, library, mapdata, models, plans, rag, system
+from . import situation as sitmod
+from .cards import CARDS, LABELS as CARD_LABELS
 from .archive import Archive
 from .board import Board
-from .mesh import MeshBridge, serial_ports
+from .links import Links, discover as discover_beacons
+from .mesh import MeshBridge, serial_ports, installed as mesh_installed
 from .audit import Audit, describe, nearby_devices
 from .pdf import markdown_pdf
 from .share import Share, allowed_host, is_local, lan_ip
+from .updates import Updates
 from .kiwix_source import KiwixLibrary
 from .manuals import ManualIndex
 from .ollama_client import Ollama, OllamaError
@@ -48,11 +53,11 @@ p{margin:0 0 1em;white-space:pre-line}
 <main><h1>{{title}}</h1>{{body}}</main></body></html>"""
 
 
-PROFILE_FIELDS = {
-    "home": "Home address / area", "people": "People in the household (ages, needs)",
-    "medical": "Medical conditions, medications & allergies", "contacts": "Emergency contacts & phone numbers",
-    "meeting": "Meeting places (near home, neighborhood, out of town)", "outside_contact": "Out-of-area contact",
-    "vehicles": "Vehicles, fuel & range", "skills": "Skills & key gear", "documents": "Where documents are kept",
+PROFILE_FIELDS = {  # the same labels as Plan > Your household
+    "home": "Home address or area", "people": "People in the household",
+    "medical": "Medical conditions, medications and allergies", "contacts": "Emergency contacts and phone numbers",
+    "meeting": "Meeting places", "outside_contact": "Out-of-area contact",
+    "vehicles": "Vehicles, fuel and range", "skills": "Skills and key gear", "documents": "Where documents are kept",
     "notes": "Other notes",
 }
 
@@ -130,6 +135,7 @@ button{margin-top:14px;width:100%;font:inherit;padding:14px;border:0;border-radi
 <input name="code" inputmode="numeric" maxlength="4" autocomplete="one-time-code" autofocus><div class="err">{{err}}</div><button>Join</button></form></body></html>"""
 
 GUEST_COOKIE = "beacon_guest"
+LINK_POSTS = 200  # new posts one linked Beacon can add per 10 minutes
 
 # Content-Security-Policy for Beacon's own pages: only Beacon's own scripts, and pages can
 # only talk back to Beacon. Even if something slipped through, there's nowhere to send data.
@@ -149,7 +155,7 @@ SAFE_INLINE = (".pdf", ".md", ".txt")  # anything else in the manuals folder dow
 GUEST_BLOCKED = ("/api/library/download", "/api/library/cancel", "/api/library/add_zim", "/api/models/pull",
                  "/api/maps/build", "/api/ingest", "/api/profile", "/api/model", "/api/quit", "/api/share",
                  "/api/power", "/api/library/sizes", "/api/security", "/api/mesh/connect", "/api/mesh/disconnect",
-                 "/api/mesh/settings", "/api/supplies")
+                 "/api/mesh/settings", "/api/supplies", "/api/updates/refresh", "/api/updates/settings", "/api/links")
 
 
 def sse(kind, data):
@@ -258,15 +264,33 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             st["online"] = {"at": time.time(), "value": library.is_online(http_mod)}
         return st["online"]["value"]
 
-    share = Share(app)
+    node_path = Path(data_root) / "data" / "node.json"
+    try:
+        node = json.loads(node_path.read_text())
+        assert re.fullmatch(r"[0-9a-f]{8}", node["id"])
+    except Exception:  # this Beacon's identity for linking: a random id and a name people recognize
+        nid = secrets.token_hex(4)
+        node = {"id": nid, "name": f"Beacon {nid[:4].upper()}"}
+        try:
+            node_path.parent.mkdir(parents=True, exist_ok=True)
+            node_path.write_text(json.dumps(node))
+        except OSError:
+            pass
+    share = Share(app, node=node)
     app.config["share"] = share
     audit = Audit(str(Path(data_root) / "data" / "logs" / "security.log"))
     app.config["audit"] = audit
     archive = Archive(str(Path(data_root) / "data" / "archive"))
     app.config["archive"] = archive
-    board = Board(str(Path(data_root) / "data" / "board.json"))
+    board = Board(str(Path(data_root) / "data" / "board.json"), node=node["id"])
     mesh = MeshBridge(board, audit)
     app.config["board"], app.config["mesh"] = board, mesh
+    links = Links(str(Path(data_root) / "data" / "links.json"), board, node, audit, http_mod)
+    app.config["links"] = links
+    if links.links and not app.config.get("TESTING"):
+        links.start()
+    if cfg.get("mesh_watch", True) and mesh_installed():  # plug and play: a radio connects when it's plugged in
+        threading.Thread(target=mesh.watch, daemon=True).start()
     guest_writes: dict[tuple, list[float]] = {}
 
     def guest_rate_ok(key: str, limit: int, seconds: int) -> bool:
@@ -333,7 +357,7 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             return join_page("")
         share.touch(token, ip, ua)
         if request.path.startswith(GUEST_BLOCKED):
-            audit.add("host-only", ip, ua, f"Tried a host-only action ({request.path})", "warn")
+            audit.add("host-only", ip, ua, f"Tried something only the Beacon computer can do ({request.path})", "warn")
             return jsonify({"error": "Only the Beacon computer can do that."}), 403
         return None
 
@@ -485,7 +509,8 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         return jsonify({"model": name})
 
     # ------------------------------------------------------------ ask & plan
-    def stream_answer(question, retrieval_query, history, use_library, extra_sources=(), card_hint=None, save=None):
+    def stream_answer(question, retrieval_query, history, use_library, extra_sources=(), card_hint=None, save=None,
+                      context=""):
         prof = models.profile()
         card = rag.match_card(card_hint or question)
         if card and (Path(st["cfg"]["manuals_dir"]) / "cards" / card).exists():
@@ -503,12 +528,12 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         yield sse("sources", [{k: s.get(k, "") for k in ("kind", "book", "title", "ref", "page")} for s in sources])
         model = current_model()
         if not model:
-            yield sse("error", "No AI model is installed. Open the Library tab → Brain to download one.")
+            yield sse("error", "No AI model is installed. Open Library > Brain to download one.")
             return
         yield sse("status", f"Thinking with {model} ({prof['name']} brain)…")
         parts = []
         try:
-            for piece in rag.answer(question, sources, history, st["ollama"], model, prof["num_ctx"]):
+            for piece in rag.answer(question, sources, history, st["ollama"], model, prof["num_ctx"], context=context):
                 parts.append(piece)
                 yield sse("token", piece)
         except OllamaError as e:
@@ -532,7 +557,7 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             abort(400, "empty question")
         history = [{"role": h.get("role"), "content": str(h.get("content", ""))[:8000]}
                    for h in (body.get("history") or [])[-6:] if isinstance(h, dict)]
-        return sse_response(stream_answer(q, q, history, body.get("use_library", True)))
+        return sse_response(stream_answer(q, q, history, body.get("use_library", True), context=person_context(body)))
 
     @app.post("/api/translate")
     def translate():
@@ -596,7 +621,8 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         save = None if guest() else {"kind": "plan", "title": tpl["title"], "shared": False, "by": "host",
                                      "meta": {"template": tpl["id"], "location": answers.get("location", ""),
                                               "phase": answers.get("phase", "")}}
-        return sse_response(stream_answer(instruction, query, [], True, card_hint=tpl["title"] + " " + tpl["search"], save=save))
+        return sse_response(stream_answer(instruction, query, [], True, card_hint=tpl["title"] + " " + tpl["search"], save=save,
+                                          context=person_context(body)))
 
     # ------------------------------------------------------------ places & maps
     @app.get("/api/places")
@@ -836,6 +862,61 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             abort(403)
         return jsonify({"removed": board.remove(str((request.json or {}).get("id", "")))})
 
+    # ------------------------------------------------------------ links between Beacons
+    @app.get("/api/links")
+    def links_view():
+        return jsonify(links.view())
+
+    @app.post("/api/links")
+    def links_add():
+        b = request.json or {}
+        try:
+            return jsonify(links.link(str(b.get("url", "")), str(b.get("code", ""))))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception:
+            return jsonify({"error": "Couldn't reach that Beacon. Check the address and that it's sharing."}), 502
+
+    @app.post("/api/links/remove")
+    def links_remove():
+        return jsonify({"removed": links.unlink(str((request.json or {}).get("id", "")))})
+
+    @app.get("/api/links/discover")
+    def links_discover():
+        return jsonify([b for b in discover_beacons() if b.get("node") != node["id"]])
+
+    @app.post("/api/links/name")
+    def links_name():
+        name = re.sub(r"\s+", " ", str((request.json or {}).get("name", ""))).strip()[:40]
+        if not name:
+            abort(400)
+        node["name"] = name
+        try:
+            node_path.write_text(json.dumps(node))
+        except OSError:
+            pass  # a read-only drive keeps the new name until Beacon restarts
+        share.advertise_link()  # other Beacons looking for this one see the new name
+        return jsonify(links.view())
+
+    @app.get("/api/link/hello")
+    def link_hello():
+        return jsonify({"node": node["id"], "name": node["name"]})
+
+    @app.post("/api/link/posts")
+    def link_receive():
+        """Posts pushed by a linked Beacon (it signed in with this Beacon's code, like a phone)."""
+        if not guest() or not re.fullmatch(r"[0-9a-f]{8}", request.headers.get("X-Beacon-Node", "")):
+            abort(403)
+        if not guest_rate_ok("link", 60, 600):
+            return jsonify({"error": "Too many syncs. Slow down."}), 429
+        # A real link only sends what's new, so this is plenty; it stops one device from burying the Board.
+        now, k = time.time(), ("link-posts", request.remote_addr)
+        recent = [t for t in guest_writes.get(k, []) if now - t < 600]
+        sender = describe(request.headers.get("User-Agent", "")).removeprefix("Linked Beacon (").rstrip(")")
+        added = links.receive((request.json or {}).get("posts"), sender, limit=max(0, LINK_POSTS - len(recent)))
+        guest_writes[k] = recent + [now] * added
+        return jsonify({"added": added})
+
     @app.get("/api/mesh")
     def mesh_view():
         out = {**mesh.status(), "nodes_list": mesh.nodes()}
@@ -854,12 +935,16 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
 
     @app.post("/api/mesh/disconnect")
     def mesh_disconnect():
-        mesh.disconnect()
+        mesh.disconnect(manual=True)
         return jsonify(mesh.status())
 
     @app.post("/api/mesh/settings")
     def mesh_settings():
-        mesh.allow_guests = bool((request.json or {}).get("allow_guests"))
+        b = request.json or {}
+        if "allow_guests" in b:
+            mesh.allow_guests = bool(b["allow_guests"])
+        if "auto" in b:
+            mesh.auto = bool(b["auto"])
         return jsonify(mesh.status())
 
     # ------------------------------------------------------------ archive & PDFs
@@ -1071,6 +1156,104 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         supplies_path.write_text(json.dumps({"people": people, "items": items}, indent=1))
         return jsonify({"saved": True, "people": people, "items": len(items)})
 
+    # ------------------------------------------------------------ your situation (setup questionnaire)
+    situation_path = Path(cfg["index_path"]).parent / "situation.json"
+
+    def load_situation() -> dict:
+        try:
+            return sitmod.clean(json.loads(situation_path.read_text()))
+        except Exception:
+            return sitmod.clean({})
+
+    def request_situation(body: dict | None) -> dict:
+        """The Beacon computer's saved answers, or a guest's own answers sent from their phone (never stored)."""
+        sent = (body or {}).get("situation")
+        if guest():
+            return sitmod.clean(sent)
+        return sitmod.clean(sent) if isinstance(sent, dict) else load_situation()
+
+    def person_context(body: dict | None) -> str:
+        return "\n\n".join(x for x in (sitmod.context_text(request_situation(body)), updates.context()) if x)
+
+    def installable_items() -> list[dict]:
+        out = []
+        for band in catalog["bands"]:
+            for it in band["items"]:
+                if it["type"] == "link" or it.get("optional") or it["tier"] not in ("core", "extended", "complete"):
+                    continue
+                if not item_status({**it, "band": band["id"]})["installed"]:
+                    out.append({"id": it["id"], "title": it["title"], "band": band["id"],
+                                "rank": ("core", "extended", "complete").index(it["tier"])})
+        return out
+
+    # ------------------------------------------------------------ updates from outside (opt-in, when online)
+    updates = Updates(str(Path(cfg["index_path"]).parent / "updates.json"), catalog.get("updates", []), http_mod)
+    app.config["updates"] = updates
+
+    def update_place() -> dict | None:
+        """Where local alerts are for: the setup's place, else the household's home."""
+        place = load_situation().get("place") or load_profile().get("home") or ""
+        hits = st["places"].search(place, 1) if place and st["places"].available else []
+        return hits[0] if hits else None
+
+    def start_refresh():
+        where = update_place()
+        threading.Thread(target=updates.refresh, args=(where,), daemon=True).start()
+
+    @app.get("/api/updates")
+    def updates_view():
+        out = updates.view()
+        if not guest() and updates.state["auto"]:  # with updates off, Beacon doesn't even check for internet here
+            out["online"] = online()
+            if out["online"] and updates.due():
+                start_refresh()
+                out["checking"] = True
+        return jsonify(out)
+
+    @app.post("/api/updates/refresh")
+    def updates_refresh():
+        if not online():
+            return jsonify({"error": "This Mac is offline. Updates arrive whenever it has internet."}), 409
+        if not updates.checking:
+            start_refresh()
+        return jsonify({**updates.view(), "checking": True})
+
+    @app.post("/api/updates/settings")
+    def updates_settings():
+        updates.set_auto(bool((request.json or {}).get("auto")))
+        return jsonify(updates.view())
+
+    @app.get("/api/situation/options")
+    def situation_options():
+        return jsonify(sitmod.options())
+
+    @app.get("/api/situation")
+    def get_situation():
+        return jsonify({} if guest() else load_situation())
+
+    @app.post("/api/situation")
+    def save_situation():
+        if guest():
+            return jsonify({"error": "Your answers stay on your own phone."}), 403
+        data = sitmod.clean(request.json)
+        situation_path.parent.mkdir(parents=True, exist_ok=True)
+        situation_path.write_text(json.dumps(data, indent=1))
+        return jsonify({"saved": True, **data})
+
+    @app.post("/api/situation/assess")
+    def assess_situation():
+        body = request.json or {}
+        supplies = None
+        if not guest():
+            try:
+                supplies = json.loads(supplies_path.read_text())
+            except Exception:
+                supplies = None
+        cards_dir = Path(st["cfg"]["manuals_dir"]) / "cards"
+        card_titles = {f: label for f, label in CARDS if (cards_dir / f).exists()}
+        return jsonify(sitmod.assess(request_situation(body), supplies, {t["id"]: t["title"] for t in plans.TEMPLATES},
+                                     card_titles, None if guest() else installable_items(), host=not guest()))
+
     @app.post("/api/profile/erase")
     def erase_profile():
         """Remove the household info from the drive. (On flash drives the old bytes may linger
@@ -1084,6 +1267,7 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             except OSError:
                 pass
             profile_path.unlink()
+        situation_path.unlink(missing_ok=True)
         return jsonify({"erased": True})
 
     @app.get("/binder")
@@ -1110,12 +1294,16 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         return resp
 
     @app.get("/api/cards")
-    def cards():
+    def card_list():
+        """Every quick card on the drive, in tab order, with its short tab name."""
         root = Path(st["cfg"]["manuals_dir"]) / "cards"
-        out = []
-        for p in sorted(root.glob("*.md")) + sorted(root.glob("*.txt")):
-            title = st["manuals"]._heading(str(p)) if p.suffix == ".md" else p.stem.replace("-", " ").title()
-            out.append({"title": title, "path": f"cards/{p.name}"})
+        files = {p.name: p for p in list(root.glob("*.md")) + list(root.glob("*.txt"))}
+
+        def title(p):
+            return st["manuals"]._heading(str(p)) if p.suffix == ".md" else p.stem.replace("-", " ").title()
+        out = [{"title": title(files[f]), "path": f"cards/{f}", "label": label} for f, label in CARDS if f in files]
+        out += [{"title": title(p), "path": f"cards/{name}", "label": title(p).removesuffix(" Card")}
+                for name, p in sorted(files.items()) if name not in CARD_LABELS]
         return jsonify(out)
 
     app.config["downloader"] = downloader  # for tests

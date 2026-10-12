@@ -36,6 +36,9 @@ def describe(ua: str | None) -> str:
     ua = ua or ""
     if not ua:
         return "Unknown device"
+    m = re.match(r"Beacon-link/\d+ \(([^)]*)\)", ua)
+    if m:
+        return f"Linked Beacon ({m.group(1) or 'unnamed'})"
     if "iPhone" in ua:
         device = "iPhone"
     elif "iPad" in ua:

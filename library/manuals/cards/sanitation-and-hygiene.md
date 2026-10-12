@@ -1,4 +1,4 @@
-# Sanitation & Hygiene Card
+# Sanitation and Hygiene Card
 
 After injuries, disease from dirty water and poor sanitation is what kills people in long disasters. Three habits prevent most of it: keep waste away from water, wash hands, keep flies off food.
 
@@ -26,7 +26,7 @@ After injuries, disease from dirty water and poor sanitation is what kills peopl
 - Empty anything that holds standing water: it breeds mosquitoes within days.
 
 ## Watch for disease
-- Diarrhea: start the rehydration drink (Tools → Rehydration drink) early and keep sipping.
+- Diarrhea: start the rehydration drink (**Tools > Rehydration drink**) early and keep sipping.
 - Get help for blood in the stool, high fever, sunken eyes, very little urine, or large amounts of watery diarrhea that looks like rice water (a sign of cholera).
 - Keep a sick person's dishes, towels and toilet separate if you can. Whoever cares for them washes hands every time.
 

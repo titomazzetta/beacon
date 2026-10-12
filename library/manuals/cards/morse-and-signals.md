@@ -1,4 +1,4 @@
-# Morse Code & Rescue Signals Card
+# Morse Code and Rescue Signals Card
 
 ## SOS
 **· · · — — — · · ·**  (3 short, 3 long, 3 short), sent as one unbroken signal, then pause and repeat.
@@ -37,6 +37,6 @@ Works with a flashlight, car headlights, a whistle, a car horn, a mirror flash, 
 - **Body signals to aircraft**: both arms raised in a Y = "Yes / I need help." One arm up, one down in a straight diagonal = "No / I don't need help."
 
 ## Radio
-See the Emergency Radio card for frequencies. If no one answers by voice, Morse cuts through noise and weak signals far better.
+See the Radio card for frequencies. If no one answers by voice, Morse cuts through noise and weak signals far better.
 
 Sources: International Morse Code (ITU-R M.1677); US Army ATP 3-50.21 Survival (signaling); ICAO / FAA ground-to-air emergency signals.

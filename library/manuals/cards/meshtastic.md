@@ -25,7 +25,7 @@ Meshtastic radios send short text messages and locations by long-range radio (Lo
 - Expect under a mile in a dense town, and many miles with a clear line of sight.
 
 ## With Beacon
-- Plug a radio into the Beacon Mac with a **data** USB cable and connect it on the Board. Mesh messages appear on the Board, and Board posts can go out over the mesh.
+- Plug a radio into the Mac running Beacon with a **data** USB cable and connect it on the Board. Mesh messages appear on the Board, and Board posts can go out over the mesh.
 - Anyone with a radio can check in: **SAFE The Garcias** or **HELP Unit 4B: out of insulin**.
 
 ## Troubleshooting

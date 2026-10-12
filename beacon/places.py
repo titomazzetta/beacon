@@ -101,7 +101,7 @@ class Places:
             label = f"{coords[0]:.4f}, {coords[1]:.4f}"
             if near:
                 label += f" (near {near[0]['name']})"
-            return [{"label": label, "lat": coords[0], "lon": coords[1], "exact": True}]
+            return [{"label": label, "lat": coords[0], "lon": coords[1], "exact": True, "cc": near[0]["cc"] if near else ""}]
         parts = [fold(p) for p in query.split(",") if p.strip()]
         if not parts:
             return []
@@ -122,7 +122,7 @@ class Places:
                 continue
             scored.append((rank, -r["pop"], r))
         scored.sort(key=lambda t: (t[0], t[1]))
-        return [{"label": self.label(r), "lat": r["lat"], "lon": r["lon"], "pop": r["pop"]}
+        return [{"label": self.label(r), "lat": r["lat"], "lon": r["lon"], "pop": r["pop"], "cc": r["cc"]}
                 for _, _, r in scored[:limit]]
 
     def nearest(self, lat: float, lon: float, k: int = 5) -> list[dict]:
@@ -135,7 +135,7 @@ class Places:
             if len(cand) >= k:
                 break
         out = sorted(cand, key=lambda r: haversine_km(lat, lon, r["lat"], r["lon"]))[:k]
-        return [{"name": self.label(r), "lat": r["lat"], "lon": r["lon"], "pop": r["pop"],
+        return [{"name": self.label(r), "lat": r["lat"], "lon": r["lon"], "pop": r["pop"], "cc": r["cc"],
                  "km": round(haversine_km(lat, lon, r["lat"], r["lon"]), 1)} for r in out]
 
 

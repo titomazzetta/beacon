@@ -1,4 +1,4 @@
-# Firearms & Archery Safety Card
+# Firearms and Archery Safety Card
 
 ## The four rules (always, every time)
 1. **Treat every gun as if it's loaded.**

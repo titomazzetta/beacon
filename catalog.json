@@ -25,7 +25,7 @@
   "bands": [
     {
       "id": "medical",
-      "title": "Medical & First Aid",
+      "title": "Medical and first aid",
       "items": [
         {
           "id": "wikimed",
@@ -43,7 +43,7 @@
           "tier": "core",
           "name": "zimgit-medicine_en",
           "query": "zimgit medicine",
-          "title": "Field medicine & first aid books",
+          "title": "Field medicine and first aid books",
           "license": "Various open"
         },
         {
@@ -52,7 +52,7 @@
           "tier": "core",
           "url": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN46159-ATP_4-02.11-000-WEB-1.pdf",
           "file": "ATP-4-02.11-Army-First-Aid-and-Casualty-Care-2026.pdf",
-          "title": "Army First Aid & Casualty Care (ATP 4-02.11, 2026; replaces TC 4-02.1)",
+          "title": "Army First Aid and Casualty Care (ATP 4-02.11, 2026; replaces TC 4-02.1)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -97,7 +97,7 @@
           "tier": "extended",
           "url": "https://archive.org/download/MManuals/CommunicableDiseasesAndFieldSanitationSubcourseMd0535Edition100.pdf",
           "file": "Army-Communicable-Diseases-Field-Sanitation.pdf",
-          "title": "Army communicable diseases & field sanitation",
+          "title": "Army communicable diseases and field sanitation",
           "license": "Public domain (US Gov)"
         },
         {
@@ -138,7 +138,7 @@
     },
     {
       "id": "water-food",
-      "title": "Water, Food & Foraging",
+      "title": "Water, food and foraging",
       "items": [
         {
           "id": "zimgit-water",
@@ -146,7 +146,7 @@
           "tier": "core",
           "name": "zimgit-water_en",
           "query": "zimgit water",
-          "title": "Water sourcing, treatment & sanitation",
+          "title": "Water sourcing, treatment and sanitation",
           "license": "Various open"
         },
         {
@@ -155,7 +155,7 @@
           "tier": "core",
           "name": "zimgit-food-preparation_en",
           "query": "zimgit food preparation",
-          "title": "Food preparation & preservation",
+          "title": "Food preparation and preservation",
           "license": "Various open"
         },
         {
@@ -173,7 +173,7 @@
           "tier": "extended",
           "name": "cooking.stackexchange.com_en_all",
           "query": "cooking stackexchange",
-          "title": "Cooking & food safety Q&A",
+          "title": "Cooking and food safety Q&A",
           "license": "CC BY-SA"
         },
         {
@@ -182,7 +182,7 @@
           "tier": "extended",
           "url": "https://www.fao.org/3/i2477e/i2477e.pdf",
           "file": "FAO-Traditional-Fermented-Foods.pdf",
-          "title": "FAO: fermented foods & beverages",
+          "title": "FAO: fermented foods and beverages",
           "license": "Free from publisher (UN FAO)"
         },
         {
@@ -191,7 +191,7 @@
           "tier": "extended",
           "url": "https://mdc.mo.gov/sites/default/files/2021-03/MushroomGuide.pdf",
           "file": "Missouri-Edible-and-Poisonous-Mushrooms.pdf",
-          "title": "Edible & poisonous mushrooms (Missouri Dept. of Conservation)",
+          "title": "Edible and poisonous mushrooms (Missouri Dept. of Conservation)",
           "license": "Free from publisher (state agency)"
         },
         {
@@ -259,7 +259,7 @@
     },
     {
       "id": "shelter-winter",
-      "title": "Shelter, Fire & Winter",
+      "title": "Shelter, fire and winter",
       "items": [
         {
           "id": "zimgit-post-disaster",
@@ -321,14 +321,14 @@
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/atp3-90-97.pdf",
           "file": "ATP-3-90.97-Mountain-and-Cold-Weather.pdf",
-          "title": "Army: Mountain Warfare & Cold Weather Ops (ATP 3-90.97)",
+          "title": "Army: Mountain Warfare and Cold Weather Ops (ATP 3-90.97)",
           "license": "Public domain (US Gov)"
         }
       ]
     },
     {
       "id": "wilderness",
-      "title": "Wilderness, Navigation & Nature Signs",
+      "title": "Wilderness, navigation and nature signs",
       "items": [
         {
           "id": "army-survival",
@@ -345,7 +345,7 @@
           "tier": "core",
           "url": "https://irp.fas.org/doddir/army/fm3-25-26.pdf",
           "file": "FM-3-25.26-Map-Reading-Land-Navigation.pdf",
-          "title": "Map Reading & Land Navigation (FM 3-25.26)",
+          "title": "Map Reading and Land Navigation (FM 3-25.26)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -408,14 +408,14 @@
           "tier": "complete",
           "name": "earthscience.stackexchange.com_en_all",
           "query": "earth science stackexchange",
-          "title": "Earth science & weather Q&A",
+          "title": "Earth science and weather Q&A",
           "license": "CC BY-SA"
         }
       ]
     },
     {
       "id": "civil-defense",
-      "title": "Weather, Disasters & Civil Defense",
+      "title": "Weather, disasters and civil defense",
       "items": [
         {
           "id": "fema-ready",
@@ -484,7 +484,7 @@
           "type": "zim",
           "tier": "extended",
           "query": "CDC Centers for Disease Control",
-          "title": "CDC health & emergency guidance",
+          "title": "CDC health and emergency guidance",
           "license": "Public domain (US Gov)"
         },
         {
@@ -537,7 +537,7 @@
     },
     {
       "id": "comms",
-      "title": "Radio, Mesh, Signals & Community",
+      "title": "Radio, mesh, signals and community",
       "items": [
         {
           "id": "cert-manual",
@@ -591,7 +591,7 @@
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm24-18.pdf",
           "file": "FM-24-18-Field-Radio-Techniques.pdf",
-          "title": "Field radio techniques & improvised antennas (FM 24-18)",
+          "title": "Field radio techniques and improvised antennas (FM 24-18)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -606,7 +606,7 @@
     },
     {
       "id": "security",
-      "title": "Security, Self-Defense & Evasion",
+      "title": "Security, self-defense and evasion",
       "items": [
         {
           "id": "ser-mttp",
@@ -614,7 +614,7 @@
           "tier": "core",
           "url": "https://irp.fas.org/doddir/army/fm3-50-3.pdf",
           "file": "FM-3-50.3-Survival-Evasion-Recovery.pdf",
-          "title": "Survival, Evasion & Recovery, multi-service (FM 3-50.3)",
+          "title": "Survival, Evasion and Recovery, multi-service (FM 3-50.3)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -632,7 +632,7 @@
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm3-21-75.pdf",
           "file": "FM-3-21.75-Soldier-Combat-Skills.pdf",
-          "title": "Soldier skills: security, observation, movement & fieldcraft (FM 3-21.75)",
+          "title": "Soldier skills: security, observation, movement and fieldcraft (FM 3-21.75)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -650,7 +650,7 @@
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm21-76-1.pdf",
           "file": "FM-21-76-1-Survival-Evasion-Recovery-1999.pdf",
-          "title": "Survival, Evasion & Recovery pocket guide (FM 21-76-1, 1999)",
+          "title": "Survival, Evasion and Recovery pocket guide (FM 21-76-1, 1999)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -668,7 +668,7 @@
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/attp3-34-39.pdf",
           "file": "ATTP-3-34.39-Camouflage-Concealment.pdf",
-          "title": "Camouflage, Concealment & Decoys (ATTP 3-34.39)",
+          "title": "Camouflage, Concealment and Decoys (ATTP 3-34.39)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -684,7 +684,7 @@
     },
     {
       "id": "hunt-fish",
-      "title": "Hunting, Fishing, Trapping & Firearms",
+      "title": "Hunting, fishing, trapping and firearms",
       "items": [
         {
           "id": "deadfalls",
@@ -710,7 +710,7 @@
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/tc3-22-9.pdf",
           "file": "TC-3-22.9-Rifle-and-Carbine.pdf",
-          "title": "Rifle & carbine marksmanship and safety (TC 3-22.9)",
+          "title": "Rifle and carbine marksmanship and safety (TC 3-22.9)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -725,7 +725,7 @@
     },
     {
       "id": "grow-hunt",
-      "title": "Growing Food & Homesteading",
+      "title": "Growing food and homesteading",
       "items": [
         {
           "id": "gardening-se",
@@ -733,7 +733,7 @@
           "tier": "extended",
           "name": "gardening.stackexchange.com_en_all",
           "query": "gardening stackexchange",
-          "title": "Gardening & growing food Q&A",
+          "title": "Gardening and growing food Q&A",
           "license": "CC BY-SA"
         },
         {
@@ -745,12 +745,32 @@
           "query": "appropedia",
           "title": "Appropedia: appropriate tech, homesteading",
           "license": "CC BY-SA"
+        },
+        {
+          "id": "rainwater-manual",
+          "type": "pdf",
+          "tier": "extended",
+          "title": "The Texas Manual on Rainwater Harvesting (3rd ed., 2005)",
+          "url": "https://www.twdb.texas.gov/publications/brochures/conservation/doc/RainwaterHarvestingManual_3rdedition.pdf",
+          "file": "Texas-Manual-on-Rainwater-Harvesting.pdf",
+          "license": "Free from publisher (Texas Water Development Board)",
+          "note": "Catchment, storage, sizing and making rainwater safe to drink"
+        },
+        {
+          "id": "pc-irrigation",
+          "type": "pdf",
+          "tier": "complete",
+          "title": "Peace Corps Irrigation Training Manual: small-scale irrigation (1994)",
+          "url": "https://files.peacecorps.gov/documents/T0076_Irrigation-Training-Manual.pdf",
+          "file": "Peace-Corps-Irrigation-Training-Manual.pdf",
+          "license": "Public domain (US Gov)",
+          "note": "Water sources, pumps, wells, ponds, drip and furrow irrigation for small farms"
         }
       ]
     },
     {
       "id": "vehicles",
-      "title": "Vehicles, Repair & Tools",
+      "title": "Vehicles, repair and tools",
       "items": [
         {
           "id": "mechanics-se",
@@ -758,7 +778,7 @@
           "tier": "core",
           "name": "mechanics.stackexchange.com_en_all",
           "query": "motor vehicle maintenance repair stackexchange",
-          "title": "Motor vehicle maintenance & repair Q&A",
+          "title": "Motor vehicle maintenance and repair Q&A",
           "license": "CC BY-SA"
         },
         {
@@ -786,14 +806,14 @@
           "tier": "complete",
           "name": "electronics.stackexchange.com_en_all",
           "query": "electrical engineering stackexchange",
-          "title": "Electronics & electrical Q&A",
+          "title": "Electronics and electrical Q&A",
           "license": "CC BY-SA"
         }
       ]
     },
     {
       "id": "power",
-      "title": "Power & Off-Grid Living",
+      "title": "Power and off-grid living",
       "items": [
         {
           "id": "energypedia",
@@ -818,7 +838,7 @@
     },
     {
       "id": "mind-body",
-      "title": "Mind, Body & Discipline",
+      "title": "Mind, body and discipline",
       "items": [
         {
           "id": "h2f",
@@ -826,7 +846,7 @@
           "tier": "core",
           "url": "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF",
           "file": "FM-7-22-Holistic-Health-and-Fitness.pdf",
-          "title": "Army Holistic Health & Fitness (FM 7-22): training, sleep, nutrition, mental & spiritual readiness",
+          "title": "Army Holistic Health and Fitness (FM 7-22): training, sleep, nutrition, mental and spiritual readiness",
           "license": "Public domain (US Gov)"
         },
         {
@@ -908,7 +928,7 @@
     },
     {
       "id": "reading",
-      "title": "Reading Shelf: Adventure, Strategy & Spirit",
+      "title": "Reading shelf: adventure, strategy and spirit",
       "items": [
         {
           "id": "south",
@@ -1054,14 +1074,14 @@
     },
     {
       "id": "education",
-      "title": "Learning & Schooling",
+      "title": "Learning and schooling",
       "items": [
         {
           "id": "phet",
           "type": "zim",
           "tier": "complete",
           "query": "PhET interactive simulations",
-          "title": "PhET science & math simulations",
+          "title": "PhET science and math simulations",
           "license": "CC BY"
         },
         {
@@ -1086,7 +1106,7 @@
     },
     {
       "id": "wikipedia",
-      "title": "Wikipedia & General Knowledge",
+      "title": "Wikipedia and general knowledge",
       "items": [
         {
           "id": "wp-medicine",
@@ -1115,7 +1135,7 @@
           "name": "wikibooks_en_all",
           "flavour": "maxi",
           "query": "wikibooks",
-          "title": "Wikibooks: open textbooks & manuals",
+          "title": "Wikibooks: open textbooks and manuals",
           "license": "CC BY-SA"
         },
         {
@@ -1331,5 +1351,56 @@
         ]
       }
     ]
-  }
+  },
+  "updates": [
+    {
+      "id": "nws",
+      "title": "National Weather Service",
+      "kind": "nws",
+      "scope": "local",
+      "country": "US",
+      "url": "https://api.weather.gov/alerts/active?point={lat},{lon}",
+      "max": 10
+    },
+    {
+      "id": "gdacs",
+      "title": "GDACS disaster alerts",
+      "kind": "rss",
+      "scope": "world",
+      "url": "https://www.gdacs.org/xml/rss.xml",
+      "max": 15
+    },
+    {
+      "id": "usgs",
+      "title": "USGS significant earthquakes",
+      "kind": "usgs",
+      "scope": "world",
+      "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson",
+      "max": 10
+    },
+    {
+      "id": "travel",
+      "title": "US State Department travel advisories",
+      "kind": "rss",
+      "scope": "world",
+      "url": "https://travel.state.gov/_res/rss/TAsTWs.xml",
+      "max": 10
+    },
+    {
+      "id": "npr",
+      "title": "NPR News",
+      "kind": "rss",
+      "scope": "news",
+      "url": "https://feeds.npr.org/1001/rss.xml",
+      "max": 8
+    },
+    {
+      "id": "bbc",
+      "title": "BBC World",
+      "kind": "rss",
+      "scope": "news",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "max": 8
+    }
+  ]
 }

@@ -2,6 +2,7 @@
 import hashlib
 import io
 import json
+import time
 import zipfile
 from pathlib import Path
 
@@ -157,7 +158,8 @@ def env(tmp_path, zim_dir):
     (maps / "world.pmtiles").write_bytes(bytes(range(256)) * 40)
     cfg = {"ollama_url": "http://127.0.0.1:11435", "chat_model": "", "embed_model": "nomic-embed-text",
            "zim_dir": str(zim_dir), "manuals_dir": str(man), "books_dir": str(root / "library" / "books"),
-           "index_path": str(root / "data" / "idx.sqlite"), "data_root": str(root), "host": "127.0.0.1", "port": 1}
+           "index_path": str(root / "data" / "idx.sqlite"), "data_root": str(root), "host": "127.0.0.1", "port": 1,
+           "mesh_watch": False}
     ollama = FakeOllama()
     manuals = ManualIndex(cfg["index_path"], ollama, cfg["embed_model"], cfg["manuals_dir"])
     manuals.ingest_dir(cfg["manuals_dir"], progress=lambda m: None)
@@ -241,9 +243,14 @@ def test_manual_index(tmp_path):
     fire = idx.search("start a fire with tinder", k=1)[0]
     assert fire["ref"].startswith("sub/fire.txt")
     assert len(idx.samples()) == 2
+    # a long manual can't fill every slot: at most two passages per document, and titles count
+    (d / "long.md").write_text("# Water Card\n\n" + "\n\n".join(f"Boil water for one minute, step {i}. " * 40 for i in range(6)))
+    idx.ingest_dir(str(d), progress=lambda m: None)
+    hits = idx.search("how do I boil water", k=4)
+    assert sum(h["ref"].startswith("long.md") for h in hits) == 2 and hits[0]["book"] == "Water Card"
     (d / "sub" / "fire.txt").unlink()
     idx.ingest_dir(str(d), progress=lambda m: None)
-    assert [f["file"] for f in idx.files()] == ["radio.md"]
+    assert [f["file"] for f in idx.files()] == ["long.md", "radio.md"]
 
 
 def test_gather_respects_brain_budget(env, zim_dir):
@@ -1214,9 +1221,11 @@ class FakeRadio:
         self.sent, self.closed = [], False
         self.nodes = {"!a1b2c3d4": {"user": {"id": "!a1b2c3d4", "longName": "Ridge Relay", "shortName": "RDG"},
                                     "lastHeard": 1760100000, "snr": 7.5, "hopsAway": 1,
-                                    "position": {"latitude": 33.80, "longitude": -84.30}, "deviceMetrics": {"batteryLevel": 88}}}
+                                    "position": {"latitude": 39.80, "longitude": -104.90}, "deviceMetrics": {"batteryLevel": 88}}}
+        self.my_position = None
     def sendText(self, text, destinationId="^all", channelIndex=0, **kw): self.sent.append((text, destinationId, channelIndex))
-    def getMyNodeInfo(self): return {"user": {"longName": "Beacon Base", "shortName": "BCN"}}
+    def getMyNodeInfo(self):
+        return {"user": {"longName": "Beacon Base", "shortName": "BCN"}, **({"position": self.my_position} if self.my_position else {})}
     def close(self): self.closed = True
 
 
@@ -1233,7 +1242,7 @@ def test_meshtastic_bridge_with_a_simulated_radio(env):
         time.sleep(0.02)
     st = c.get("/api/mesh").get_json()
     assert st["state"] == "connected" and st["me"] == "Beacon Base" and st["nodes"] == 1
-    assert st["nodes_list"][0]["name"] == "Ridge Relay" and st["nodes_list"][0]["lat"] == 33.8
+    assert st["nodes_list"][0]["name"] == "Ridge Relay" and st["nodes_list"][0]["lat"] == 39.8
     # heard on the mesh -> the board; check-ins -> the roster, with a confirmation back to the sender
     mesh.on_receive({"decoded": {"text": "Road washed out at Elm St bridge"}, "fromId": "!a1b2c3d4", "channel": 0})
     mesh.on_receive({"decoded": {"text": "HELP Unit 4B: out of insulin"}, "fromId": "!a1b2c3d4", "channel": 1})
@@ -1308,3 +1317,283 @@ def test_new_cards_are_matched_and_well_formed():
     assert rag.match_card("Should I turn off Face ID before a checkpoint? Is my phone tracking me?") == "digital-safety.md"
     lib = library.load_catalog()
     assert lib["gear_list"]["groups"] and all(g["items"] for g in lib["gear_list"]["groups"])
+
+
+# ------------------------------------------------------------------ your situation (setup questionnaire)
+
+def test_situation_answers_are_cleaned():
+    from beacon import situation as sitmod
+    s = sitmod.clean({"phase": "now", "concerns": ["winter", "bogus", "outage"], "people": {"adults": "2", "children": 900, "x": 4},
+                      "have": ["generator", "rocket launcher", "car"], "place": "  Denver,\n Colorado  ", "home": "castle",
+                      "needs": "x" * 999})
+    assert s["concerns"] == ["outage", "winter"] and s["have"] == ["generator", "car"]
+    assert s["people"] == {"adults": 2, "children": 99, "elders": 0, "pets": 0}
+    assert s["place"] == "Denver, Colorado" and s["home"] == "" and len(s["needs"]) == 300
+    bare = sitmod.clean({"nothing": True, "have": ["generator", "skill_hunt"]})
+    assert bare["have"] == ["skill_hunt"] and bare["nothing"]                      # "almost nothing" keeps only skills
+    assert sitmod.is_empty(sitmod.clean({})) and not sitmod.is_empty(bare)
+
+
+def test_next_steps_fit_the_situation():
+    from beacon import situation as sitmod
+    titles = {t["id"]: t["title"] for t in plans.TEMPLATES}
+    cards = {f: label for f, label in __import__("beacon.cards", fromlist=["CARDS"]).CARDS}
+    sit = {"phase": "now", "concerns": ["winter", "outage"], "people": {"adults": 2, "children": 1},
+           "have": ["generator", "car", "first_aid"], "place": "Denver, Colorado"}
+    r = sitmod.assess(sit, None, titles, cards, None)
+    assert r["headline"] == "It's happening now: winter storm and power outage. 2 adults and 1 child in Denver, Colorado."
+    assert r["first"][0]["action"] == {"type": "card", "id": "first-aid-essentials.md", "label": "First aid"}
+    assert r["first"][1]["action"]["label"] == cards["power-outage.md"]                 # card names come from cards.py
+    assert "carbon monoxide" in r["first"][1]["text"]                                  # generator, no CO alarm
+    labels = [g["label"] for g in r["gaps"]]
+    assert labels[0] == "Carbon monoxide alarm" and "First aid kit" not in labels
+    water = next(g for g in r["gaps"] if g["label"] == "Water")
+    assert "Store 9 gallons" in water["text"] and water["make_do"]                     # 3 people x 3 days
+    assert [p["id"] for p in r["plans"]] == ["winter-storm", "power", "shelter-in-place"]       # the storm leads, then power
+    assert {c["file"] for c in r["cards"]} >= {"first-aid-essentials.md", "power-outage.md", "severe-weather.md"}
+    assert any(h["label"] == "Generator" and "Outdoors only" in h["text"] for h in r["have"])
+    # starting with nothing: water first, and the make-do card leads
+    bare = sitmod.assess({"phase": "now", "nothing": True}, None, titles, cards, None)
+    assert "hidden water" in bare["first"][1]["text"] and bare["cards"][1]["file"] == "make-do.md"
+    # living off the grid: homestead plan and farming items from the library
+    lib = [{"id": "gardening-se", "title": "Gardening Q&A", "band": "grow-hunt", "rank": 1},
+           {"id": "wikem", "title": "WikEM", "band": "medical", "rank": 1}]
+    off = sitmod.assess({"phase": "ahead", "concerns": ["offgrid"]}, None, titles, cards, lib)
+    assert off["plans"][0]["id"] == "homestead" and off["library"] == [{"id": "gardening-se", "title": "Gardening Q&A"}]
+    # what's typed under special needs changes the advice
+    cpap = sitmod.assess({"concerns": ["winter"], "needs": "Mom uses a CPAP and insulin"}, None, titles, cards, None)
+    labels = [g["label"] for g in cpap["gaps"]]
+    assert labels[0] == "Power for the medical device" and "Backup power" not in labels and "Insulin without a fridge" in labels
+    # the library suggestions take turns between the topics that fit, so one big topic can't crowd out the rest
+    many = [{"id": f"{b}-{i}", "title": b, "band": b, "rank": i} for b in ("medical", "shelter-winter", "civil-defense") for i in range(6)]
+    mixed = sitmod.assess({"concerns": ["winter"], "needs": "insulin"}, None, titles, cards, many)["library"]
+    assert [x["id"] for x in mixed[:3]] == ["shelter-winter-0", "medical-0", "civil-defense-0"] and len(mixed) == 8
+    # a guest on the Wi-Fi can't fill in Your household on the Beacon computer
+    guest = sitmod.assess({"phase": "ahead", "concerns": ["outage"]}, None, titles, cards, None, host=False)
+    assert all(f["action"]["type"] != "household" for f in guest["first"]) and any(f["action"]["type"] == "paper" for f in guest["first"])
+    # the supplies list counts as stored water and food
+    sup = {"items": [{"cat": "water", "qty": 10, "gal": 1}, {"cat": "food", "qty": 30, "kcal": 1000}]}
+    withsup = sitmod.assess({"people": {"adults": 1}}, sup, titles, cards, None)
+    assert "Water" not in [g["label"] for g in withsup["gaps"]] and withsup["have"][0]["label"] == "Food"
+
+
+def test_situation_is_private_and_shapes_answers(env, monkeypatch):
+    app, c = make_client(env, monkeypatch=monkeypatch)
+    assert c.post("/api/situation", json={"phase": "now", "concerns": ["winter"], "have": ["generator"], "needs": "Dad: insulin"}).get_json()["saved"]
+    assert c.get("/api/situation").get_json()["needs"] == "Dad: insulin"
+    sse(c.post("/api/ask", json={"question": "how do we stay warm"}))
+    prompt = env["ollama"].last_messages[-1]["content"]
+    assert "ABOUT THE PERSON ASKING" in prompt and "winter storm" in prompt and "Dad: insulin" in prompt
+    sharing(app, "4821"); c.get("/?code=4821", environ_base=GUEST)
+    assert c.get("/api/situation", environ_base=GUEST).get_json() == {}                       # the host's answers stay private
+    assert c.post("/api/situation", json={"phase": "now"}, environ_base=GUEST).status_code == 403
+    sse(c.post("/api/ask", json={"question": "how do we stay warm", "situation": {"concerns": ["heat"], "people": {"adults": 3}}},
+               environ_base=GUEST))
+    prompt = env["ollama"].last_messages[-1]["content"]
+    assert "heat wave" in prompt and "3 adults" in prompt and "insulin" not in prompt         # the guest's own answers only
+    guest_steps = c.post("/api/situation/assess", json={"situation": {"concerns": ["offgrid"]}}, environ_base=GUEST).get_json()
+    assert guest_steps["library"] == [] and guest_steps["plans"][0]["id"] == "homestead"
+    host_steps = c.post("/api/situation/assess", json={}).get_json()
+    assert host_steps["first"][0]["action"]["id"] == "first-aid-essentials.md"
+    assert c.get("/api/situation/options").get_json()["concerns"][0] == ["outage", "Power outage"]
+    c.post("/api/profile/erase", json={})
+    assert c.get("/api/situation").get_json()["phase"] == ""                                  # erased with the household
+
+
+def test_cards_come_in_tab_order_with_short_names(env):
+    _, c = make_client(env)
+    cards_dir = Path(env["cfg"]["manuals_dir"]) / "cards"
+    (cards_dir / "fire.md").write_text("# Fire Card\n\nTinder, kindling, fuel.\n")
+    (cards_dir / "my-notes.md").write_text("# Neighborhood Notes Card\n\nOur street.\n")
+    listed = c.get("/api/cards").get_json()
+    assert [x["label"] for x in listed][:2] == ["First aid", "Fire"]
+    assert listed[-1]["label"] == "Neighborhood Notes" and listed[-1]["path"] == "cards/my-notes.md"
+
+
+# ------------------------------------------------------------------ updates from outside
+
+NWS_JSON = json.dumps({"features": [{"properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:1", "event": "Winter Storm Warning", "severity": "Severe",
+    "headline": "Winter Storm Warning issued October 10 until October 11 at 6:00AM MDT", "areaDesc": "Denver; Boulder",
+    "description": "Heavy snow, 8 to 14 inches.", "instruction": "Travel could be very difficult.",
+    "effective": "2026-10-10T12:00:00-06:00", "expires": "2099-10-11T06:00:00-06:00"}}]})
+GDACS_RSS = """<?xml version="1.0"?><rss xmlns:gdacs="http://www.gdacs.org"><channel>
+  <item><title>Red earthquake alert (Magnitude 7.4M) in Testland</title><description>&lt;b&gt;Strong&lt;/b&gt; shaking</description>
+    <link>https://www.gdacs.org/report.aspx?eventid=1</link><pubDate>Sat, 10 Oct 2026 08:00:00 GMT</pubDate>
+    <gdacs:alertlevel>Red</gdacs:alertlevel><gdacs:country>Testland</gdacs:country></item>
+  <item><title>Green flood alert in Elsewhere</title><link>javascript:alert(1)</link><gdacs:alertlevel>Green</gdacs:alertlevel></item>
+</channel></rss>"""
+NEWS_RSS = """<?xml version="1.0"?><rss><channel><item><title>Grid operator asks for conservation</title>
+  <link>https://example.org/news/1</link><pubDate>Sat, 10 Oct 2026 09:00:00 GMT</pubDate></item></channel></rss>"""
+BOMB = """<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;">]><rss><channel><item><title>&lol2;</title></item></channel></rss>"""
+FEEDS = [{"id": "nws", "title": "National Weather Service", "kind": "nws", "scope": "local", "country": "US",
+          "url": "https://api.weather.gov/alerts/active?point={lat},{lon}"},
+         {"id": "gdacs", "title": "GDACS disaster alerts", "kind": "rss", "scope": "world", "url": "https://gdacs.test/rss.xml"},
+         {"id": "npr", "title": "NPR News", "kind": "rss", "scope": "news", "url": "https://npr.test/rss.xml"},
+         {"id": "bad", "title": "Bad feed", "kind": "rss", "scope": "news", "url": "https://bad.test/rss.xml"}]
+
+
+def test_updates_are_parsed_ranked_and_cached(tmp_path):
+    from beacon.updates import Updates
+    http = FakeHTTP({"https://api.weather.gov/alerts/active?point=39.74,-104.98": NWS_JSON, "https://gdacs.test/rss.xml": GDACS_RSS,
+                     "https://npr.test/rss.xml": NEWS_RSS, "https://bad.test/rss.xml": BOMB})
+    u = Updates(str(tmp_path / "updates.json"), FEEDS, http)
+    v = u.refresh({"lat": 39.7392, "lon": -104.9847, "cc": "US", "label": "Denver, Colorado"})
+    titles = [i["title"] for i in v["items"]]
+    assert titles[0].startswith("Winter Storm Warning") and v["items"][0]["level"] == "alert"     # local alerts first
+    assert titles[1].startswith("Red earthquake alert") and v["items"][1]["level"] == "alert"
+    assert v["items"][1]["summary"] == "Strong shaking" and v["items"][1]["area"] == "Testland"   # HTML stripped
+    assert next(i for i in v["items"] if i["title"].startswith("Green"))["url"] == ""              # only http(s) links
+    assert "bad" in v["errors"] and "document type" in v["errors"]["bad"]                         # XML bombs refused
+    from beacon.updates import _xml
+    with pytest.raises(ValueError):                                                                # even after a long comment
+        _xml(b'<?xml version="1.0"?><!--' + b"x" * 5000 + b'--><!DOCTYPE r [<!ENTITY a "b">]><rss/>')
+    ctx = u.context()
+    assert ctx.startswith("CURRENT UPDATES") and "Winter Storm Warning" in ctx and "Green flood" not in ctx
+    assert Updates(str(tmp_path / "updates.json"), FEEDS, http).view()["items"][0]["feed"] == "nws"  # cached for offline
+    abroad = Updates(str(tmp_path / "u2.json"), FEEDS, http).refresh({"lat": 48.85, "lon": 2.35, "cc": "FR", "label": "Paris"})
+    assert all(i["feed"] != "nws" for i in abroad["items"])                                         # NWS covers the US only
+
+
+def test_updates_are_opt_in_host_controlled_and_reach_the_ai(env, monkeypatch):
+    import time
+    http = FakeHTTP({library.OPDS: OPDS, "https://api.weather.gov/alerts/active?point=39.74,-104.98": NWS_JSON,
+                     "https://gdacs.test/rss.xml": GDACS_RSS, "https://npr.test/rss.xml": NEWS_RSS, "https://bad.test/rss.xml": BOMB})
+    app, c = make_client(env, http=http, monkeypatch=monkeypatch)
+    app.config["updates"].feeds = FEEDS
+    c.post("/api/situation", json={"place": "Denver"})
+    first = c.get("/api/updates").get_json()
+    assert first["auto"] is False and "online" not in first                      # off, and not even checking for internet
+    assert c.post("/api/updates/settings", json={"auto": True}).get_json()["auto"] is True
+    c.post("/api/updates/refresh", json={})
+    for _ in range(50):
+        if not app.config["updates"].checking and app.config["updates"].state["items"]:
+            break
+        time.sleep(0.05)
+    assert c.get("/api/updates").get_json()["items"][0]["title"].startswith("Winter Storm Warning")
+    sse(c.post("/api/ask", json={"question": "what should we do tonight"}))
+    assert "CURRENT UPDATES" in env["ollama"].last_messages[-1]["content"]
+    sharing(app, "4821"); c.get("/?code=4821", environ_base=GUEST)
+    assert c.get("/api/updates", environ_base=GUEST).get_json()["items"]          # phones can read them
+    assert c.post("/api/updates/refresh", json={}, environ_base=GUEST).status_code == 403
+    assert c.post("/api/updates/settings", json={"auto": False}, environ_base=GUEST).status_code == 403
+
+
+# ------------------------------------------------------------------ links between Beacons
+
+class WSGIHTTP:
+    """requests-like transport that delivers HTTP calls to Flask apps in this process."""
+    class Resp:
+        def __init__(self, r):
+            self.status_code, self.headers, self._r = r.status_code, {"Set-Cookie": r.headers.get("Set-Cookie", "")}, r
+        def json(self): return self._r.get_json()
+
+    def __init__(self, routes):
+        self.routes = routes  # base url -> (app, the caller's address as the app sees it)
+
+    def _go(self, method, url, **kw):
+        for base, (app, ip) in self.routes.items():
+            if url.startswith(base):
+                c = app.test_client(use_cookies=False)       # the Cookie header is set by the caller, like requests
+                path = url[len(base):] or "/"
+                return self.Resp(c.open(path, method=method, headers=kw.get("headers") or {}, json=kw.get("json"),
+                                        environ_base={"REMOTE_ADDR": ip}))
+        raise ConnectionError("no route")
+
+    def get(self, url, headers=None, timeout=None, allow_redirects=True, **kw):
+        return self._go("GET", url, headers=headers)
+
+    def post(self, url, json=None, headers=None, timeout=None, **kw):
+        return self._go("POST", url, headers=headers, json=json)
+
+
+def test_linked_beacons_share_one_board(env, tmp_path, monkeypatch):
+    import shutil as sh
+    main_app, main = make_client(env)
+    sub_root = tmp_path / "sub"; sh.copytree(env["root"], sub_root)
+    sub_env = {**env, "root": sub_root, "cfg": {**env["cfg"], "data_root": str(sub_root),
+               "index_path": str(sub_root / "data" / "idx.sqlite"), "manuals_dir": str(sub_root / "library" / "manuals")}}
+    for f in ("board.json", "node.json", "links.json"):
+        (sub_root / "data" / f).unlink(missing_ok=True)
+    sub_app, sub = make_client(sub_env)
+    assert main_app.config["links"].node["id"] != sub_app.config["links"].node["id"]
+    sub_app.config["links"].http = WSGIHTTP({"http://192.168.1.20:8643": (main_app, "192.168.1.30")})
+    monkeypatch.setattr(sub_app.config["links"], "start", lambda: None)            # sync by hand in the test
+    sharing(main_app, "4821")
+    main.post("/api/links/name", json={"name": "Main house"})
+    sub.post("/api/links/name", json={"name": "Garcia house"})
+    assert sub.post("/api/links", json={"url": "192.168.1.20:8643", "code": "1111"}).status_code == 400   # wrong code
+    linked = sub.post("/api/links", json={"url": "192.168.1.20:8643", "code": "4821"}).get_json()
+    assert linked["name"] == "Main house" and linked["node"] == main_app.config["links"].node["id"]
+    main.post("/api/board", json={"kind": "checkin", "name": "Unit 4B", "status": "help", "text": "out of insulin"})
+    sub.post("/api/board", json={"kind": "offer", "name": "Garcias", "text": "chainsaw and two strong backs"})
+    sub_app.config["links"].sync_once()
+    sub_app.config["links"].sync_once()                                            # twice: nothing doubles or echoes
+    on_sub = sub.get("/api/board").get_json()
+    on_main = main.get("/api/board").get_json()
+    assert [r["name"] for r in on_sub["roster"]] == ["Unit 4B"]
+    assert next(p for p in on_sub["posts"] if p["kind"] == "checkin")["via"] == "Main house"
+    offer = next(p for p in on_main["posts"] if p["kind"] == "offer")
+    assert offer["via"] == "Garcia house" and offer["source"] == "link"
+    assert len(on_main["posts"]) == 2 and len(on_sub["posts"]) == 2
+    # the main Beacon sees the link in Connections and can sign it out
+    sess = main.get("/api/security").get_json()["sessions"]
+    assert sess[0]["device"] == "Linked Beacon (Garcia house)"
+    main.post("/api/share/revoke", json={"id": sess[0]["id"]})
+    sub_app.config["links"].sync_once()
+    assert "Signed out" in sub.get("/api/links").get_json()["links"][0]["error"]
+    # what a linked Beacon sends is checked: real numbers for times, a known origin, a cap per device
+    ml = main_app.config["links"]
+    assert ml.receive([{"kind": "note", "text": "x", "origin": "abcdef12:0123456789", "t": float("nan")},
+                       {"kind": "note", "text": "y", "origin": "abcdef12:0123456789a", "t": 1}, "junk"], "X") == 1
+    strict = json.loads(main.get("/api/board").data, parse_constant=lambda c: pytest.fail(f"{c} in the Board's JSON"))
+    assert all(time.time() - 86400 < p["t"] <= time.time() for p in strict["posts"])
+    assert ml.receive([{"kind": "note", "text": f"spam {i}", "origin": f"abcdef12:{i:010x}"} for i in range(1, 40)], "X", limit=5) == 5
+    # guests can't manage links, and pushed posts need a real Beacon id
+    sharing(sub_app, "9999"); sub.get("/?code=9999", environ_base=GUEST)
+    assert sub.get("/api/links", environ_base=GUEST).status_code == 403
+    assert sub.post("/api/link/posts", json={"posts": []}, environ_base=GUEST).status_code == 403
+
+
+def test_mesh_radio_plugs_and_plays_and_lends_its_gps(env):
+    import time
+    app, c = make_client(env)
+    mesh, radio = app.config["mesh"], FakeRadio()
+    radio.my_position = {"latitude": 39.7392, "longitude": -104.9903, "time": 1}
+    mesh.factory = lambda port, host: radio
+    assert not mesh.watch_once([])                                            # nothing plugged in
+    assert mesh.watch_once(["/dev/cu.usbmodem1"])                              # plugged in: connects by itself
+    for _ in range(50):
+        if mesh.state == "connected":
+            break
+        time.sleep(0.02)
+    st = c.get("/api/mesh").get_json()
+    assert st["state"] == "connected" and st["auto"] and st["position"] == {"lat": 39.7392, "lon": -104.9903, "time": 1}
+    c.post("/api/mesh/disconnect", json={})
+    assert not mesh.watch_once(["/dev/cu.usbmodem1"])                          # a manual disconnect sticks...
+    assert not mesh.watch_once([]) and mesh.watch_once(["/dev/cu.usbmodem1"])  # ...until the radio is replugged
+    c.post("/api/mesh/settings", json={"auto": False})
+    mesh.disconnect()
+    assert not mesh.watch_once([]) and not mesh.watch_once(["/dev/cu.usbmodem2"])
+    # the radio just plugged in wins over a port that was already there
+    opened = []
+    mesh.factory = lambda port, host: opened.append(port) or radio
+    c.post("/api/mesh/settings", json={"auto": True})
+    mesh._ports_seen = ["/dev/cu.usbserial-old"]
+    assert mesh.watch_once(["/dev/cu.usbserial-old", "/dev/cu.usbmodem9"])
+    for _ in range(50):
+        if opened:
+            break
+        time.sleep(0.02)
+    assert opened == ["/dev/cu.usbmodem9"]
+
+
+def test_mesh_only_looks_at_usb_serial_ports(monkeypatch):
+    from types import SimpleNamespace as NS
+    lp = pytest.importorskip("serial.tools.list_ports")      # pyserial comes with the Meshtastic add-on
+    from beacon import mesh as meshmod
+    fake = [NS(device="/dev/cu.debug-console", vid=None), NS(device="/dev/cu.Bluetooth-Incoming-Port", vid=None),
+            NS(device="/dev/ttyS0", vid=None), NS(device="/dev/tty.usbmodem1101", vid=0x239A),
+            NS(device="/dev/cu.usbmodem1101", vid=0x239A), NS(device="/dev/ttyACM0", vid=0x303A)]
+    monkeypatch.setattr(lp, "comports", lambda: fake)
+    assert meshmod.serial_ports() == ["/dev/cu.usbmodem1101", "/dev/ttyACM0"]

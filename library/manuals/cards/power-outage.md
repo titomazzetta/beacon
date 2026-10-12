@@ -1,6 +1,6 @@
-# Power Outage Quick Card
+# Power Outage Card
 
-## Carbon monoxide kills — read first
+## Carbon monoxide kills: read this first
 - **Generators run outdoors only**, at least **20 feet** from doors, windows, and vents. Never in a garage, porch, or basement, even with the door open.
 - **Never** heat the house with a gas oven, grill, charcoal, or camp stove.
 - Keep **battery-powered CO alarms** on every floor. Headache, dizziness, nausea, or confusion in several people at once = get everyone outside into fresh air and call 911.

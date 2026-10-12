@@ -1,16 +1,16 @@
-# Emergency Radio Quick Card (USA)
+# Emergency Radio Card (USA)
 
 ## Listen (no license needed)
 - **NOAA Weather Radio**: 162.400, 162.425, 162.450, 162.475, 162.500, 162.525, 162.550 MHz. Continuous weather and hazard alerts from the National Weather Service. Any weather radio or scanner covers these.
 - **AM/FM broadcast**: your area's Emergency Alert System (EAS) primary station carries official instructions. Look yours up and write it here: ________
 - **AM carries farther at night** than FM. A cheap hand-crank AM/FM/weather radio is the most useful single radio to own.
 
-## Talk — no license
+## Talk with no license
 - **CB Channel 9 (27.065 MHz)**: emergency and traveler assistance. **Channel 19 (27.185 MHz)**: highway/trucker traffic, good for road conditions.
 - **FRS** (Family Radio Service, the blister-pack walkie-talkies): Channel 1 (462.5625 MHz) is a common default. Range is short, typically under a mile or two in trees and houses.
 - **Marine VHF Channel 16 (156.800 MHz)**: distress and calling channel on the water. The Coast Guard monitors it.
 
-## Talk — license required (FCC)
+## Talk with a license (FCC)
 - **GMRS** (license, no exam, covers your family): Channel 20 (462.675 MHz) is widely used as an informal emergency/traveler channel. Repeaters greatly extend range.
 - **Amateur (ham) radio** (license with exam): 2-meter national simplex calling frequency **146.520 MHz**; 70-centimeter calling **446.000 MHz**. Local repeaters and nets reach across a metro area.
 - **Emergency rules**: FCC rules let a **licensed amateur station** use any means of radio communication when there's an immediate threat to life or property and normal systems are down (47 CFR 97.403), and let a station in distress use any means to get help (97.405). They don't make unlicensed transmitting generally legal. In a genuine life-or-death emergency, calling for help on any radio beats staying silent; expect to explain afterward.

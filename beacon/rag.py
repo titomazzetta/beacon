@@ -2,6 +2,8 @@
 import re
 from typing import Iterator
 
+from . import cards
+
 SYSTEM_PROMPT = """You are Beacon, an offline survival and field reference assistant. The internet \
 may be down and the user may be dealing with a real emergency, outage, injury, repair or evacuation.
 
@@ -9,56 +11,34 @@ Rules:
 - Write for someone who may be scared, tired or hurt: short sentences, plain words, no jargon.
 - Answer from the numbered SOURCES first. Cite them inline like [1] or [2][3].
 - If the sources don't cover something and you answer from general knowledge, say so plainly \
-("not in your library — from general knowledge").
+("This isn't in your library; it's general knowledge.").
 - Lead with the action. Short numbered steps for procedures. Put critical warnings first.
 - For medical, electrical, gas, firearm, structural or wild-food safety: be conservative. Say clearly \
 when something needs a professional, and to call 911 / 112 if there's any way to reach them.
 - Never invent dosages, measurements, frequencies or wiring specs. If unsure, say you're unsure.
 - Never tell someone a wild plant or mushroom is safe to eat from a description alone.
+- If there's an ABOUT THE PERSON section, fit the answer to their situation, people and gear. When they \
+lack something, give a safe way to make do with what they have or can find.
+- If there's a CURRENT UPDATES section, it's dated news from outside that may be incomplete or out of \
+date. Use it for context, say where it came from, and never let it override safety steps.
 """
 
 
-# Questions about these topics also show the matching quick card above the AI's answer,
-# so a vetted, static version of the steps is always one tap away.
-CARD_KEYWORDS = [
-    ("first-aid-essentials.md", "bleed bleeding cpr choking choke burn burns stroke allergic anaphylaxis epipen "
-     "unconscious breathing heart attack fracture broken bone splint snakebite snake bite poison wound "
-     "tourniquet frostbite hypothermia seizure concussion head injury"),
-    ("severe-weather.md", "tornado lightning thunder hurricane flood flooding earthquake wildfire smoke heat wave "
-     "heatwave humidity hail storm blizzard"),
-    ("water.md", "water purify purification boil bleach drinking dehydration rehydration"),
-    ("power-outage.md", "power outage blackout generator inverter electricity freezer fridge carbon monoxide"),
-    ("car-emergency.md", "car vehicle stuck snow jump start battery flat tire overheating brakes submerged"),
-    ("emergency-radio.md", "radio frequency frequencies ham gmrs frs noaa scanner walkie"),
-    ("morse-and-signals.md", "morse sos signal signaling mirror whistle rescue helicopter aircraft flare"),
-    ("navigation-and-nature-signs.md", "lost north compass navigate navigation stars shadow map bearing"),
-    ("evacuation-and-leaving.md", "evacuate evacuation leave country border passport go-bag bug out flee"),
-    ("defensive-perimeter.md", "perimeter defend defense defensive intruder intruders security watch guard looters"),
-    ("evasion-basics.md", "evade evasion hide hiding escape pursued checkpoint occupied invasion"),
-    ("low-profile-and-self-defense.md", "self-defense self defense attacked mugging robbery gray man blend in"),
-    ("wild-food-and-game.md", "forage foraging edible mushroom mushrooms plant plants berries hunt hunting "
-     "fish fishing trap trapping game deer"),
-    ("firearms-safety.md", "gun guns firearm firearms rifle pistol revolver shotgun ammo bow arrow archery"),
-    ("mind-and-body.md", "panic anxiety stress calm breathing sleep grief depressed depression meditation workout fitness"),
-    ("community-network.md", "neighbors neighbor neighborhood community mutual aid check-in checkin roster barter trade group network"),
-    ("meshtastic.md", "meshtastic! mesh! lora! node nodes"),
-    ("off-grid-power.md", "solar panel panels battery batteries power station anker ecoflow jackery lifepo4 inverter watts watt-hours "
-     "cpap oxygen concentrator insulin"),
-    ("sanitation-and-hygiene.md", "sanitation! toilet! toilets! latrine! sewage! flush hygiene handwashing diarrhea cholera! trash flies bucket"),
-    ("radiation-chemical-pandemic.md", "radiation! nuclear! fallout! radioactive! iodide! chemical gas spill hazmat! pandemic! outbreak "
-     "quarantine dirty bomb"),
-    ("digital-safety.md", "phone opsec! privacy hacked hacking surveillance tracking encryption passcode! scam scams "
-     "faraday metadata"),
-]
+CARD_KEYWORDS = cards.KEYWORDS
 
 
 PHRASES = ("heart attack", "carbon monoxide", "jump start", "flat tire", "heat wave", "self defense",
            "head injury", "broken bone", "snake bite", "gray man", "blend in", "bug out", "power station",
-           "mutual aid", "dirty bomb", "potassium iodide", "solar panel")
+           "mutual aid", "dirty bomb", "potassium iodide", "solar panel", "duct tape", "trash bags", "bow drill",
+           "rain barrel", "offline maps", "car radio")
+
+
+# Words that only mean something inside a phrase ("blend in", "bug out", "gray man").
+PHRASE_ONLY = {"in", "out", "man", "self", "bug", "blend"}
 
 
 def match_card(question: str) -> str | None:
-    words = set(re.findall(r"[a-z][a-z-]+", question.lower()))
+    words = set(re.findall(r"[a-z][a-z-]+", question.lower())) - PHRASE_ONLY
     text = " " + question.lower() + " "
     best, score = None, 0
     for card, keys in CARD_KEYWORDS:
@@ -127,15 +107,16 @@ def gather(question: str, kiwix, manuals, profile: dict) -> list[dict]:
     return picked
 
 
-def build_messages(question: str, sources: list[dict], history: list[dict]) -> list[dict]:
+def build_messages(question: str, sources: list[dict], history: list[dict], context: str = "") -> list[dict]:
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
     for turn in history[-6:]:  # keep a little context, not the whole night
         if turn.get("role") in ("user", "assistant") and turn.get("content"):
             msgs.append({"role": turn["role"], "content": turn["content"]})
-    msgs.append({"role": "user", "content": f"{format_sources(sources)}\n\nQUESTION: {question}"})
+    about = f"{context}\n\n" if context else ""
+    msgs.append({"role": "user", "content": f"{format_sources(sources)}\n\n{about}QUESTION: {question}"})
     return msgs
 
 
-def answer(question, sources, history, ollama, model: str, num_ctx: int = 8192) -> Iterator[str]:
-    yield from ollama.chat_stream(model, build_messages(question, sources, history),
+def answer(question, sources, history, ollama, model: str, num_ctx: int = 8192, context: str = "") -> Iterator[str]:
+    yield from ollama.chat_stream(model, build_messages(question, sources, history, context),
                                   options={"num_ctx": num_ctx})

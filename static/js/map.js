@@ -135,7 +135,7 @@ async function update() {
   if (from) B.lastPlace = from;
   if (from) {
     const {near} = await nearestLabel(from.lat, from.lon);
-    $("nearby").innerHTML = near.length ? `<h3>Nearest towns</h3>` + near.map(n => `<div>${esc(n.name)}<span>${n.km} km</span></div>`).join("") : "";
+    $("nearby").innerHTML = near.length ? `<h3>Nearest towns</h3>` + near.map(n => `<div>${esc(n.name)}<span>${(n.km / 1.609344).toFixed(1)} mi (${n.km} km)</span></div>`).join("") : "";
   } else $("nearby").innerHTML = "";
   if (from && to) {
     try { route = await B.api("/api/route", {from, to}); } catch { route = null; }
@@ -144,7 +144,7 @@ async function update() {
       <div class="fact"><b>${route.miles.toLocaleString()} mi</b><span>${route.km.toLocaleString()} km in a straight line</span></div>
       <div class="fact"><b>${route.bearing}° ${esc(route.compass)}</b><span>heading to start (true north)</span></div>
       ${route.walk_days != null
-        ? `<div class="fact"><b>${route.walk_days} days</b><span>on foot, about 25 km a day</span></div><div class="fact"><b>${route.drive_hours} h</b><span>driving, roughly</span></div>`
+        ? `<div class="fact"><b>${route.walk_days} days</b><span>on foot, about 15 miles (25 km) a day</span></div><div class="fact"><b>${route.drive_hours} h</b><span>driving, roughly</span></div>`
         : `<div class="fact"><b>${route.flight_hours} h</b><span>flying, nonstop</span></div><div class="fact"><b>Overseas</b><span>needs a flight or a boat</span></div>`}
     </div>`;
   } else { route = null; $("routeFacts").innerHTML = ""; }
@@ -210,7 +210,18 @@ $("clickFrom").onclick = () => setPick("from");
 $("clickTo").onclick = () => setPick("to");
 $("swapBtn").onclick = () => { [from, to] = [to, from]; [$("fromIn").value, $("toIn").value] = [$("toIn").value, $("fromIn").value]; update(); };
 $("clearRoute").onclick = () => { from = to = null; $("fromIn").value = $("toIn").value = ""; $("gpsNote").textContent = ""; update(); };
-$("gpsBtn").onclick = () => {
+$("gpsBtn").onclick = async () => {
+  // A mesh radio with GPS plugged into the Beacon computer knows where it is, even with no internet.
+  let radio = null;
+  try { const m = await B.api("/api/mesh"); radio = m.state === "connected" ? m.position : null; } catch {}
+  if (radio) {
+    from = {lat: radio.lat, lon: radio.lon};
+    from.label = (await nearestLabel(from.lat, from.lon)).label;
+    $("fromIn").value = from.label;
+    $("gpsNote").textContent = "From the GPS in the mesh radio plugged into the Beacon computer.";
+    update();
+    return;
+  }
   if (!window.isSecureContext) {
     $("gpsNote").textContent = "Phones can't share their location over this Wi-Fi link. Type your town, or the coordinates shown in your phone's Compass or Maps app.";
     return;
@@ -224,7 +235,7 @@ $("gpsBtn").onclick = () => {
     $("gpsNote").textContent = `Accurate to about ${Math.round(pos.coords.accuracy)} m.`;
     update();
   }, () => {
-    $("gpsNote").textContent = "No location available. Without internet, most Macs can't tell where they are. Type your town or coordinates instead.";
+    $("gpsNote").textContent = "No location available. Without internet, most Macs can't tell where they are: type your town or coordinates, or plug in a mesh radio that has GPS.";
   }, {timeout: 15000, enableHighAccuracy: true});
 };
 $("planTrip").onclick = () => {

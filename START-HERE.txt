@@ -42,17 +42,18 @@ BEFORE YOU UNPLUG THE DRIVE
 ---------------------------------------------------------------------
 THE FIRST 15 MINUTES  (do this today, while things are calm)
 ---------------------------------------------------------------------
-  [ ] 1. Open Beacon and wait for the green dot.            2 min
-  [ ] 2. Library > Health check > Run the health check.
+  [ ] 1. Open Beacon and wait for the green dot.              2 min
+  [ ] 2. Set up for your situation (Beacon offers it on the
+         first start, or Home > Your next steps). Read what
+         it says to do first and what's missing.              2 min
+  [ ] 3. Library > Health check > Run the health check.
          Fix anything marked red; each line says how.         2 min
-  [ ] 3. Lock the drive with a password (see LOCK THE DRIVE). 1 min
-  [ ] 4. Plan > Your household: who lives with you, medical
-         needs, medicines, contacts, meeting places.          3 min
-  [ ] 5. Make one plan for your most likely emergency, with
-         "Preparing ahead". Click Save PDF and send it to
-         your family's phones.                                3 min
-  [ ] 6. Ask a test question. Click a [number] in the answer
-         to see the page it came from.                        1 min
+  [ ] 4. Lock the drive with a password (see LOCK THE DRIVE). 1 min
+  [ ] 5. Plan > Your household: contacts, medicines, meeting
+         places.                                              2 min
+  [ ] 6. Open the first plan Your next steps suggests, make
+         it, and click Save PDF. Click a [number] in it to
+         see the page it came from.                           3 min
   [ ] 7. Share > Start sharing. On your phone, type one WRONG
          code first: the Mac should alert you. Then join with
          the right code. Stop sharing.                        2 min
@@ -68,21 +69,25 @@ WHAT'S ON THE SCREEN
   HOME     Ask anything in plain English, by typing or talking.
            Answers come from the library on this drive and show
            their sources: click a [number] to read the original.
+           Below: Your next steps, and updates when they're on.
   PLAN     Pick a plan: evacuation, shelter in place, winter storm,
-           hurricane, backup power, neighborhood network, leaving
-           the country, survive and evade, and more. Choose when
-           it's for: preparing ahead, happening now, or recovering
-           after. Beacon writes a step-by-step plan for your
-           household that you can save, print and share.
+           hurricane, backup power, homestead, stranded on an
+           island, neighborhood network, leaving the country,
+           survive and evade, and more. Choose when it's for:
+           preparing ahead, happening now, or recovering after.
+           Beacon writes a step-by-step plan for your household
+           that you can save, print and share.
   MAP      Where you are and where you're going: distance, compass
            direction, travel time, nearest towns. Works offline.
   BOARD    Check-ins (safe or need help), needs, offers and reports
-           from everyone on this Beacon, and from mesh radios.
+           from everyone on this Beacon, from mesh radios, and from
+           other Beacons linked to this one.
   TOOLS    CPR beat, tourniquet timer, rehydration drink, water
            treatment with bleach, water to store, power budget,
-           supplies, Morse code, flashlight and SOS, heat and cold
-           risk, lightning distance, sun and moon times, translate,
-           unit conversions.
+           supplies, Morse code, radio channels and a MAYDAY call,
+           flashlight and SOS, heat and cold risk, lightning
+           distance, sun and moon times, translate, unit
+           conversions.
   LIBRARY  Saved plans and answers, what's installed, the health
            check, your own documents, the reading shelf, paper
            backups, and gear worth having. With internet: download
@@ -91,6 +96,24 @@ WHAT'S ON THE SCREEN
   The AI can be wrong. For medical, electrical, gas, weapons or
   wild-food decisions, read the source it cites, and get trained
   help whenever you can.
+
+---------------------------------------------------------------------
+YOUR NEXT STEPS
+---------------------------------------------------------------------
+  Tell Beacon when this is for, what you're facing, who's with you,
+  where you are and what you have. "Almost nothing yet" is a fine
+  answer. Beacon then shows:
+    - what to do first, right now
+    - what each thing you have is good for
+    - what's missing, most important first, and how to make do
+      until you have it
+    - the plans, quick cards and manuals that fit
+  Every step has a button that opens the card, plan or tool for it.
+  It works with the AI off. Change your answers any time from Home.
+  The AI also uses them, so answers fit your people and your gear.
+
+  On this Mac, your answers are saved on the drive and phones can't
+  see them. On a phone, they stay on that phone.
 
 ---------------------------------------------------------------------
 SHARE WITH PHONES AND TABLETS
@@ -111,7 +134,7 @@ SHARE WITH PHONES AND TABLETS
 
   Guests can ask, plan, read, check in and save files to their
   phone. They can't change settings, download anything new, see your
-  household info or quit Beacon.
+  household info or setup answers, or quit Beacon.
 
   WHO'S CONNECTED: Share > Connections lists every device signed in,
   every wrong code and anything Beacon blocked, and the Mac pops up
@@ -121,7 +144,8 @@ SHARE WITH PHONES AND TABLETS
 ---------------------------------------------------------------------
 SAVE, PRINT AND KEEP
 ---------------------------------------------------------------------
-  - Every answer, plan and map has Save PDF.
+  - Every answer and plan has Save PDF. Your next steps too.
+  - Maps have Save image and Print.
   - Plans made on this Mac are kept on the drive automatically;
     answers when you click Save to Beacon. Find them in Library >
     Saved and on the Plan tab. They open even with the AI off.
@@ -134,28 +158,54 @@ SAVE, PRINT AND KEEP
     with your supplies in case all power is gone.
 
 ---------------------------------------------------------------------
-THE BOARD AND MESH RADIOS
+THE BOARD, RADIOS AND OTHER BEACONS
 ---------------------------------------------------------------------
   Board > "We're safe" or "We need help" puts your household on the
   roster everyone sees. Post needs, offers and reports. This Mac can
   pin and remove posts.
 
-  Meshtastic radios (optional) send short texts radio to radio, with
-  no cell service or internet: a few blocks in a dense town, many
-  miles with a clear view. Plug one into this Mac with a DATA USB
-  cable, then Board > Connect. Messages from radios appear on the
-  Board, and anyone with a radio can check in by sending a text like:
+  MESH RADIOS (optional). Meshtastic radios send short texts radio
+  to radio, with no cell service or internet: a few blocks in a
+  dense town, many miles with a clear view. Plug one into this Mac
+  with a DATA USB cable and Beacon connects to it by itself. Messages
+  from radios appear on the Board, and anyone with a radio can check
+  in by sending a text like:
         SAFE The Garcias
         HELP Unit 4B: out of insulin
-  Setup, private channels and range tips: the Meshtastic card.
+  A radio with GPS also tells the Map where this Mac is.
+  Setup, private channels and range tips: the Mesh radio card.
+
+  OTHER RADIOS. Tools > Radio channels: which walkie-talkie, CB,
+  marine and ham channels people listen to, the NOAA weather
+  channels, and a MAYDAY call written out from your details. A car
+  radio picks up AM and FM emergency broadcasts.
+
+  LINK ANOTHER BEACON. Two Beacons on the same network (a house and
+  a shelter, say) can share one Board. On the main Beacon, turn on
+  Share. On the other: Board > Linked Beacons, type the main
+  Beacon's address and code, and click Link. Check-ins and posts
+  then reach everyone on both. Only the Board is shared, and the
+  main Beacon can sign the link out under Share > Connections.
+
   Walkie-talkies, the check-in schedule and roles: the Community
   card. Ask Beacon to make a "Neighborhood network" plan.
 
 ---------------------------------------------------------------------
+UPDATES WHEN ONLINE  (optional, off until you turn it on)
+---------------------------------------------------------------------
+  When this Mac has internet, Beacon can check official weather
+  alerts for your area (US), disaster and earthquake alerts, travel
+  advisories and headlines, and keep them on the drive for reading
+  offline, on phones too. Turn it on in the setup questions, or
+  Home > Updates. Warnings for your area show at the top of Home.
+  Nothing about you or your questions is sent. The weather service
+  gets your town's rough location, to about a kilometer.
+
+---------------------------------------------------------------------
 LOCK THE DRIVE WITH A PASSWORD  (once)
 ---------------------------------------------------------------------
-  Your household info, plans and notes live on this drive. Locked,
-  a lost drive is just a lost drive.
+  Your household info, setup answers, plans and notes live on this
+  drive. Locked, a lost drive is just a lost drive.
   - In Finder, Control-click the drive and choose Encrypt. Pick a
     password you won't forget. Keep it somewhere separate from the
     drive. Encryption finishes in the background.
@@ -165,7 +215,8 @@ LOCK THE DRIVE WITH A PASSWORD  (once)
   - Only Macs can open an encrypted drive, and a forgotten password
     can't be recovered.
   The health check shows whether the drive is locked. To erase your
-  household info: Plan > Your household > Erase all of it.
+  household info and setup answers: Plan > Your household > Erase
+  all of it.
 
 ---------------------------------------------------------------------
 POWER
@@ -176,7 +227,9 @@ POWER
     working.
   - Tools > Power budget: how long a power station or solar panels
     will run the things you need.
-  - The Power card covers power stations, solar and generator safety.
+  - The Off-grid power card covers power stations, solar,
+    generator safety and making your own power. The Power outage
+    card covers staying safe and warm when the grid goes down.
 
 ---------------------------------------------------------------------
 WHAT SIZE DRIVE
@@ -234,6 +287,9 @@ IF SOMETHING GOES WRONG
   The mesh radio isn't found
       Use a data USB cable (some only charge) and another port. Set
       the radio's region in the Meshtastic app first.
+  A linked Beacon says "Signed out" or "Can't reach it"
+      Turn on Share on the main Beacon and link again with its
+      current code. Both must be on the same network.
   Anything else
       Ask Beacon. It has the cards, the manuals and your documents.
 
@@ -248,9 +304,10 @@ WHERE THINGS ARE ON THE DRIVE
   Beacon/library/books               reading shelf
   Beacon/maps                        offline maps and place names
   Beacon/models                      the AI brains
-  Beacon/data                        household info, saved plans,
-                                     the Board, search index, logs,
-                                     SBOM.txt (software list)
+  Beacon/data                        household info, setup answers,
+                                     saved plans, the Board, search
+                                     index, logs, SBOM.txt (software
+                                     list)
 
 =====================================================================
   Stay calm. Stay together. Read the source. You've got this.
