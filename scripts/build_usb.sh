@@ -37,7 +37,7 @@ warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
 [ "$(uname)" = "Darwin" ] || { echo "Run this on a Mac."; exit 1; }
 
 # ---- the drive's format
-FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}')"
+FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}' || true)"
 case "$FS" in
   *FAT32*|*MS-DOS*)
     warn "This drive is FAT32, which can't hold files over 4 GB."
@@ -51,7 +51,7 @@ case "$FS" in
 esac
 
 # ---- encryption: the household info and your notes live on this drive
-ENC="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/FileVault|Encrypted/{gsub(/^ +/,"",$2); print $2; exit}')"
+ENC="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/FileVault|Encrypted/{gsub(/^ +/,"",$2); print $2; exit}' || true)"
 case "$ENC" in
   Yes*) echo "Drive encryption: on." ;;
   *) warn "This drive isn't encrypted. Anyone who finds it could read your household info."
@@ -81,7 +81,7 @@ echo "Drive: $TARGET (${FS:-unknown format}), $(df -h "$TARGET" | awk 'NR==2{pri
 
 fetch() { # url dest: resumable, skips if complete
   local url="$1" dest="$2" size have
-  size="$(curl -sIL "$url" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub(/\r/,"",v); print v}')"
+  size="$(curl -sIL "$url" | awk 'tolower($1)=="content-length:"{v=$2} END{gsub(/\r/,"",v); print v}' || true)"
   have="$( [ -f "$dest" ] && stat -f%z "$dest" || echo 0)"
   if [ -n "$size" ] && [ "$have" = "$size" ]; then echo "  ✓ $(basename "$dest") (already downloaded)"; return 0; fi
   echo "  ↓ $(basename "$dest") ${size:+($((size/1024/1024)) MB)}"
@@ -102,15 +102,9 @@ verify() { # file sums_file: the file's SHA-256 must match its line in the publi
   echo "  ✓ checksum verified: $(basename "$file")"
 }
 
-gh_assets() { # repo -> download URLs of the latest release (no API rate limit), API as fallback
-  local repo="$1" tag
-  tag="$(curl -sI "https://github.com/$repo/releases/latest" | awk 'tolower($1)=="location:"{print $2}' | sed 's#.*/tag/##' | tr -d '\r')"
-  if [ -n "$tag" ]; then
-    curl -sL "https://github.com/$repo/releases/expanded_assets/$tag" \
-      | grep -oE "/$repo/releases/download/$tag/[^\"?#]+" | sort -u | sed 's#^#https://github.com#' || true
-  else
-    curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/' || true
-  fi
+record() { # name file sha256: a download, kept on the drive so the software list survives re-runs
+  { grep -v "^$1 " "$L/data/downloads.txt" 2>/dev/null || true; echo "$1 $2 $3"; } > "$WORK/downloads.txt"
+  mv "$WORK/downloads.txt" "$L/data/downloads.txt"
 }
 
 # ---------------------------------------------------------------- the app
@@ -131,20 +125,24 @@ echo "  ✓ Beacon.app"
 
 # ---------------------------------------------------------------- portable Python
 say "Portable Python $PY_VER (Apple Silicon and Intel)"
-ASSETS="$(gh_assets astral-sh/python-build-standalone)"
-PYURLS="$(echo "$ASSETS" | grep -E "cpython-${PY_VER//./\\.}\.[0-9]+(\+|%2[Bb])[0-9]+-[a-z0-9_]+-apple-darwin-install_only\.tar\.gz$" || true)"
-SUMS_URL="$(echo "$ASSETS" | grep -E '/SHA256SUMS$' | head -1 || true)"
+PBS="https://github.com/astral-sh/python-build-standalone/releases"
+py_sums() { # the latest release's checksum list, which also names every file in the release
+  [ -s "$WORK/py-SHA256SUMS" ] && return 0
+  PY_TAG="$(curl -sI "$PBS/latest" | awk 'tolower($1)=="location:"{print $2}' | sed 's#.*/tag/##' | tr -d '\r' || true)"
+  [ -n "$PY_TAG" ] || { warn "Couldn't reach GitHub for Python. Check the internet connection and run this again."; exit 1; }
+  curl -fsSL "$PBS/download/$PY_TAG/SHA256SUMS" -o "$WORK/py-SHA256SUMS" \
+    || { warn "Couldn't download Python's checksum list (release $PY_TAG). Run this again."; exit 1; }
+}
 for pair in "arm64:aarch64" "x86_64:x86_64"; do
   name="${pair%%:*}"; triple="${pair##*:}"
   if [ -e "$L/runtime/python-$name/bin/python3" ]; then echo "  ✓ python-$name"; continue; fi
-  url="$(echo "$PYURLS" | grep -- "-$triple-apple-darwin-install_only" | head -1 || true)"
-  [ -n "$url" ] || { warn "Couldn't find a Python download for $name Macs"; exit 1; }
-  fname="$(basename "$url" | sed 's/%2[Bb]/+/g')"     # GitHub writes the + in Python's file names as %2B
-  fetch "$url" "$WORK/$fname"
-  [ -s "$WORK/py-SHA256SUMS" ] || { [ -n "$SUMS_URL" ] && curl -fsSL "$SUMS_URL" -o "$WORK/py-SHA256SUMS" || true; }
+  py_sums
+  fname="$(awk '{print $2}' "$WORK/py-SHA256SUMS" | grep -E "^cpython-${PY_VER//./\\.}\.[0-9]+\+[0-9]+-$triple-apple-darwin-install_only\.tar\.gz\$" | head -1 || true)"
+  [ -n "$fname" ] || { warn "Couldn't find Python $PY_VER for $name Macs in release $PY_TAG"; exit 1; }
+  fetch "$PBS/download/$PY_TAG/${fname//+/%2B}" "$WORK/$fname"    # GitHub writes the + as %2B
   verify "$WORK/$fname" "$WORK/py-SHA256SUMS"
   mv "$WORK/$fname" "$WORK/py-$name.tar.gz"
-  echo "python-$name $fname $(shasum -a 256 "$WORK/py-$name.tar.gz" | awk '{print $1}')" >> "$WORK/sbom.txt"
+  record "python-$name" "$fname" "$(shasum -a 256 "$WORK/py-$name.tar.gz" | awk '{print $1}')"
   mkdir -p "$WORK/python-$name"
   tar -xzf "$WORK/py-$name.tar.gz" -C "$WORK/python-$name" --strip-components 1   # on the Mac's own disk
   "${COPY[@]}" "$WORK/python-$name/" "$L/runtime/python-$name/"                     # then onto the drive
@@ -176,17 +174,20 @@ if [ -z "$(find "$L/ollama/mac" -type f -name ollama 2>/dev/null | head -1)" ]; 
   fetch "$OURL" "$WORK/ollama-darwin.tgz"
   curl -fsSL "${OURL%/ollama-darwin.tgz}/sha256sum.txt" -o "$WORK/ollama-sums.txt" || true
   verify "$WORK/ollama-darwin.tgz" "$WORK/ollama-sums.txt"
-  echo "ollama $OLLAMA_VERSION ollama-darwin.tgz $(shasum -a 256 "$WORK/ollama-darwin.tgz" | awk '{print $1}')" >> "$WORK/sbom.txt"
+  OLLAMA_HASH="$(shasum -a 256 "$WORK/ollama-darwin.tgz" | awk '{print $1}')"
   mkdir -p "$WORK/ollama"; tar -xzf "$WORK/ollama-darwin.tgz" -C "$WORK/ollama"
   "${COPY[@]}" "$WORK/ollama/" "$L/ollama/mac/"
 fi
-OLLAMA_BIN="$(find "$L/ollama/mac" -type f -name ollama | head -1)"
+OLLAMA_BIN="$(find "$L/ollama/mac" -type f -name ollama | head -1 || true)"
+[ -n "$OLLAMA_BIN" ] || { warn "The AI engine download had no ollama program in it. Try --ollama-version with an older release."; exit 1; }
 chmod +x "$OLLAMA_BIN" 2>/dev/null || true; xattr -dr com.apple.quarantine "$L/ollama" 2>/dev/null || true
-echo "  ✓ $("$OLLAMA_BIN" --version 2>/dev/null | tail -1)"
+ollama_version() { "$OLLAMA_BIN" --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | tail -1 || true; }
+echo "  ✓ Ollama $(ollama_version)"
+[ -z "${OLLAMA_HASH:-}" ] || record ollama ollama-darwin.tgz "$OLLAMA_HASH"
 
 export OLLAMA_HOST="127.0.0.1:11435" OLLAMA_MODELS="$L/models"
 "$OLLAMA_BIN" serve >"$L/data/ollama-build.log" 2>&1 &
-OPID=$!; trap 'kill $OPID 2>/dev/null || true; rm -rf "$WORK"' EXIT
+OPID=$!; trap '{ kill $OPID && wait $OPID; } 2>/dev/null || true; rm -rf "$WORK"' EXIT   # wait, so bash doesn't print "Terminated"
 for _ in $(seq 1 60); do curl -s "http://$OLLAMA_HOST/api/version" >/dev/null && break; sleep 0.5; done
 
 export BEACON_OLLAMA_URL="http://$OLLAMA_HOST" BEACON_DATA_ROOT="$L" PYTHONNOUSERSITE=1
@@ -222,8 +223,8 @@ say "Indexing the manuals so the AI can search them"
 say "Software list (what's on this drive, with versions and hashes)"
 {
   echo "Beacon drive built $(date '+%Y-%m-%d %H:%M') on macOS $(sw_vers -productVersion)"
-  echo; echo "Downloaded programs (name, file, SHA-256):"; cat "$WORK/sbom.txt" 2>/dev/null || echo "  (already on the drive from an earlier build)"
-  echo; echo "AI engine: $("$OLLAMA_BIN" --version 2>/dev/null | tail -1)"
+  echo; echo "Downloaded programs (name, file, SHA-256):"; cat "$L/data/downloads.txt" 2>/dev/null || echo "  (not recorded)"
+  echo; echo "AI engine: Ollama $(ollama_version)"
   for name in arm64 x86_64; do
     echo; echo "Python packages for $name Macs:"; "$HPY" -m pip list --path "$L/runtime/site-$name" --format=freeze 2>/dev/null
   done
