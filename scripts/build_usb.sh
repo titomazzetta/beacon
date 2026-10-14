@@ -33,7 +33,11 @@ done
 
 say()  { printf "\n\033[1;33m▸ %s\033[0m\n" "$*"; }
 warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
-[ -n "$TARGET" ] && [ -d "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_DRIVE [--tier core|extended|complete|everything] [--region CITY] [--models \"...\"]"; exit 1; }
+[ -n "$TARGET" ] || { echo "Usage: $0 /Volumes/YOUR_DRIVE [--tier core|extended|complete|everything] [--region CITY] [--models \"...\"]"; exit 1; }
+[ -d "$TARGET" ] || { warn "Can't find $TARGET. Check that the drive is plugged in and the name is right (ls /Volumes lists them)."; exit 1; }
+[ -w "$TARGET" ] || { warn "You don't have permission to write to $TARGET."
+  warn "A folder made with sudo: run  sudo chown \"${USER:-$(id -un)}\" \"$TARGET\"  then try again."
+  warn "A whole drive: select it in Finder, choose File > Get Info, and tick \"Ignore ownership on this volume\"."; exit 1; }
 [ "$(uname)" = "Darwin" ] || { echo "Run this on a Mac."; exit 1; }
 
 # ---- the drive's format
@@ -113,12 +117,12 @@ rsync -rt --delete --exclude .git --exclude data --exclude library --exclude con
   --exclude tests --exclude .github --exclude docs --exclude platforms "$REPO/" "$L/app/"
 chmod +x "$L/app/scripts/launch.sh" 2>/dev/null || true
 rsync -rt "$REPO/library/manuals/" "$L/library/manuals/"
-cp "$REPO/START-HERE.txt" "$TARGET/START-HERE.txt"; cp "$REPO/START-HERE.txt" "$L/START-HERE.txt"
-cp "$REPO/scripts/Beacon (with Terminal).command" "$L/"; chmod +x "$L/Beacon (with Terminal).command" 2>/dev/null || true
+cp -X "$REPO/START-HERE.txt" "$TARGET/START-HERE.txt"; cp -X "$REPO/START-HERE.txt" "$L/START-HERE.txt"   # -X: no download quarantine flags
+cp -X "$REPO/scripts/Beacon (with Terminal).command" "$L/"; chmod +x "$L/Beacon (with Terminal).command" 2>/dev/null || true
 
 say "Building Beacon.app"
 osacompile -o "$WORK/Beacon.app" "$REPO/scripts/Beacon.applescript"
-cp "$REPO/scripts/Beacon.icns" "$WORK/Beacon.app/Contents/Resources/applet.icns"
+cp -X "$REPO/scripts/Beacon.icns" "$WORK/Beacon.app/Contents/Resources/applet.icns"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName Beacon" "$WORK/Beacon.app/Contents/Info.plist" 2>/dev/null || true
 rm -rf "$L/Beacon.app"; "${COPY[@]}" "$WORK/Beacon.app" "$L/"
 echo "  ✓ Beacon.app"

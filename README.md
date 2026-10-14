@@ -143,10 +143,14 @@ The builder installs Light and Strong by default; add others from the Library ta
 ## Build a drive (once, on a Mac with internet)
 
 1. In Disk Utility, erase the drive as **APFS (Encrypted)** and name it `BEACON`. (exFAT also works, but can't be encrypted.)
-2. Run:
+2. Get Beacon and run the builder in Terminal. With git:
    ```bash
    git clone https://github.com/titomazzetta/beacon.git && cd beacon
    ./scripts/build_usb.sh /Volumes/BEACON
+   ```
+   No git? Click **Code → Download ZIP** at the top of this page and unzip it in Downloads (Safari does that for you), then:
+   ```bash
+   cd ~/Downloads/beacon-main && bash scripts/build_usb.sh /Volumes/BEACON
    ```
    It asks which tier and which town to map in detail. Or pass options:
    ```bash
