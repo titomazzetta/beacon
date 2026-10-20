@@ -177,7 +177,7 @@ beacon/
   system.py       hardware, battery and drive checks
   installer.py    command-line installer used by the builder
 static/           index.html, beacon.css, js/ (one file per tab), vendor/ (bundled map and QR libraries)
-scripts/          build_usb.sh, launch.sh, the Beacon app, hash-locked requirements
+scripts/          build_usb.sh, make_app.sh (the Beacon app), launch.sh, hash-locked requirements
 tests/            one suite; the AI engine, internet, Bonjour and radio are faked
 ```
 

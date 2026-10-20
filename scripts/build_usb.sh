@@ -39,6 +39,17 @@ warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
   warn "A folder made with sudo: run  sudo chown \"${USER:-$(id -un)}\" \"$TARGET\"  then try again."
   warn "A whole drive: select it in Finder, choose File > Get Info, and tick \"Ignore ownership on this volume\"."; exit 1; }
 [ "$(uname)" = "Darwin" ] || { echo "Run this on a Mac."; exit 1; }
+MACOS="$(sw_vers -productVersion 2>/dev/null || echo 0)"
+[ "${MACOS%%.*}" -ge 14 ] 2>/dev/null || { warn "This Mac has macOS $MACOS. Building a drive needs macOS 14 Sonoma or newer, the same as using one."; exit 1; }
+
+# ---- not a Time Machine backup drive: macOS won't open apps stored on one
+MOUNT="$(df -P "$TARGET" | tail -1 | sed -E 's/^.*[0-9]+% +//' || true)"
+if [ -d "$MOUNT/Backups.backupdb" ] || \
+   tmutil destinationinfo 2>/dev/null | sed -n 's/^Mount Point *: *//p' | grep -xF "$MOUNT" >/dev/null; then
+  warn "$MOUNT is a Time Machine backup drive. macOS won't open apps stored on one, so Beacon couldn't start."
+  warn "Use a separate drive, or give Beacon its own volume: in Disk Utility, select this drive and choose Edit > Add APFS Volume."
+  exit 1
+fi
 
 # ---- the drive's format
 FS="$(diskutil info "$TARGET" 2>/dev/null | awk -F: '/File System Personality/{gsub(/^ +/,"",$2); print $2}' || true)"
@@ -74,10 +85,12 @@ if [ -z "$TIER" ] && [ -t 0 ]; then
   read -r -p "Detailed map around which town or city? (Enter to skip): " REGION
 fi
 TIER="${TIER:-core}"
+case "$TIER" in core|extended|complete|everything) ;; *) warn "Unknown tier \"$TIER\". Choose core, extended, complete or everything."; exit 1 ;; esac
 MODELS="${MODELS:-qwen3:4b qwen3:14b}"   # light brain for 8 GB Macs + strong brain for 16 GB+
 
 L="$TARGET/Beacon"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/beacon-build.XXXX")"
+caffeinate -i -w $$ >/dev/null 2>&1 &     # keep the Mac awake until the build ends
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$L"/{app,runtime,ollama/mac,models,library/zim,library/manuals,library/books,maps,data}
 touch "$TARGET/.metadata_never_index"     # keep Spotlight from crawling gigabytes of archives
@@ -121,11 +134,12 @@ cp -X "$REPO/START-HERE.txt" "$TARGET/START-HERE.txt"; cp -X "$REPO/START-HERE.t
 cp -X "$REPO/scripts/Beacon (with Terminal).command" "$L/"; chmod +x "$L/Beacon (with Terminal).command" 2>/dev/null || true
 
 say "Building Beacon.app"
-osacompile -o "$WORK/Beacon.app" "$REPO/scripts/Beacon.applescript"
-cp -X "$REPO/scripts/Beacon.icns" "$WORK/Beacon.app/Contents/Resources/applet.icns"
-/usr/libexec/PlistBuddy -c "Set :CFBundleName Beacon" "$WORK/Beacon.app/Contents/Info.plist" 2>/dev/null || true
-rm -rf "$L/Beacon.app"; "${COPY[@]}" "$WORK/Beacon.app" "$L/"
-echo "  ✓ Beacon.app"
+if bash "$REPO/scripts/make_app.sh" "$WORK/Beacon.app"; then
+  rm -rf "$L/Beacon.app"; "${COPY[@]}" "$WORK/Beacon.app" "$L/"
+  echo "  ✓ Beacon.app"
+else
+  warn "Couldn't build Beacon.app. Start Beacon with \"Beacon (with Terminal)\" on the drive instead."
+fi
 
 # ---------------------------------------------------------------- portable Python
 say "Portable Python $PY_VER (Apple Silicon and Intel)"

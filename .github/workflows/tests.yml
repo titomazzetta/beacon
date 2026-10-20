@@ -16,6 +16,13 @@ jobs:
       - run: pip install -r requirements.txt pytest pyflakes
       - run: python -m pyflakes beacon tests
       - run: python -m pytest -q
-      - run: bash -n scripts/build_usb.sh && bash -n scripts/launch.sh && bash -n "scripts/Beacon (with Terminal).command"
+      - run: bash -n scripts/build_usb.sh && bash -n scripts/make_app.sh && bash -n scripts/launch.sh && bash -n "scripts/Beacon (with Terminal).command"
       - if: runner.os == 'macOS'
-        run: osacompile -o "$RUNNER_TEMP/Beacon.app" scripts/Beacon.applescript
+        name: Beacon.app is signed, macOS opens it, and it starts the launcher
+        run: |
+          D="$RUNNER_TEMP/drive/Beacon"; mkdir -p "$D/app/scripts"
+          printf '#!/bin/bash\ntouch "%s/started"\n' "$D" > "$D/app/scripts/launch.sh"
+          bash scripts/make_app.sh "$D/Beacon.app"
+          open "$D/Beacon.app"
+          for _ in $(seq 1 30); do [ -f "$D/started" ] && break; sleep 1; done
+          test -f "$D/started"

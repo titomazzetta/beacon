@@ -142,7 +142,7 @@ The builder installs Light and Strong by default; add others from the Library ta
 
 ## Build a drive (once, on a Mac with internet)
 
-1. In Disk Utility, erase the drive as **APFS (Encrypted)** and name it `BEACON`. (exFAT also works, but can't be encrypted.)
+1. In Disk Utility, erase the drive as **APFS (Encrypted)** and name it `BEACON`. (exFAT also works, but can't be encrypted.) Don't use a Time Machine backup drive: macOS won't open apps stored on one.
 2. Get Beacon and run the builder in Terminal. With git:
    ```bash
    git clone https://github.com/titomazzetta/beacon.git && cd beacon
@@ -152,7 +152,7 @@ The builder installs Light and Strong by default; add others from the Library ta
    ```bash
    cd ~/Downloads/beacon-main && bash scripts/build_usb.sh /Volumes/BEACON
    ```
-   It asks which tier and which town to map in detail. Or pass options:
+   It asks which tier and which town to map in detail, and keeps the Mac awake until it's done. If macOS asks whether Terminal can use the drive, click Allow. Or pass options:
    ```bash
    ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
    ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
@@ -175,7 +175,7 @@ Open the drive, then the `Beacon` folder, and double-click **Beacon**. It opens 
 - **Location:** Macs have no GPS, and phones only share location with secure (HTTPS) pages, which Beacon's local network sharing isn't. Type a town or coordinates, or plug in a mesh radio with GPS.
 - **Linked Beacons work on one local network.** Linking across the internet isn't built yet (see the roadmap).
 - **Battery:** the AI draws far more power than reading. Low power mode keeps everything else running.
-- **Tested in CI and in browser walkthroughs, not yet across real Mac hardware.** The Meshtastic bridge is tested against a simulated radio; real-radio testing is the next step. Build a drive and run the health check: that's the real proof on your machine.
+- **Tested in CI, in browser walkthroughs, and with one real build** (Apple Silicon, macOS 27), not yet across many Macs. The Meshtastic bridge is tested against a simulated radio; real-radio testing is the next step. Build a drive and run the health check: that's the real proof on your machine.
 
 ## Develop
 
