@@ -91,7 +91,8 @@ WHAT'S ON THE SCREEN
   LIBRARY  Saved plans and answers, what's installed, the health
            check, your own documents, the reading shelf, paper
            backups, and gear worth having. With internet: download
-           more manuals, Wikipedia, maps and bigger AI brains.
+           more manuals, Wikipedia, maps and bigger AI brains, or
+           run the builder again; it only adds what's missing.
 
   The AI can be wrong. For medical, electrical, gas, weapons or
   wild-food decisions, read the source it cites, and get trained

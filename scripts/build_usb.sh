@@ -2,7 +2,9 @@
 # Build a Beacon drive. Run on a Mac with internet; the drive then runs offline on any Mac
 # with macOS 14 Sonoma or newer (Apple Silicon, or Intel Macs from about 2018 on).
 #
-#   ./scripts/build_usb.sh /Volumes/BEACON                    # asks a few questions
+#   ./scripts/build_usb.sh /Volumes/BEACON                    # suggests what fits this drive and Mac, then asks
+#   ./scripts/build_usb.sh /Volumes/BEACON --fit --region "Denver"   # build the suggestion, no questions
+#   ./scripts/build_usb.sh /Volumes/BEACON --quick                   # Core + the light brain: the fastest first load
 #   ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
 #   ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
 #   ./scripts/build_usb.sh /Volumes/BEACON --ollama-version v0.40.2   # pin a tested engine
@@ -14,12 +16,14 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-}"; [ $# -gt 0 ] && shift
-TIER=""; MODELS=""; REGION=""; RADIUS="300"; MAPS=1; OLLAMA_VERSION="latest"; MESH=1; VERIFY=1
+TIER=""; MODELS=""; REGION=""; RADIUS="300"; MAPS=1; OLLAMA_VERSION="latest"; MESH=1; VERIFY=1; FIT=0; QUICK=0
 PY_VER="3.12"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --tier) TIER="$2"; shift 2 ;;
+    --fit) FIT=1; shift ;;
+    --quick) QUICK=1; shift ;;
     --models) MODELS="$2"; shift 2 ;;
     --region) REGION="$2"; shift 2 ;;
     --radius) RADIUS="$2"; shift 2 ;;
@@ -73,20 +77,64 @@ case "$ENC" in
      warn "To lock it with a password (APFS drives): in Finder, Control-click the drive and choose Encrypt." ;;
 esac
 
-# ---- a few questions if run without options
-if [ -z "$TIER" ] && [ -t 0 ]; then
-  echo; echo "Which library tier?"
-  echo "  1) Core        the essentials (64 GB drive)"
-  echo "  2) Extended    + repair, off-grid, homesteading, reading shelf (128 GB)"
-  echo "  3) Complete    + WikiHow, Wikipedia intros, learning (256 GB)"
-  echo "  4) Everything  + all of Wikipedia (512 GB or more)"
-  read -r -p "Choose 1-4 [1]: " n
-  case "${n:-1}" in 2) TIER=extended ;; 3) TIER=complete ;; 4) TIER=everything ;; *) TIER=core ;; esac
+# ---- what fits: the drive's free space and this Mac's memory decide the suggestion
+FREE_GB=$(( $(df -k "$TARGET" | awk 'NR==2{print $4}') / 1048576 ))
+RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 ))
+RESERVE=$(( FREE_GB / 10 )); [ $RESERVE -lt 5 ] && RESERVE=5          # kept free for your own PDFs, plans and maps
+tier_gb()    { case "$1" in core) echo 15 ;; extended) echo 60 ;; complete) echo 130 ;; everything) echo 260 ;; esac; }  # rough downloads
+tier_about() { case "$1" in core) echo "Core: the essentials" ;; extended) echo "Extended: + repair, off-grid, homesteading, the reading shelf" ;;
+                            complete) echo "Complete: + WikiHow, Wikipedia intros, learning" ;; everything) echo "Everything: + all of Wikipedia" ;; esac; }
+PLAN_MODELS="qwen3:4b"; BRAINS_GB=3                                   # the light brain runs on any Mac, and is the fallback
+[ $RAM_GB -ge 16 ] && { PLAN_MODELS="$PLAN_MODELS qwen3:14b"; BRAINS_GB=$((BRAINS_GB + 10)); }
+BIG=""; BIG_GB=0                                                      # the strongest brain this Mac can run
+if   [ $RAM_GB -ge 96 ]; then BIG="gpt-oss:120b"; BIG_GB=65
+elif [ $RAM_GB -ge 32 ]; then BIG="qwen3.6:27b";  BIG_GB=17
+elif [ $RAM_GB -ge 24 ]; then BIG="gpt-oss:20b";  BIG_GB=14; fi
+plan_tier() { # the largest library that fits beside $1 GB of brains
+  local gb="$1" t out=""
+  for t in core extended complete everything; do
+    [ $(( $(tier_gb $t) + gb + 5 + RESERVE )) -le $FREE_GB ] && out=$t
+  done
+  echo "$out"
+}
+PLAN_TIER="$(plan_tier $((BRAINS_GB + BIG_GB)))"
+if [ -n "$BIG" ] && [ "$(plan_tier $BRAINS_GB)" != "$PLAN_TIER" ] && [ "$PLAN_TIER" != everything ]; then
+  [ $RAM_GB -ge 96 ] && { BIG="qwen3.6:27b"; BIG_GB=17; PLAN_TIER="$(plan_tier $((BRAINS_GB + BIG_GB)))"; }   # Titan costs a whole tier: step down
+fi
+if [ -n "$BIG" ] && [ "$(plan_tier $BRAINS_GB)" != "$PLAN_TIER" ] && [ "$PLAN_TIER" != everything ]; then
+  BIG=""; BIG_GB=0; PLAN_TIER="$(plan_tier $BRAINS_GB)"                 # library before the biggest brain; add it later from the Library tab
+fi
+[ -z "$BIG" ] || { PLAN_MODELS="$PLAN_MODELS $BIG"; BRAINS_GB=$((BRAINS_GB + BIG_GB)); }
+if [ -z "$PLAN_TIER" ]; then
+  warn "This drive has $FREE_GB GB free. Even the Core library with the light brain needs about $((15 + 3 + 5)) GB, plus room for your own files."
+  [ -n "$TIER" ] || exit 1
+  PLAN_TIER=core
+fi
+PLAN_GB=$(( $(tier_gb $PLAN_TIER) + BRAINS_GB + 5 ))
+
+if [ $QUICK = 1 ]; then
+  TIER="${TIER:-core}"; MODELS="${MODELS:-qwen3:4b}"
+elif [ $FIT = 1 ]; then
+  TIER="${TIER:-$PLAN_TIER}"
+elif [ -z "$TIER" ] && [ -t 0 ]; then
+  echo
+  echo "This drive has $FREE_GB GB free. This Mac has $RAM_GB GB of memory."
+  echo "Suggested: $(tier_about $PLAN_TIER), with brains $PLAN_MODELS: about $PLAN_GB GB, leaving $((FREE_GB - PLAN_GB)) GB for your own files."
+  echo "  Enter)  build the suggestion"
+  echo "  q)      quick first load: Core + the light brain, about $((15 + 3 + 5)) GB; run this again later to add the rest"
+  echo "  1-4)    1 Core, 2 Extended, 3 Complete, 4 Everything (about 15, 60, 130 and 260 GB of library)"
+  read -r -p "Choice [Enter]: " n
+  case "$n" in
+    q|Q) TIER=core; MODELS="${MODELS:-qwen3:4b}" ;;
+    1) TIER=core ;; 2) TIER=extended ;; 3) TIER=complete ;; 4) TIER=everything ;;
+    *) TIER=$PLAN_TIER ;;
+  esac
   read -r -p "Detailed map around which town or city? (Enter to skip): " REGION
 fi
 TIER="${TIER:-core}"
 case "$TIER" in core|extended|complete|everything) ;; *) warn "Unknown tier \"$TIER\". Choose core, extended, complete or everything."; exit 1 ;; esac
-MODELS="${MODELS:-qwen3:4b qwen3:14b}"   # light brain for 8 GB Macs + strong brain for 16 GB+
+MODELS="${MODELS:-$PLAN_MODELS}"
+echo "Plan: $(tier_about $TIER); brains $MODELS; ${REGION:+detailed map $RADIUS km around $REGION; }$FREE_GB GB free on the drive."
 
 L="$TARGET/Beacon"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/beacon-build.XXXX")"
@@ -94,7 +142,7 @@ caffeinate -i -w $$ >/dev/null 2>&1 &     # keep the Mac awake until the build e
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$L"/{app,runtime,ollama/mac,models,library/zim,library/manuals,library/books,maps,data}
 touch "$TARGET/.metadata_never_index"     # keep Spotlight from crawling gigabytes of archives
-echo "Drive: $TARGET (${FS:-unknown format}), $(df -h "$TARGET" | awk 'NR==2{print $4}') free, $TIER tier"
+echo "Drive: $TARGET (${FS:-unknown format})"
 
 fetch() { # url dest: resumable, skips if complete
   local url="$1" dest="$2" size have

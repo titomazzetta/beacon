@@ -120,12 +120,12 @@ Plus **26 quick-reference cards** written for Beacon and the cliff notes, a gear
 - **Memory:** 8 GB works with the light brain; 16 GB or more is recommended.
 - **Drive:** a portable SSD is much faster than a thumb drive for loading the AI. APFS format is best (and can be encrypted).
 
-| Library tier | Drive size | Adds |
-|---|---|---|
-| Core | 64 GB | The essentials |
-| Extended | 128 GB | Repair, off-grid, homesteading, books |
-| Complete | 256 GB | WikiHow, Wikipedia intros, learning |
-| Everything | 512 GB+ | All of Wikipedia (1 TB recommended) |
+| Library tier | Download (about) | Drive size | Adds |
+|---|---|---|---|
+| Core | 15 GB | 64 GB | The essentials |
+| Extended | 60 GB | 128 GB | Repair, off-grid, homesteading, books |
+| Complete | 130 GB | 256 GB | WikiHow, Wikipedia intros, learning |
+| Everything | 260 GB | 512 GB+ | All of Wikipedia (1 TB recommended) |
 
 **Recommended: a 1 TB USB-C SSD** (Samsung T7 Shield, SanDisk Extreme, Crucial X9/X10). It holds everything, bigger brains and your own files. The Library tab shows exact sizes before downloading.
 
@@ -152,14 +152,20 @@ The builder installs Light and Strong by default; add others from the Library ta
    ```bash
    cd ~/Downloads/beacon-main && bash scripts/build_usb.sh /Volumes/BEACON
    ```
-   It asks which tier and which town to map in detail, and keeps the Mac awake until it's done. If macOS asks whether Terminal can use the drive, click Allow. Or pass options:
+   It looks at the drive's free space and the Mac's memory, suggests the biggest library and brains that fit while keeping a tenth of the drive free for your own files, and asks which town to map in detail. Press Enter to build the suggestion, or `q` for a quick first load. It keeps the Mac awake until it's done. If macOS asks whether Terminal can use the drive, click Allow. Or pass options:
    ```bash
+   ./scripts/build_usb.sh /Volumes/BEACON --quick                                 # Core + the light brain, the fastest first load
+   ./scripts/build_usb.sh /Volumes/BEACON --fit --region "Denver"                 # the suggestion, no questions
    ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
    ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
-   ./scripts/build_usb.sh /Volumes/BEACON --no-mesh      # leave out the Meshtastic add-on
+   ./scripts/build_usb.sh /Volumes/BEACON --no-mesh                               # leave out the Meshtastic add-on
    ```
-   Re-run any time to resume or refresh. The builder verifies every program against its publisher's checksum (or a pinned hash) before using it, installs Python packages from a hash lock, checks that the AI answers from the drive, and writes a software list with hashes to `Beacon/data/SBOM.txt`.
+   The builder verifies every program against its publisher's checksum (or a pinned hash) before using it, installs Python packages from a hash lock, checks that the AI answers from the drive, and writes a software list with hashes to `Beacon/data/SBOM.txt`.
 3. Add your own PDFs to `Beacon/library/manuals/` and click **Index new files** in the Library tab.
+
+**Top it up later.** A quick load first, the rest when there's time: run the builder again with a bigger tier, more brains or another `--region`, and it downloads only what's missing. The Library tab does the same from inside Beacon, with exact sizes. Start the big tiers before bed: all of Wikipedia is hours of downloading, and an interrupted run resumes where it stopped.
+
+**Maps.** The world map (towns, main roads) comes with every build. `--region` adds streets and trails around one place; 300 km is a day's drive and a gigabyte or two. Add a second region for where you'd go (a relative's town, the coast) by running the builder again with that place. A whole-country region is tens of gigabytes and many hours, and Beacon has no turn-by-turn routing yet, so a few regions beat one giant one.
 
 ## Use it
 
