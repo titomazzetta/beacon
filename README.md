@@ -110,7 +110,7 @@ Everything is downloaded from the original publisher by the builder; nothing cop
 | Mind, body and discipline | Army Holistic Health and Fitness (FM 7-22), Psychological First Aid (NCTSN and WHO), *Meditations*, *Enchiridion*, *Walden* |
 | Reading shelf | *South*, *Robinson Crusoe*, *The Mysterious Island*, *Monte Cristo*, *The Art of War*, the Bible, Bhagavad Gita, Tao Te Ching, Dhammapada, Qur'an and more |
 | Learning and schooling | PhET simulations, Wikiversity, Khan Academy |
-| Wikipedia and general knowledge | Medicine subset, top articles, Wikibooks, WikiHow, all of Wikipedia (intros, no pictures, or full) |
+| Wikipedia and general knowledge | Medicine subset, top articles, Wikibooks, all of Wikipedia (intros, no pictures, or full); WikiHow when Kiwix publishes it again |
 
 Plus **26 quick-reference cards** written for Beacon and the cliff notes, a gear list (power stations and solar, NOAA and crank radios, Meshtastic radios, FRS and GMRS walkie-talkies, water filters, tourniquets and more) and the survival books worth owning in print.
 
@@ -124,7 +124,7 @@ Plus **26 quick-reference cards** written for Beacon and the cliff notes, a gear
 |---|---|---|---|
 | Core | 10 GB | 64 GB | The essentials |
 | Extended | 35 GB | 128 GB | Repair, off-grid, homesteading, books |
-| Complete | 70 GB | 256 GB | WikiHow, Wikipedia intros, learning |
+| Complete | 70 GB | 256 GB | Wikipedia intros, Wikibooks, learning |
 | Everything | 290 GB | 512 GB+ | All of Wikipedia (text) and Khan Academy (1 TB recommended) |
 
 **Recommended: a 1 TB USB-C SSD** (Samsung T7 Shield, SanDisk Extreme, Crucial X9/X10). It holds everything, bigger brains and your own files. The Library tab shows exact sizes before downloading.

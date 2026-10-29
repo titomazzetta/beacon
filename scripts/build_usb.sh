@@ -90,7 +90,7 @@ RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 ))
 RESERVE=$(( FREE_GB / 10 )); [ $RESERVE -lt 5 ] && RESERVE=5          # kept free for your own PDFs, plans and maps
 tier_gb()    { case "$1" in core) echo 10 ;; extended) echo 35 ;; complete) echo 70 ;; everything) echo 290 ;; esac; }  # measured Oct 2026
 tier_about() { case "$1" in core) echo "Core: the essentials" ;; extended) echo "Extended: + repair, off-grid, homesteading, the reading shelf" ;;
-                            complete) echo "Complete: + WikiHow, Wikipedia intros, learning" ;; everything) echo "Everything: + all of Wikipedia (text) and Khan Academy" ;; esac; }
+                            complete) echo "Complete: + Wikipedia intros, Wikibooks, learning" ;; everything) echo "Everything: + all of Wikipedia (text) and Khan Academy" ;; esac; }
 PLAN_MODELS="qwen3:4b"; BRAINS_GB=3                                   # the light brain runs on any Mac, and is the fallback
 [ $RAM_GB -ge 16 ] && { PLAN_MODELS="$PLAN_MODELS qwen3:14b"; BRAINS_GB=$((BRAINS_GB + 10)); }
 BIG=""; BIG_GB=0                                                      # the strongest brain this Mac can run

@@ -1,4 +1,4 @@
-"""Full-text search over Kiwix .zim files (offline Wikipedia, WikiHow, iFixit, medical...).
+"""Full-text search over Kiwix .zim files (offline Wikipedia, Wikibooks, iFixit, medical...).
 
 Reads the .zim files directly with libzim, so kiwix-serve doesn't need to be running.
 """

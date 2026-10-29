@@ -14,7 +14,7 @@
     {
       "id": "complete",
       "title": "Complete",
-      "about": "Adds WikiHow and Wikipedia intros. ~256 GB drive."
+      "about": "Adds Wikipedia intros, Wikibooks, learning and more Q&A. ~256 GB drive."
     },
     {
       "id": "everything",
@@ -483,8 +483,9 @@
           "id": "cdc",
           "type": "zim",
           "tier": "extended",
-          "query": "CDC Centers for Disease Control",
-          "title": "CDC health and emergency guidance",
+          "name": "wwwnc.cdc.gov_en_all",
+          "query": "cdc",
+          "title": "CDC travelers' health and infectious diseases (wwwnc.cdc.gov)",
           "license": "Public domain (US Gov)"
         },
         {
@@ -1140,12 +1141,11 @@
         },
         {
           "id": "wikihow",
-          "type": "zim",
+          "type": "link",
           "tier": "complete",
-          "name": "wikihow_en",
-          "flavour": "maxi",
-          "query": "wikihow",
+          "url": "https://library.kiwix.org/#lang=eng&q=wikihow",
           "title": "WikiHow: illustrated how-tos",
+          "note": "Kiwix stopped publishing the WikiHow archive in 2026. If it comes back, download the .zim from this page into library/zim.",
           "license": "CC BY-NC-SA"
         },
         {

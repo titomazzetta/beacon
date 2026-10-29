@@ -243,7 +243,7 @@ WHAT SIZE DRIVE
     Library tier   Drive     What it adds
     Core           64 GB     the essentials
     Extended       128 GB    repair, off-grid, homesteading, books
-    Complete       256 GB    WikiHow, Wikipedia intros, learning
+    Complete       256 GB    Wikipedia intros, Wikibooks, learning
     Everything     512 GB+   all of Wikipedia (1 TB recommended)
 
   The Library tab shows exact sizes before you download anything.
