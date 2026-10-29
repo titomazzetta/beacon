@@ -5,6 +5,7 @@
 #   ./scripts/build_usb.sh /Volumes/BEACON                    # suggests what fits this drive and Mac, then asks
 #   ./scripts/build_usb.sh /Volumes/BEACON --fit --region "Denver"   # build the suggestion, no questions
 #   ./scripts/build_usb.sh /Volumes/BEACON --quick                   # Core + the light brain: the fastest first load
+#   ./scripts/build_usb.sh /Volumes/BEACON --max --region "Denver"   # everything there is, including Wikipedia with images
 #   ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
 #   ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
 #   ./scripts/build_usb.sh /Volumes/BEACON --ollama-version v0.40.2   # pin a tested engine
@@ -16,7 +17,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-}"; [ $# -gt 0 ] && shift
-TIER=""; MODELS=""; REGION=""; RADIUS="300"; MAPS=1; OLLAMA_VERSION="latest"; MESH=1; VERIFY=1; FIT=0; QUICK=0
+TIER=""; MODELS=""; REGION=""; RADIUS="300"; MAPS=1; OLLAMA_VERSION="latest"; MESH=1; VERIFY=1; FIT=0; QUICK=0; MAX=0
 PY_VER="3.12"
 
 while [ $# -gt 0 ]; do
@@ -24,6 +25,7 @@ while [ $# -gt 0 ]; do
     --tier) TIER="$2"; shift 2 ;;
     --fit) FIT=1; shift ;;
     --quick) QUICK=1; shift ;;
+    --max) MAX=1; shift ;;
     --models) MODELS="$2"; shift 2 ;;
     --region) REGION="$2"; shift 2 ;;
     --radius) RADIUS="$2"; shift 2 ;;
@@ -120,6 +122,9 @@ PLAN_GB=$(( $(tier_gb $PLAN_TIER) + BRAINS_GB + 5 ))
 
 if [ $QUICK = 1 ]; then
   TIER="${TIER:-core}"; MODELS="${MODELS:-qwen3:4b}"
+elif [ $MAX = 1 ]; then
+  TIER="${TIER:-everything}"
+  [ $(( 290 + 110 + BRAINS_GB + 5 )) -le $FREE_GB ] || warn "Everything with Wikipedia's images is about $((290 + 110 + BRAINS_GB + 5)) GB; this drive has $FREE_GB GB free. Downloads stop when it's full."
 elif [ $FIT = 1 ]; then
   TIER="${TIER:-$PLAN_TIER}"
 elif [ -z "$TIER" ] && [ -t 0 ]; then
@@ -140,13 +145,16 @@ fi
 TIER="${TIER:-core}"
 case "$TIER" in core|extended|complete|everything) ;; *) warn "Unknown tier \"$TIER\". Choose core, extended, complete or everything."; exit 1 ;; esac
 MODELS="${MODELS:-$PLAN_MODELS}"
-echo "Plan: $(tier_about $TIER); brains $MODELS; ${REGION:+detailed map $RADIUS km around $REGION; }$FREE_GB GB free on the drive."
+WITH_IMAGES=""; [ $MAX = 1 ] && WITH_IMAGES=" plus Wikipedia with images"
+echo "Plan: $(tier_about $TIER)$WITH_IMAGES; brains $MODELS; ${REGION:+detailed map $RADIUS km around $REGION; }$FREE_GB GB free on the drive."
 
 L="$TARGET/Beacon"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/beacon-build.XXXX")"
 caffeinate -i -w $$ >/dev/null 2>&1 &     # keep the Mac awake until the build ends
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$L"/{app,runtime,ollama/mac,models,library/zim,library/manuals,library/books,maps,data}
+mkdir -p "$L"/{app,runtime,ollama/mac,models,library/zim,library/manuals,library/books,maps,data/logs}
+exec > >(tee -a "$L/data/logs/build.log") 2>&1      # everything below is also kept on the drive
+echo "==== build started $(date '+%Y-%m-%d %H:%M') ===="
 touch "$TARGET/.metadata_never_index"     # keep Spotlight from crawling gigabytes of archives
 echo "Drive: $TARGET (${FS:-unknown format})"
 
@@ -278,7 +286,8 @@ else
 fi
 
 say "Library: $TIER tier"
-"${INSTALL[@]}" --tier "$TIER" || warn "Some items failed; retry later in the Library tab."
+OPT=""; [ $MAX = 1 ] && OPT="--optional"
+"${INSTALL[@]}" --tier "$TIER" $OPT || warn "Some items failed; retry later in the Library tab."
 
 if [ $MAPS = 1 ]; then
   say "Maps"
@@ -304,10 +313,14 @@ say "Software list (what's on this drive, with versions and hashes)"
 } > "$L/data/SBOM.txt"
 echo "  ✓ Beacon/data/SBOM.txt"
 
+say "Library report"
+"${INSTALL[@]}" --report --tier "$TIER" $OPT | tee "$L/data/library-report.txt" || true
+
 dot_clean -m "$L" 2>/dev/null || true
 say "Done. Free space left: $(df -h "$TARGET" | awk 'NR==2{print $4}')"
 cat <<EOF
 
   Open the drive, then the Beacon folder, and double-click Beacon.
   START-HERE.txt at the top of the drive explains everything else.
+  This build's output is in Beacon/data/logs/build.log, and the library report in Beacon/data/library-report.txt.
 EOF

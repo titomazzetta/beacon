@@ -178,7 +178,7 @@ These are deliberate trade-offs, written down so nobody has to discover them.
 ## Check it yourself
 
 ```bash
-python -m pytest -q          # 81 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q          # 82 tests; the AI engine, internet, Bonjour and radio are faked
 ```
 
 On a Mac running Beacon:

@@ -1658,3 +1658,24 @@ def test_leftovers_and_bogus_files_show_up_in_the_health_check(env, tmp_path):
     by = {r["name"]: r for r in rep["results"]}
     assert not by["wilderness/FM-3-25.26-Map-Reading.pdf"]["ok"] and "empty" in by["wilderness/FM-3-25.26-Map-Reading.pdf"]["detail"]
     assert by["wikipedia_en_all_mini_2026-09.zim"]["warn"] and "free 0.0 GB" in by["wikipedia_en_all_mini_2026-09.zim"]["detail"]
+
+
+def test_installer_report_lists_every_item_with_its_state(env, tmp_path, capsys):
+    from beacon import installer
+    cfg = env["cfg"]
+    inst = library.Installed(str(tmp_path / "i.json"), cfg["data_root"])
+    bogus = Path(cfg["manuals_dir"]) / "wilderness" / "ATP-3-50.21-Army-Survival-2018.pdf"
+    bogus.parent.mkdir(parents=True, exist_ok=True); bogus.write_bytes(b"")
+    good = Path(cfg["manuals_dir"]) / "medical" / "Stop-the-Bleed-Instructions.pdf"
+    good.parent.mkdir(parents=True, exist_ok=True); good.write_bytes(b"%PDF-1.4 bleeding control")
+    inst.set("stop-the-bleed", str(good))
+    failed = tmp_path / "failed.json"
+    installer._note_failure(failed, "wikimed", "WikiMed", "Tunnel connection failed: 403")
+    text = installer.report(library.load_catalog(), inst, cfg, failed, "core")
+    lines = {l.strip()[2:].split("  ")[0]: l for l in text.splitlines() if l.strip()[:1] in "✓✗"}
+    assert "1 of 47 items on the drive" in text
+    assert lines["Stop the Bleed: step-by-step bleeding control"].strip().startswith("✓")
+    assert "empty file" in lines["Army Survival manual (ATP 3-50.21, 2018)"]
+    assert "403" in lines["WikiMed medical encyclopedia"]
+    installer._forget_failure(failed, "wikimed")
+    assert "wikimed" not in json.loads(failed.read_text())

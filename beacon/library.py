@@ -29,14 +29,15 @@ def all_items(catalog: dict) -> list[dict]:
     return out
 
 
-def items_for_tier(catalog: dict, tier: str, bands: list[str] | None = None) -> list[dict]:
+def items_for_tier(catalog: dict, tier: str, bands: list[str] | None = None,
+                   optional: bool = False) -> list[dict]:
     """Downloadable items up to and including `tier`. Optional items (e.g. Wikipedia with
-    images) are never auto-selected, and only one item per exclusive group is chosen:
-    the largest tier that qualifies."""
+    images) are only chosen when asked for, and only one item per exclusive group is chosen:
+    the largest tier that qualifies (optional items count as the largest)."""
     limit = TIER_ORDER.index(tier)
     chosen, groups = [], {}
     for it in all_items(catalog):
-        if it["type"] == "link" or it.get("optional"):
+        if it["type"] == "link" or (it.get("optional") and not optional):
             continue
         if bands and it["band"] not in bands:
             continue
@@ -45,7 +46,8 @@ def items_for_tier(catalog: dict, tier: str, bands: list[str] | None = None) -> 
         g = it.get("group")
         if g:
             prev = groups.get(g)
-            if prev is None or TIER_ORDER.index(it["tier"]) >= TIER_ORDER.index(prev["tier"]):
+            rank = lambda x: (TIER_ORDER.index(x["tier"]), bool(x.get("optional")))
+            if prev is None or rank(it) >= rank(prev):
                 if prev:
                     chosen.remove(prev)
                 groups[g] = it

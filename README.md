@@ -156,12 +156,15 @@ The builder installs Light and Strong by default; add others from the Library ta
    ```bash
    ./scripts/build_usb.sh /Volumes/BEACON --quick                                 # Core + the light brain, the fastest first load
    ./scripts/build_usb.sh /Volumes/BEACON --fit --region "Denver"                 # the suggestion, no questions
+   ./scripts/build_usb.sh /Volumes/BEACON --max --region "Denver"                 # everything there is, Wikipedia with images included (about 400 GB)
    ./scripts/build_usb.sh /Volumes/BEACON --tier extended --region "Denver" --radius 300
    ./scripts/build_usb.sh /Volumes/BEACON --models "qwen3:4b qwen3:14b qwen3.6:27b"
    ./scripts/build_usb.sh /Volumes/BEACON --no-mesh                               # leave out the Meshtastic add-on
    ```
    The builder verifies every program against its publisher's checksum (or a pinned hash) before using it, installs Python packages from a hash lock, checks that the AI answers from the drive, and writes a software list with hashes to `Beacon/data/SBOM.txt`.
 3. Add your own PDFs to `Beacon/library/manuals/` and click **Index new files** in the Library tab.
+
+**Check what landed.** Every build ends with a library report, one line per item with a ✓ or the reason it failed, kept at `Beacon/data/library-report.txt`; the whole build output is in `Beacon/data/logs/build.log`. A site that blocks automatic downloads shows up there as "sent a web page instead of the PDF": open that link in a browser and save the file into `Beacon/library/manuals`. Quit Beacon before running the builder; it refuses to run while Beacon is open.
 
 **Top it up later.** A quick load first, the rest when there's time: run the builder again with a bigger tier, more brains or another `--region`, and it downloads only what's missing. The Library tab does the same from inside Beacon, with exact sizes. Start the big tiers before bed: all of Wikipedia is hours of downloading, and an interrupted run resumes where it stopped.
 
@@ -189,7 +192,7 @@ Open the drive, then the `Beacon` folder, and double-click **Beacon**. It opens 
 pip install -r requirements.txt pytest       # Python 3.10+
 ollama pull qwen3:4b && ollama pull nomic-embed-text
 python -m beacon                             # http://127.0.0.1:8642
-python -m pytest -q                          # 81 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q                          # 82 tests; the AI engine, internet, Bonjour and radio are faked
 python -m beacon.installer --list            # everything the library can install
 ```
 
