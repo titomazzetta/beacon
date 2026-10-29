@@ -46,6 +46,11 @@ warn() { printf "\033[0;31m  ! %s\033[0m\n" "$*"; }
 MACOS="$(sw_vers -productVersion 2>/dev/null || echo 0)"
 [ "${MACOS%%.*}" -ge 14 ] 2>/dev/null || { warn "This Mac has macOS $MACOS. Building a drive needs macOS 14 Sonoma or newer, the same as using one."; exit 1; }
 
+# ---- not while Beacon is open: two programs writing the same records would lose downloads
+if curl -s -m 2 "http://127.0.0.1:8642/api/ping" >/dev/null 2>&1; then
+  warn "Beacon is open. Quit it first (the status button at the top right, then Quit) and run this again."; exit 1
+fi
+
 # ---- not a Time Machine backup drive: macOS won't open apps stored on one
 MOUNT="$(df -P "$TARGET" | tail -1 | sed -E 's/^.*[0-9]+% +//' || true)"
 if [ -d "$MOUNT/Backups.backupdb" ] || \
@@ -81,15 +86,16 @@ esac
 FREE_GB=$(( $(df -k "$TARGET" | awk 'NR==2{print $4}') / 1048576 ))
 RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 ))
 RESERVE=$(( FREE_GB / 10 )); [ $RESERVE -lt 5 ] && RESERVE=5          # kept free for your own PDFs, plans and maps
-tier_gb()    { case "$1" in core) echo 15 ;; extended) echo 60 ;; complete) echo 130 ;; everything) echo 260 ;; esac; }  # rough downloads
+tier_gb()    { case "$1" in core) echo 10 ;; extended) echo 35 ;; complete) echo 70 ;; everything) echo 290 ;; esac; }  # measured Oct 2026
 tier_about() { case "$1" in core) echo "Core: the essentials" ;; extended) echo "Extended: + repair, off-grid, homesteading, the reading shelf" ;;
-                            complete) echo "Complete: + WikiHow, Wikipedia intros, learning" ;; everything) echo "Everything: + all of Wikipedia" ;; esac; }
+                            complete) echo "Complete: + WikiHow, Wikipedia intros, learning" ;; everything) echo "Everything: + all of Wikipedia (text) and Khan Academy" ;; esac; }
 PLAN_MODELS="qwen3:4b"; BRAINS_GB=3                                   # the light brain runs on any Mac, and is the fallback
 [ $RAM_GB -ge 16 ] && { PLAN_MODELS="$PLAN_MODELS qwen3:14b"; BRAINS_GB=$((BRAINS_GB + 10)); }
 BIG=""; BIG_GB=0                                                      # the strongest brain this Mac can run
 if   [ $RAM_GB -ge 96 ]; then BIG="gpt-oss:120b"; BIG_GB=65
 elif [ $RAM_GB -ge 32 ]; then BIG="qwen3.6:27b";  BIG_GB=17
 elif [ $RAM_GB -ge 24 ]; then BIG="gpt-oss:20b";  BIG_GB=14; fi
+[ $QUICK = 1 ] && { BIG=""; BIG_GB=0; PLAN_MODELS="qwen3:4b"; BRAINS_GB=3; }   # quick: the light brain only
 plan_tier() { # the largest library that fits beside $1 GB of brains
   local gb="$1" t out=""
   for t in core extended complete everything; do
@@ -106,7 +112,7 @@ if [ -n "$BIG" ] && [ "$(plan_tier $BRAINS_GB)" != "$PLAN_TIER" ] && [ "$PLAN_TI
 fi
 [ -z "$BIG" ] || { PLAN_MODELS="$PLAN_MODELS $BIG"; BRAINS_GB=$((BRAINS_GB + BIG_GB)); }
 if [ -z "$PLAN_TIER" ]; then
-  warn "This drive has $FREE_GB GB free. Even the Core library with the light brain needs about $((15 + 3 + 5)) GB, plus room for your own files."
+  warn "This drive has $FREE_GB GB free. Even the Core library with the light brain needs about $((10 + 3 + 5)) GB, plus room for your own files."
   [ -n "$TIER" ] || exit 1
   PLAN_TIER=core
 fi
@@ -121,8 +127,8 @@ elif [ -z "$TIER" ] && [ -t 0 ]; then
   echo "This drive has $FREE_GB GB free. This Mac has $RAM_GB GB of memory."
   echo "Suggested: $(tier_about $PLAN_TIER), with brains $PLAN_MODELS: about $PLAN_GB GB, leaving $((FREE_GB - PLAN_GB)) GB for your own files."
   echo "  Enter)  build the suggestion"
-  echo "  q)      quick first load: Core + the light brain, about $((15 + 3 + 5)) GB; run this again later to add the rest"
-  echo "  1-4)    1 Core, 2 Extended, 3 Complete, 4 Everything (about 15, 60, 130 and 260 GB of library)"
+  echo "  q)      quick first load: Core + the light brain, about $((10 + 3 + 5)) GB; run this again later to add the rest"
+  echo "  1-4)    1 Core, 2 Extended, 3 Complete, 4 Everything (about 10, 35, 70 and 290 GB of library)"
   read -r -p "Choice [Enter]: " n
   case "$n" in
     q|Q) TIER=core; MODELS="${MODELS:-qwen3:4b}" ;;
@@ -251,7 +257,7 @@ ollama_version() { "$OLLAMA_BIN" --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9
 echo "  ✓ Ollama $(ollama_version)"
 [ -z "${OLLAMA_HASH:-}" ] || record ollama ollama-darwin.tgz "$OLLAMA_HASH"
 
-export OLLAMA_HOST="127.0.0.1:11435" OLLAMA_MODELS="$L/models"
+export OLLAMA_HOST="127.0.0.1:11435" OLLAMA_MODELS="$L/models" OLLAMA_NO_CLOUD=1
 "$OLLAMA_BIN" serve >"$L/data/ollama-build.log" 2>&1 &
 OPID=$!; trap '{ kill $OPID && wait $OPID; } 2>/dev/null || true; rm -rf "$WORK"' EXIT   # wait, so bash doesn't print "Terminated"
 for _ in $(seq 1 60); do curl -s "http://$OLLAMA_HOST/api/version" >/dev/null && break; sleep 0.5; done

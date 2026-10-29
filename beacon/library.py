@@ -166,6 +166,19 @@ class Installed:
 
     def set(self, item_id: str, file: str):
         self.map[item_id] = self._rel(file)
+        self._save()
+
+    def forget(self, item_id: str):
+        if self.map.pop(item_id, None) is not None:
+            self._save()
+
+    def _save(self):
+        try:  # another process (the builder, or Beacon itself) may have written since we loaded
+            on_disk = json.loads(self.path.read_text())
+        except Exception:
+            on_disk = {}
+        on_disk.update(self.map)
+        self.map = on_disk
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(self.map, indent=1))
 
@@ -205,6 +218,11 @@ class Integrity:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(json.dumps(self.map, indent=1))
 
+    def forget(self, file):
+        with self.lock:
+            if self.map.pop(self._rel(file), None) is not None:
+                self.path.write_text(json.dumps(self.map, indent=1))
+
     def verify(self, max_bytes: int = 1024 ** 3) -> list[dict]:
         """Re-hash recorded files (big ones are skipped: they were checked when downloaded)."""
         out = []
@@ -217,6 +235,73 @@ class Integrity:
                 continue
             out.append({"file": rel, "ok": sha256_file(p) == meta["sha256"], "skipped": False})
         return out
+
+
+_EDITION = re.compile(r"_(\d{4}-\d{2})\.zim$")
+
+
+def file_problem(path, suffix: str | None = None) -> str | None:
+    """Why a downloaded file can't be used, or None. Sites that block automatic downloads
+    often answer 200 OK with an empty body or an HTML page; neither is the manual."""
+    p = Path(path)
+    suffix = (suffix or p.suffix).lower()
+    try:
+        size = p.stat().st_size
+    except OSError:
+        return "The file is missing."
+    if size == 0:
+        return "The site sent an empty file. Try again later, or open the link in a browser and save the file into Beacon/library/manuals."
+    with open(p, "rb") as f:
+        head = f.read(64)
+    if suffix == ".pdf" and not head.startswith(b"%PDF"):
+        return ("The site sent a web page instead of the PDF; some publishers block automatic downloads. "
+                "Open the link in a browser and save the file into Beacon/library/manuals.")
+    if suffix in (".txt", ".md") and head.lstrip().lower().startswith((b"<!doctype", b"<html")):
+        return "The site sent a web page instead of the text. Open the link in a browser and save it into Beacon/library."
+    return None
+
+
+def older_editions(path) -> list[Path]:
+    """Other dated editions of the same Kiwix file next to this one (diy..._2026-08.zim beside 2026-10)."""
+    p = Path(path)
+    m = _EDITION.search(p.name)
+    if not m:
+        return []
+    stem = p.name[:m.start()]
+    out = []
+    for other in p.parent.glob(stem + "_*.zim"):
+        m2 = _EDITION.search(other.name)
+        if other != p and m2 and other.name[:m2.start()] == stem and m2.group(1) <= m.group(1):
+            out.append(other)
+    return out
+
+
+def leftovers(zim_dir: str, installed: "Installed", catalog: dict | None = None) -> list[dict]:
+    """Files on the drive that Beacon no longer needs: editions superseded by a newer download,
+    and group members (Wikipedia intros) made redundant by a fuller one. Reported, never deleted."""
+    recorded = {}
+    for item_id, rel in installed.map.items():
+        recorded[str(Path(installed._abs(rel)).resolve())] = item_id
+    out = []
+    for f in sorted(Path(zim_dir).glob("*.zim")):
+        if str(f.resolve()) in recorded:
+            continue
+        newer = [o for o in Path(zim_dir).glob("*.zim") if f in older_editions(o)]
+        why = f"An older edition of {newer[0].name}" if newer else "Not in the install records"
+        out.append({"file": f.name, "gb": round(f.stat().st_size / 1e9, 1), "why": why})
+    if catalog:
+        by_group: dict[str, list[dict]] = {}
+        for it in all_items(catalog):
+            if it.get("group") and installed.file_for(it["id"]):
+                by_group.setdefault(it["group"], []).append(it)
+        for members in by_group.values():
+            members.sort(key=lambda it: TIER_ORDER.index(it["tier"]))
+            best = members[-1]
+            for it in members[:-1]:
+                f = Path(installed.file_for(it["id"]))
+                out.append({"file": f.name, "gb": round(f.stat().st_size / 1e9, 1),
+                            "why": f"Replaced by {best['title']}", "item": it["id"]})
+    return out
 
 
 def sha256_file(path, h=None) -> str:
@@ -373,15 +458,25 @@ class Downloader:
         if expected and expected != digest:
             part.unlink(missing_ok=True)
             raise ValueError("The download didn't match the publisher's checksum, so Beacon deleted it. Try again.")
+        problem = file_problem(part, dest.suffix)
+        if problem:  # an empty body, or a web page where a PDF should be: never keep it
+            part.unlink(missing_ok=True)
+            raise ValueError(problem)
         part.replace(dest)
         job["sha256"], job["verified"] = digest, bool(expected)
         if self.integrity:
             self.integrity.record(dest, digest, job.get("url", ""), bool(expected))
+        for old in older_editions(dest):  # the same Kiwix file, earlier date: superseded
+            old.unlink()
+            if self.integrity:
+                self.integrity.forget(old)
         if not record:  # one file of a multi-file item; the caller records the whole item
             return
         old = self.installed.stored(job["id"])
         if old and Path(old) != dest and Path(old).exists():  # replace an older edition
             Path(old).unlink()
+            if self.integrity:
+                self.integrity.forget(old)
         job["state"] = "done"
         self.installed.set(job["id"], str(dest))
         if self.on_done:

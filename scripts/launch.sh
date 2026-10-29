@@ -29,6 +29,7 @@ fail() { echo "$1" >&2; exit 1; }
 
 export OLLAMA_HOST="127.0.0.1:11435"        # own port: never clashes with an installed Ollama
 export OLLAMA_MODELS="$HERE/models"
+export OLLAMA_NO_CLOUD=1                    # local only: no cloud models, no sign-in, no web search
 export BEACON_OLLAMA_URL="http://$OLLAMA_HOST"
 export BEACON_DATA_ROOT="$HERE"
 export PYTHONPATH="$HERE/runtime/site-$ARCH:$HERE/app"

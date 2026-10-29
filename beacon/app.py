@@ -792,7 +792,8 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             st["check"]["running"] = True
             try:
                 rep = checks.run(st["manuals"], st["kiwix"], st["ollama"], current_model(),
-                                 st["cfg"]["embed_model"], st["cfg"]["manuals_dir"])
+                                 st["cfg"]["embed_model"], st["cfg"]["manuals_dir"],
+                                 library.leftovers(st["cfg"]["zim_dir"], installed, catalog))
                 rep["results"] += checks.security(st["cfg"], system.drive_info(data_root), integrity, share.status(),
                                                   audit.failures_since(24 * 3600), lan_ip())
                 rep["passed"] = sum(r["ok"] for r in rep["results"])

@@ -331,7 +331,7 @@ def test_kiwix_catalog_resolves_and_caches(tmp_path):
 
 
 def test_downloader_resumes_and_records(tmp_path):
-    body = b"x" * 5000
+    body = b"%PDF-1.4 " + b"x" * 5000
     http = FakeHTTP({"https://example.org/file.pdf": body})
     inst = library.Installed(str(tmp_path / "installed.json"))
     done = []
@@ -1597,3 +1597,64 @@ def test_mesh_only_looks_at_usb_serial_ports(monkeypatch):
             NS(device="/dev/cu.usbmodem1101", vid=0x239A), NS(device="/dev/ttyACM0", vid=0x303A)]
     monkeypatch.setattr(lp, "comports", lambda: fake)
     assert meshmod.serial_ports() == ["/dev/cu.usbmodem1101", "/dev/ttyACM0"]
+
+
+def test_downloader_refuses_empty_files_and_web_pages_posing_as_pdfs(tmp_path):
+    inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
+    http = FakeHTTP({"https://example.org/empty.pdf": b"", "https://example.org/blocked.pdf": b"<!DOCTYPE html><html>Access denied</html>",
+                     "https://example.org/real.pdf": b"%PDF-1.4 real manual"})
+    dl = library.Downloader(inst, http=http)
+    for name in ("empty", "blocked", "real"):
+        dl.add({"id": name, "title": name, "type": "pdf"}, f"https://example.org/{name}.pdf", tmp_path / "m" / f"{name}.pdf")
+    dl.worker.join(5)
+    assert dl.jobs["empty"]["state"] == "failed" and "empty" in dl.jobs["empty"]["error"]
+    assert dl.jobs["blocked"]["state"] == "failed" and "web page" in dl.jobs["blocked"]["error"]
+    assert dl.jobs["real"]["state"] == "done" and inst.file_for("real")
+    assert sorted(p.name for p in (tmp_path / "m").iterdir()) == ["real.pdf"]   # nothing bogus kept, no .part left
+    assert library.file_problem(tmp_path / "m" / "real.pdf") is None
+
+
+def test_newer_edition_replaces_the_old_file_and_records_survive_two_writers(tmp_path):
+    zims = tmp_path / "zim"; zims.mkdir()
+    old = zims / "diy.stackexchange.com_en_all_2026-08.zim"; old.write_bytes(b"old")
+    other = zims / "diy.stackexchange.com_en_all_nopic_2026-08.zim"; other.write_bytes(b"different flavour")
+    inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
+    integ = library.Integrity(str(tmp_path / "integrity.json"), str(tmp_path))
+    integ.record(old, "00", "https://example.org/old")
+    http = FakeHTTP({"https://example.org/new.zim": b"new edition"})
+    dl = library.Downloader(inst, integrity=integ, http=http)
+    dl.add({"id": "diy-se", "title": "DIY", "type": "zim"}, "https://example.org/new.zim",
+           zims / "diy.stackexchange.com_en_all_2026-10.zim")
+    dl.worker.join(5)
+    assert sorted(p.name for p in zims.iterdir()) == ["diy.stackexchange.com_en_all_2026-10.zim",
+                                                      "diy.stackexchange.com_en_all_nopic_2026-08.zim"]
+    assert "zim/diy.stackexchange.com_en_all_2026-08.zim" not in integ.map
+    # a second process wrote its own record meanwhile: neither record is lost
+    inst2 = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
+    inst2.set("other", str(other))
+    inst.set("third", str(zims / "third.zim"))
+    on_disk = json.loads((tmp_path / "i.json").read_text())
+    assert set(on_disk) == {"diy-se", "other", "third"}
+
+
+def test_leftovers_and_bogus_files_show_up_in_the_health_check(env, tmp_path):
+    zims = Path(env["cfg"]["zim_dir"])
+    (zims / "ham.stackexchange.com_en_all_2026-08.zim").write_bytes(b"old")
+    (zims / "ham.stackexchange.com_en_all_2026-10.zim").write_bytes(b"new")
+    (zims / "wikipedia_en_all_mini_2026-09.zim").write_bytes(b"intros")
+    (zims / "wikipedia_en_all_nopic_2026-06.zim").write_bytes(b"full text")
+    inst = library.Installed(str(tmp_path / "i.json"), str(zims.parent))
+    inst.set("ham-se", str(zims / "ham.stackexchange.com_en_all_2026-10.zim"))
+    inst.set("wp-all-mini", str(zims / "wikipedia_en_all_mini_2026-09.zim"))
+    inst.set("wp-all-nopic", str(zims / "wikipedia_en_all_nopic_2026-06.zim"))
+    left = {l["file"]: l for l in library.leftovers(str(zims), inst, library.load_catalog())}
+    assert left["ham.stackexchange.com_en_all_2026-08.zim"]["why"].startswith("An older edition of ham.stackexchange.com_en_all_2026-10")
+    assert left["wikipedia_en_all_mini_2026-09.zim"]["why"] == "Replaced by All of Wikipedia: full text, no images"
+    assert "wikipedia_en_all_nopic_2026-06.zim" not in left and "testbook.zim" in left   # the fixture's test book isn't recorded
+    bogus = Path(env["cfg"]["manuals_dir"]) / "wilderness" / "FM-3-25.26-Map-Reading.pdf"
+    bogus.parent.mkdir(parents=True, exist_ok=True); bogus.write_bytes(b"")
+    rep = checks.run(env["manuals"], KiwixLibrary(str(zims)), env["ollama"], None, "nomic-embed-text",
+                     env["cfg"]["manuals_dir"], list(left.values()))
+    by = {r["name"]: r for r in rep["results"]}
+    assert not by["wilderness/FM-3-25.26-Map-Reading.pdf"]["ok"] and "empty" in by["wilderness/FM-3-25.26-Map-Reading.pdf"]["detail"]
+    assert by["wikipedia_en_all_mini_2026-09.zim"]["warn"] and "free 0.0 GB" in by["wikipedia_en_all_mini_2026-09.zim"]["detail"]

@@ -122,10 +122,10 @@ Plus **26 quick-reference cards** written for Beacon and the cliff notes, a gear
 
 | Library tier | Download (about) | Drive size | Adds |
 |---|---|---|---|
-| Core | 15 GB | 64 GB | The essentials |
-| Extended | 60 GB | 128 GB | Repair, off-grid, homesteading, books |
-| Complete | 130 GB | 256 GB | WikiHow, Wikipedia intros, learning |
-| Everything | 260 GB | 512 GB+ | All of Wikipedia (1 TB recommended) |
+| Core | 10 GB | 64 GB | The essentials |
+| Extended | 35 GB | 128 GB | Repair, off-grid, homesteading, books |
+| Complete | 70 GB | 256 GB | WikiHow, Wikipedia intros, learning |
+| Everything | 290 GB | 512 GB+ | All of Wikipedia (text) and Khan Academy (1 TB recommended) |
 
 **Recommended: a 1 TB USB-C SSD** (Samsung T7 Shield, SanDisk Extreme, Crucial X9/X10). It holds everything, bigger brains and your own files. The Library tab shows exact sizes before downloading.
 
@@ -189,7 +189,7 @@ Open the drive, then the `Beacon` folder, and double-click **Beacon**. It opens 
 pip install -r requirements.txt pytest       # Python 3.10+
 ollama pull qwen3:4b && ollama pull nomic-embed-text
 python -m beacon                             # http://127.0.0.1:8642
-python -m pytest -q                          # 78 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q                          # 81 tests; the AI engine, internet, Bonjour and radio are faked
 python -m beacon.installer --list            # everything the library can install
 ```
 

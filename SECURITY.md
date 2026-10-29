@@ -170,13 +170,15 @@ These are deliberate trade-offs, written down so nobody has to discover them.
 - **Programs on the Mac itself are trusted.** Anything running as the same user can read the drive and talk to `127.0.0.1`. Beacon doesn't defend against malware already on the Mac.
 - **Checksums come from the publisher's own site.** They catch corrupted or tampered mirrors and networks, not a compromised publisher account. Hash locks and the pinned map tool narrow that window for code.
 - **The macOS quarantine flag is removed** from the bundled Python and AI engine, only after their checksums are verified, so they can run from the drive without prompts.
+- **The AI engine runs local-only** (`OLLAMA_NO_CLOUD=1`): no cloud models, no sign-in, no web search through the engine. Beacon's own network use is the opt-in updates and the Library tab's downloads.
+- **Downloads are checked before they're kept.** A site that blocks automatic downloads often answers with an empty body or a web page; Beacon deletes those instead of filing them as manuals, and the health check flags any that slipped through earlier.
 - **Beacon.app is built on your Mac and signed ad hoc**, not with an Apple developer certificate. The builder checks the signature is intact, since macOS won't open an app whose signature is broken, and the macOS tests in CI check that macOS opens it.
 - **The AI can be wrong.** That's a safety problem more than a security one, and it's handled the same way: citations on every answer, quick cards that work with no AI, and plain-text fallbacks on the drive.
 
 ## Check it yourself
 
 ```bash
-python -m pytest -q          # 78 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q          # 81 tests; the AI engine, internet, Bonjour and radio are faked
 ```
 
 On a Mac running Beacon:

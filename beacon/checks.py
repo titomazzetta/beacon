@@ -5,6 +5,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import library
+
 
 def _reachable(ip: str, port: int, timeout: float = 0.4) -> bool:
     """Can a connection be made to this address and port? (Used to prove a port is closed.)"""
@@ -24,7 +26,8 @@ def _probe(passage: str) -> str:
     return " ".join(words[max(0, mid - 7): mid + 7])
 
 
-def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir: str) -> dict:
+def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir: str,
+        leftovers: list[dict] | None = None) -> dict:
     started = time.time()
     results = []
 
@@ -49,9 +52,18 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
         results.append({"kind": "brain", "name": "Answer test", "ok": False,
                         "detail": "No AI model installed"})
 
-    # 2. Every manual: indexed, has real text, and is findable by search.
+    # 2. Every manual: a real file, indexed, has real text, and is findable by search.
+    bogus = set()
+    for f in sorted(Path(manuals_dir).rglob("*")):
+        if f.is_file() and f.suffix.lower() in (".pdf", ".txt", ".md") and library.file_problem(f):
+            rel = manuals.rel(str(f))
+            bogus.add(rel)
+            results.append({"kind": "manual", "name": rel, "ok": False,
+                            "detail": library.file_problem(f) + " Delete this file, then download it again from the Library tab."})
     pending = manuals.pending(manuals_dir)
     for rel in pending:
+        if rel in bogus:
+            continue
         results.append({"kind": "manual", "name": rel, "ok": False,
                         "detail": "Not indexed yet. Click Index new files."})
     info = {f["path"]: f for f in manuals.files()}
@@ -71,7 +83,7 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
         results.append({"kind": "manual", "name": rel, "ok": found, "warn": f.get("scanned"),
                         "detail": detail})
     for rel, f in info.items():  # indexed files that produced no passages at all
-        if f["chunks"] == 0:
+        if f["chunks"] == 0 and rel not in bogus:
             results.append({"kind": "manual", "name": rel, "ok": False,
                             "detail": "No readable text: it's a scanned PDF, which needs text recognition (OCR) before it can be searched."})
 
@@ -93,6 +105,11 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
         results.append({"kind": "library", "name": book["title"], "ok": ok,
                         "detail": f"{book['articles']:,} articles; found “{title[:40]}”" if ok
                         else "Search returned nothing for " + ", ".join(f"“{t[:40]}”" for t in tried)})
+
+    # 4. Files the drive no longer needs: superseded editions and redundant group members.
+    for left in leftovers or []:
+        results.append({"kind": "library", "name": left["file"], "ok": True, "warn": True,
+                        "detail": f"{left['why']}. Delete it from Beacon/library/zim to free {left['gb']} GB."})
 
     passed = sum(r["ok"] for r in results)
     return {"passed": passed, "total": len(results), "seconds": round(time.time() - started, 1),

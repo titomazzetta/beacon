@@ -91,8 +91,16 @@ def main(argv=None):
         todo, total = [], 0
         print(f"\n▸ Library tier '{a.tier}': looking up {len(items)} items…")
         for it in items:
-            if installed.file_for(it["id"]) or (it["type"] in ("pdf", "text", "page") and not it.get("files")
-                                                and library.destination(it, cfg).exists()):
+            have = installed.file_for(it["id"])
+            if not have and it["type"] in ("pdf", "text", "page") and not it.get("files"):
+                d = library.destination(it, cfg)
+                have = str(d) if d.exists() else None
+            if have and Path(have).is_file() and library.file_problem(have):
+                print(f"  ! {it['title']}: {library.file_problem(have)} Trying again.")
+                Path(have).unlink()
+                installed.forget(it["id"])
+                have = None
+            if have:
                 continue
             try:
                 if it["type"] == "zim":
