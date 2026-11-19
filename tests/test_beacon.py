@@ -19,6 +19,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # ------------------------------------------------------------------ fakes
 
+END = b"\n%%EOF\n"   # every real PDF ends this way; Beacon refuses one that doesn't as cut short
+
+
 class FakeOllama:
     """Bag-of-words embeddings, canned streamed answers."""
     def __init__(self, installed=("qwen3:4b", "qwen3:14b", "nomic-embed-text:latest")):
@@ -351,7 +354,7 @@ def test_downloader_resumes_and_records(tmp_path):
     assert inst.file_for("f") == str(dest) and done and done[0]["state"] == "done"
 
     # a manual always starts over: nothing vouches for the half that was left behind
-    pdf = b"%PDF-1.4 " + b"y" * 3000
+    pdf = b"%PDF-1.4 " + b"y" * 3000 + END
     http2 = FakeHTTP({"https://example.org/file.pdf": pdf})
     dl2 = library.Downloader(library.Installed(str(tmp_path / "i2.json")), http=http2)
     (dest.parent / "file.pdf.part").write_bytes(b"%PDF-1.4 an older edition, cut off halfway")
@@ -560,7 +563,7 @@ def test_library_endpoints_offline_and_online(env, monkeypatch, tmp_path):
     # online: a PDF item downloads and lands in the right band folder
     cat = library.load_catalog()
     item = next(i for i in library.all_items(cat) if i["id"] == "fema-ready")
-    http = FakeHTTP({item["url"]: b"%PDF-1.4 fake", library.OPDS: OPDS})
+    http = FakeHTTP({item["url"]: b"%PDF-1.4 fake" + END, library.OPDS: OPDS})
     app, c2 = make_client(env, http=http)
     r = c2.post("/api/library/download", json={"ids": ["fema-ready"]}).get_json()
     assert r["queued"] == 1 and not r["errors"]
@@ -826,7 +829,7 @@ def test_multi_file_and_web_page_downloads(env):
     cat = library.load_catalog()
     multi = next(i for i in library.all_items(cat) if i.get("files"))
     page = next(i for i in library.all_items(cat) if i["type"] == "page")
-    routes = {f["url"]: b"%PDF-1.4 part" for f in multi["files"]}
+    routes = {f["url"]: b"%PDF-1.4 part" + END for f in multi["files"]}
     routes[page["url"]] = ("<html><body><h1>Shelter</h1><p>Stay inside and listen to the radio.</p><p>" + "Close windows and doors. " * 12
                            + "</p><script>x()</script></body></html>")
     app, c = make_client(env, http=FakeHTTP(routes))
@@ -1617,13 +1620,15 @@ def test_mesh_only_looks_at_usb_serial_ports(monkeypatch):
 def test_downloader_refuses_empty_files_and_web_pages_posing_as_pdfs(tmp_path):
     inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
     http = FakeHTTP({"https://example.org/empty.pdf": b"", "https://example.org/blocked.pdf": b"<!DOCTYPE html><html>Access denied</html>",
-                     "https://example.org/real.pdf": b"%PDF-1.4 real manual"})
+                     "https://example.org/real.pdf": b"%PDF-1.4 real manual" + END,
+                     "https://example.org/half.pdf": b"%PDF-1.4 the first megabyte of a manual and then nothing"})
     dl = library.Downloader(inst, http=http)
-    for name in ("empty", "blocked", "real"):
+    for name in ("empty", "blocked", "real", "half"):
         dl.add({"id": name, "title": name, "type": "pdf"}, f"https://example.org/{name}.pdf", tmp_path / "m" / f"{name}.pdf")
     dl.worker.join(5)
     assert dl.jobs["empty"]["state"] == "failed" and "empty" in dl.jobs["empty"]["error"]
     assert dl.jobs["blocked"]["state"] == "failed" and "web page" in dl.jobs["blocked"]["error"]
+    assert dl.jobs["half"]["state"] == "failed" and "cut short" in dl.jobs["half"]["error"]   # starts like a PDF, never ends like one
     assert dl.jobs["real"]["state"] == "done" and inst.file_for("real")
     assert sorted(p.name for p in (tmp_path / "m").iterdir()) == ["real.pdf"]   # nothing bogus kept, no .part left
     assert library.file_problem(tmp_path / "m" / "real.pdf") is None
@@ -1665,9 +1670,9 @@ def cdx(*rows):
 
 
 def test_a_mirror_fills_in_when_the_publisher_fails(tmp_path):
-    pdf = b"%PDF-1.4 " + b"m" * 4000
+    pdf = b"%PDF-1.4 " + b"m" * 4000 + END
     http = FakeHTTP({"https://pub.example/manual.pdf": b"",                       # 200 OK and nothing in it
-                     "https://dead.example/manual.pdf": b"<html>moved</html>",
+                     "https://dead.example/manual.pdf": b"<html><head><title>Just a  moment...</title></head><body>Checking your browser</body></html>",
                      "https://mirror.example/copy.pdf": pdf})
     inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
     integ = library.Integrity(str(tmp_path / "integrity.json"), str(tmp_path))
@@ -1683,7 +1688,7 @@ def test_a_mirror_fills_in_when_the_publisher_fails(tmp_path):
     assert job["state"] == "done" and dest.read_bytes() == pdf, job
     assert job["source"] == "mirror.example"
     assert job["attempts"] == [("pub.example", "The site sent an empty file"),
-                               ("dead.example", "The site sent a web page instead of the PDF")]
+                               ("dead.example", "The site sent a web page instead of the PDF (titled \u201cJust a moment...\u201d)")]
     by_url = {u: h for u, _, h in http.calls}
     assert not any("Range" in h for h in by_url.values())                 # no source continues another's half file
     assert by_url["https://pub.example/manual.pdf"]["Accept-Language"]    # what a browser sends; some sites refuse without it
@@ -1694,15 +1699,21 @@ def test_a_mirror_fills_in_when_the_publisher_fails(tmp_path):
 
 
 def test_the_internet_archive_is_the_last_resort(tmp_path):
-    pdf = b"%PDF-1.4 " + b"a" * 3000
+    pdf = b"%PDF-1.4 " + b"a" * 3000 + END
     moved, old = "https://pub.example/new/manual.pdf", "https://pub.example/old/manual.pdf"
+    copy = lambda stamp: f"{library.WAYBACK}/web/{stamp}id_/{old}"
     http = FakeHTTP({
         CDX + "?collapse=digest&filter=statuscode:200&fl=timestamp,original,length&output=json&url=" + moved: "[]",
         CDX + "?collapse=digest&filter=statuscode:200&fl=timestamp,original,length&output=json&url=" + old: cdx(
-            ("20190301000000", old, "310000"),      # a good copy
-            ("20230615120000", old, "305000"),      # a newer good copy: this one
-            ("20251029053000", old, "512")),        # the newest: the day the site started sending empty files
-        library.WAYBACK + "/web/20230615120000id_/" + old: pdf})
+            ("20190301000000", old, "16100000"),    # the whole file
+            ("20230615120000", old, "16200000"),    # the whole file again, stored a little larger: tried first, and damaged
+            ("20250114194614", old, "1048900"),     # the newest: a crawler kept only the first megabyte
+            ("20251029053000", old, "512")),        # and the day the site started sending empty answers
+        copy("20230615120000"): b"%PDF-1.4 " + b"a" * 2000,          # cut short on the way
+        copy("20190301000000"): pdf,
+        copy("20250114194614"): b"%PDF-1.4 " + b"a" * 1000})
+    assert library.archived_copies(old, http) == [copy("20230615120000"), copy("20190301000000"), copy("20250114194614")]   # fullest first
+    assert library.archived_copies(old, http, page=True)[0] == copy("20250114194614")       # a web page: the newest first
     inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
     dl = library.Downloader(inst, http=http)
     dl.add({"id": "man", "title": "Manual", "type": "pdf", "mirrors": [old]}, moved, tmp_path / "m" / "manual.pdf")
@@ -1710,10 +1721,11 @@ def test_the_internet_archive_is_the_last_resort(tmp_path):
     job = dl.jobs["man"]
     assert job["state"] == "done" and (tmp_path / "m" / "manual.pdf").read_bytes() == pdf, job
     assert job["source"] == "the Internet Archive"
-    assert job["attempts"] == [("pub.example", "HTTP 404"), ("pub.example", "HTTP 404")]
+    assert job["attempts"] == [("pub.example", "HTTP 404"), ("pub.example", "HTTP 404"), ("the Internet Archive", "The file is cut short")]
+    assert sorted(p.name for p in (tmp_path / "m").iterdir()) == ["manual.pdf"]
 
     # nothing anywhere: the error names every place that was tried, and no half file is left behind
-    http2 = FakeHTTP({"https://a.example/x.pdf": b"", CDX: cdx(("20240101000000", "https://a.example/x.pdf", "9000"))})
+    http2 = FakeHTTP({"https://a.example/x.pdf": b"", CDX: cdx(("20240101000000", "https://a.example/x.pdf", "9000"))})   # the copy itself: 404
     dl2 = library.Downloader(library.Installed(str(tmp_path / "i2.json"), str(tmp_path)), http=http2)
     dl2.add({"id": "x", "title": "X", "type": "pdf", "mirrors": ["https://b.example/x.pdf"]},
             "https://a.example/x.pdf", tmp_path / "n" / "x.pdf")
@@ -1730,7 +1742,7 @@ def test_the_internet_archive_is_the_last_resort(tmp_path):
     dl3.add({"id": "z", "title": "Z", "type": "zim"}, "https://download.kiwix.org/zim/z_2026-01.zim", tmp_path / "z" / "z_2026-01.zim")
     dl3.worker.join(5)
     assert dl3.jobs["z"]["state"] == "failed" and [u for u, _, _ in http3.calls] == ["https://download.kiwix.org/zim/z_2026-01.zim"]
-    assert library.archived_copy("https://a.example/x.pdf", FakeHTTP(online=False)) is None   # offline: no copy, no crash
+    assert library.archived_copies("https://a.example/x.pdf", FakeHTTP(online=False)) == []   # offline: no copies, no crash
 
 
 def test_a_blocked_web_page_comes_from_the_archive_and_says_so(env):
@@ -1805,7 +1817,7 @@ def test_installer_report_lists_every_item_with_its_state(env, tmp_path, capsys)
     bogus = Path(cfg["manuals_dir"]) / "wilderness" / "ATP-3-50.21-Army-Survival-2018.pdf"
     bogus.parent.mkdir(parents=True, exist_ok=True); bogus.write_bytes(b"")
     good = Path(cfg["manuals_dir"]) / "medical" / "Stop-the-Bleed-Instructions.pdf"
-    good.parent.mkdir(parents=True, exist_ok=True); good.write_bytes(b"%PDF-1.4 bleeding control")
+    good.parent.mkdir(parents=True, exist_ok=True); good.write_bytes(b"%PDF-1.4 bleeding control" + END)
     inst.set("stop-the-bleed", str(good))
     failed = tmp_path / "failed.json"
     installer._note_failure(failed, "wikimed", "WikiMed", "Tunnel connection failed: 403")
@@ -1815,6 +1827,11 @@ def test_installer_report_lists_every_item_with_its_state(env, tmp_path, capsys)
     assert lines["Stop the Bleed: step-by-step bleeding control"].strip().startswith("✓")
     assert "empty file" in lines["Army Survival manual (ATP 3-50.21, 2018)"]
     assert "403" in lines["WikiMed medical encyclopedia"]
+    # what the first full drive really held: the first megabyte of the manual, which is not the manual
+    bogus.write_bytes(b"%PDF-1.4\n" + b"x" * (1 << 20))
+    text = installer.report(library.load_catalog(), inst, cfg, failed, "core")
+    assert "1 of 47 items on the drive" in text
+    assert "cut short" in next(l for l in text.splitlines() if "Army Survival manual" in l)
     installer._forget_failure(failed, "wikimed")
     assert "wikimed" not in json.loads(failed.read_text())
 

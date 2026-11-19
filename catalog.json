@@ -324,7 +324,7 @@
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/atp3-90-97.pdf",
           "mirrors": [
-            "https://apps.dtic.mil/sti/pdfs/AD1013626.pdf"
+            "https://web.archive.org/web/20250721133617id_/https://irp.fas.org/doddir/army/atp3-90-97.pdf"
           ],
           "file": "ATP-3-90.97-Mountain-and-Cold-Weather.pdf",
           "title": "Army: Mountain Warfare and Cold Weather Ops (ATP 3-90.97)",
@@ -342,7 +342,7 @@
           "tier": "core",
           "url": "https://irp.fas.org/doddir/army/atp3-50-21.pdf",
           "mirrors": [
-            "https://armypubs.army.mil/epubs/DR_pubs/DR_a/pdf/web/ARN12086_ATP%203-50x21%20FINAL%20WEB.pdf"
+            "https://fas.org/irp/doddir/army/atp3-50-21.pdf"
           ],
           "file": "ATP-3-50.21-Army-Survival-2018.pdf",
           "title": "Army Survival manual (ATP 3-50.21, 2018)",
@@ -411,7 +411,7 @@
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/tc3-97-61.pdf",
           "mirrors": [
-            "https://armypubs.army.mil/epubs/DR_pubs/DR_a/pdf/web/tc3_97x61.pdf"
+            "https://fas.org/irp/doddir/army/tc3-97-61.pdf"
           ],
           "file": "TC-3-97.61-Military-Mountaineering.pdf",
           "title": "Military Mountaineering (TC 3-97.61)",
@@ -635,6 +635,9 @@
           "type": "pdf",
           "tier": "core",
           "url": "https://irp.fas.org/doddir/army/fm3-50-3.pdf",
+          "mirrors": [
+            "https://fas.org/irp/doddir/army/fm3-50-3.pdf"
+          ],
           "file": "FM-3-50.3-Survival-Evasion-Recovery.pdf",
           "title": "Survival, Evasion and Recovery, multi-service (FM 3-50.3)",
           "license": "Public domain (US Gov)"
@@ -653,6 +656,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm3-21-75.pdf",
+          "mirrors": [
+            "https://web.archive.org/web/20250627191549id_/https://irp.fas.org/doddir/army/fm3-21-75.pdf"
+          ],
           "file": "FM-3-21.75-Soldier-Combat-Skills.pdf",
           "title": "Soldier skills: security, observation, movement and fieldcraft (FM 3-21.75)",
           "license": "Public domain (US Gov)"
@@ -793,6 +799,9 @@
           "tier": "complete",
           "title": "Peace Corps Irrigation Training Manual: small-scale irrigation (1994)",
           "url": "https://files.peacecorps.gov/documents/T0076_Irrigation-Training-Manual.pdf",
+          "mirrors": [
+            "https://web.archive.org/web/20241015023118id_/https://files.peacecorps.gov/documents/T0076_Irrigation-Training-Manual.pdf"
+          ],
           "file": "Peace-Corps-Irrigation-Training-Manual.pdf",
           "license": "Public domain (US Gov)",
           "note": "Water sources, pumps, wells, ponds, drip and furrow irrigation for small farms"
@@ -877,8 +886,7 @@
           "tier": "core",
           "url": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN30964-FM_7-22-001-WEB-4.pdf",
           "mirrors": [
-            "https://arotc.illinoisstate.edu/downloads/resources/FM_7-22_October%202020.pdf",
-            "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF"
+            "https://arotc.illinoisstate.edu/downloads/resources/FM_7-22_October%202020.pdf"
           ],
           "file": "FM-7-22-Holistic-Health-and-Fitness.pdf",
           "title": "Army Holistic Health and Fitness (FM 7-22): training, sleep, nutrition, mental and spiritual readiness",

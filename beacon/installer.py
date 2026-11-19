@@ -19,7 +19,9 @@ from .ollama_client import Ollama
 def human(n: int) -> str:
     if not n:
         return "?"
-    return f"{n / 1024 ** 3:.1f} GB" if n >= 1024 ** 3 else f"{max(1, n // 1024 ** 2)} MB"
+    if n >= 1024 ** 3:
+        return f"{n / 1024 ** 3:.1f} GB"
+    return f"{n // 1024 ** 2} MB" if n >= 1024 ** 2 else f"{max(1, n // 1024)} KB"  # KB, so a two-page file doesn't pass for a manual
 
 
 def _load(path: Path) -> dict:

@@ -265,6 +265,12 @@ def file_problem(path, suffix: str | None = None) -> str | None:
     if suffix == ".pdf" and not head.startswith(b"%PDF"):
         return ("The site sent a web page instead of the PDF; some publishers block automatic downloads. "
                 "Open the link in a browser and save the file into Beacon/library/manuals.")
+    if suffix == ".pdf":  # every PDF ends with %%EOF; a download or an archived copy cut short does not
+        with open(p, "rb") as f:
+            f.seek(max(0, size - 4096))
+            if b"%%EOF" not in f.read():
+                return ("The file is cut short: it stops before the end of the PDF. Try again later, or open the link "
+                        "in a browser and save the file into Beacon/library/manuals.")
     if suffix in (".txt", ".md") and head.lstrip().lower().startswith((b"<!doctype", b"<html")):
         return "The site sent a web page instead of the text. Open the link in a browser and save it into Beacon/library."
     return None
@@ -353,37 +359,59 @@ class DriveFull(OSError):
     """No point trying another source."""
 
 
-def archived_copy(url: str, http=requests) -> str | None:
-    """The newest good copy of an address in the Internet Archive's Wayback Machine, or None.
+class BadFile(ValueError):
+    """What arrived isn't the file. When it was a web page, its title says which kind: a robot
+    check, a 'not found' page, a notice that the file moved."""
+
+    def __init__(self, problem: str, title: str = ""):
+        m = re.search(r"[.;:]\s", problem)  # the first clause is the short form, for the log
+        clause, rest = (problem[:m.start()], problem[m.start():]) if m else (problem, "")
+        named = f" (titled \u201c{title}\u201d)" if title else ""
+        super().__init__(clause + named + rest)
+        self.short = clause + named
+
+
+def archived_copies(url: str, http=requests, page: bool = False, limit: int = 3) -> list[str]:
+    """Copies of an address in the Internet Archive's Wayback Machine, best first; [] when it has none.
     Publishers move, rename and block files; the Archive keeps what they once served. The 'id_' in
-    the answer asks for the original bytes, without the Archive's banner around them."""
+    each answer asks for the original bytes, without the Archive's banner around them."""
     try:
         r = http.get(WAYBACK + "/cdx/search/cdx", headers=UA, timeout=20,
                      params={"url": url, "output": "json", "fl": "timestamp,original,length",
                              "filter": "statuscode:200", "collapse": "digest"})
         if r.status_code != 200:
-            return None
+            return []
         rows = r.json()[1:]  # the first row names the columns
     except Exception:
-        return None
+        return []
     # 'length' is the stored size, headers included: a capture of an empty answer is a few hundred bytes
     good = [row for row in rows if len(row) == 3 and str(row[2]).isdigit() and int(row[2]) > 1000]
-    if not good:
-        return None
-    stamp, original, _ = max(good, key=lambda row: row[0])
-    return f"{WAYBACK}/web/{stamp}id_/{original}"
+    # A web page changes, so its newest copy is the one to have. A file does not, and the Archive's
+    # crawlers sometimes keep only the first 1 MB or 5 MB of a big one: the fullest copy comes first.
+    good.sort(key=(lambda row: row[0]) if page else (lambda row: (int(row[2]), row[0])), reverse=True)
+    return [f"{WAYBACK}/web/{stamp}id_/{original}" for stamp, original, _ in good[:limit]]
 
 
-def _sources(first: str, mirrors, http=requests):
+def _sources(first: str, mirrors, http=requests, page: bool = False):
     """Where to look for one file or page, in order: the publisher, any mirrors the catalog lists,
-    then the Internet Archive's copy of each of those addresses (asked only once they have all
+    then the Internet Archive's copies of each of those addresses (asked only once they have all
     failed; a file that moved has no copy under its new address yet, but has one under the old)."""
     listed = [first, *(mirrors or [])]
     yield from listed
     for url in listed:
-        copy = None if url.startswith(WAYBACK) else archived_copy(url, http)
-        if copy:
-            yield copy
+        if not url.startswith(WAYBACK):
+            yield from archived_copies(url, http, page)
+
+
+def _page_title(path) -> str:
+    """The title of the web page a site sent in place of a file: it says whether that was a robot
+    check, a 'not found' page or a notice that the file moved."""
+    try:
+        with open(path, "rb") as f:
+            m = re.search(rb"<title[^>]*>(.*?)</title>", f.read(16384), re.I | re.S)
+        return re.sub(r"\s+", " ", m.group(1).decode("utf-8", "replace")).strip()[:60] if m else ""
+    except OSError:
+        return ""
 
 
 def _host(url: str) -> str:
@@ -393,6 +421,8 @@ def _host(url: str) -> str:
 
 def _short(e: Exception) -> str:
     """One failed attempt in a few words, for the log."""
+    if getattr(e, "short", ""):
+        return e.short
     s = str(e)
     m = re.match(r"\s*(\d{3})\b", s)
     if m:
@@ -565,9 +595,10 @@ class Downloader:
             part.unlink(missing_ok=True)
             raise ValueError("The download didn't match the publisher's checksum, so Beacon deleted it. Try again.")
         problem = file_problem(part, dest.suffix)
-        if problem:  # an empty body, or a web page where a PDF should be: never keep it
+        if problem:  # an empty body, a web page where a PDF should be, or half a file: never keep it
+            title = _page_title(part) if "web page" in problem else ""
             part.unlink(missing_ok=True)
-            raise ValueError(problem)
+            raise BadFile(problem, title)
         part.replace(dest)
         job["sha256"], job["verified"] = digest, bool(expected)
         if self.integrity:
@@ -594,7 +625,7 @@ def fetch_page(it: dict, http=requests, job: dict | None = None) -> tuple[str, s
     catalog lists, or the Internet Archive's copy."""
     from .kiwix_source import html_to_text
     failed = []
-    for url in _sources(it["url"], it.get("mirrors"), http):
+    for url in _sources(it["url"], it.get("mirrors"), http, page=True):
         try:
             r = http.get(url, headers=PUBLISHER, timeout=60)
             r.raise_for_status()
