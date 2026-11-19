@@ -1,5 +1,5 @@
 """Library check: prove the AI can actually reach every manual and every library."""
-import re
+import random
 import socket
 import time
 from pathlib import Path
@@ -17,19 +17,14 @@ def _reachable(ip: str, port: int, timeout: float = 0.4) -> bool:
         return False
 
 
-def _probe(passage: str) -> str:
-    """A distinctive ~14-word phrase from the middle of a passage."""
-    words = re.findall(r"[A-Za-z][A-Za-z'\-]+", passage)
-    if len(words) < 8:
-        return " ".join(words)
-    mid = len(words) // 2
-    return " ".join(words[max(0, mid - 7): mid + 7])
+ARCHIVE_SAMPLE = 3  # PDFs tested per Kiwix archive
 
 
 def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir: str,
-        leftovers: list[dict] | None = None) -> dict:
+        leftovers: list[dict] | None = None, progress=lambda step: None) -> dict:
     started = time.time()
     results = []
+    progress("Waking the AI")
 
     # 1. The brain: is the engine up, are the models there, does it answer?
     up = ollama.is_up()
@@ -68,14 +63,22 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
                         "detail": "Not indexed yet. Click Index new files."})
     info = {f["path"]: f for f in manuals.files()}
     samples = dict(manuals.samples())
-    for file, passage in samples.items():
+
+    def findable(file: str, query: str) -> bool:
+        """Does this search bring the file back? An identical passage from a twin copy counts too:
+        some archives carry the same PDF, and it's the content that must be found."""
+        try:
+            hits = manuals.search(query, k=8) if has_embed else []
+            return any(h.get("file") == file or h.get("text", "")[:200] == samples[file][:200] for h in hits)
+        except Exception:
+            return False
+
+    own = [f for f in samples if not f.startswith("zim:")]  # PDFs inside Kiwix archives are tested by sample, below
+    for n, file in enumerate(own, 1):
+        progress(f"Manuals: {n} of {len(own)}")
         rel = manuals.rel(file)
         f = info.get(rel, {})
-        try:
-            hits = manuals.search(_probe(passage), k=8) if has_embed else []
-            found = any(h.get("file") == file for h in hits)
-        except Exception:
-            found = False
+        found = findable(file, samples[file])  # looked up by a whole passage from its middle: no doubt whose it is
         n = f.get("chunks", 0)
         detail = f"{n} passage{'' if n == 1 else 's'}, findable" if found else "Indexed but search didn't find it"
         if f.get("scanned"):
@@ -83,12 +86,29 @@ def run(manuals, kiwix, ollama, model: str | None, embed_model: str, manuals_dir
         results.append({"kind": "manual", "name": rel, "ok": found, "warn": f.get("scanned"),
                         "detail": detail})
     for rel, f in info.items():  # indexed files that produced no passages at all
-        if f["chunks"] == 0 and rel not in bogus:
+        if f["chunks"] == 0 and rel not in bogus and not rel.startswith("zim:"):
             results.append({"kind": "manual", "name": rel, "ok": False,
                             "detail": "No readable text: it's a scanned PDF, which needs text recognition (OCR) before it can be searched."})
 
+    # PDF books inside Kiwix archives. A full drive holds thousands (MedlinePlus alone has 2,800),
+    # so test a few from each archive instead of all of them: one line per archive.
+    book_titles = {b["id"]: b["title"] for b in kiwix.summary()}
+    for a in manuals.archives():
+        progress("PDF books inside " + book_titles.get(a["book"], a["book"]))
+        readable = [f for f in samples if f.startswith(f"zim:{a['book']}/")]
+        picked = random.sample(readable, min(ARCHIVE_SAMPLE, len(readable)))
+        found = sum(findable(f, samples[f]) for f in picked)
+        detail = f"{a['pdfs']:,} PDF{'' if a['pdfs'] == 1 else 's'}, {a['passages']:,} passages"
+        if picked:
+            detail += f"; {found} of the {len(picked)} tested {'was' if len(picked) == 1 else 'were'} findable"
+        if a["unreadable"]:
+            detail += f". {a['unreadable']} {'is a scanned image' if a['unreadable'] == 1 else 'are scanned images'} with no readable text"
+        results.append({"kind": "manual", "name": "PDFs inside " + book_titles.get(a["book"], a["book"]),
+                        "ok": found > 0 or not picked, "warn": found < len(picked) or not picked, "detail": detail})
+
     # 3. Every Kiwix library: opens, and a random article is findable.
     for book in kiwix.summary():
+        progress("Libraries: " + book["title"])
         tried, ok, title = [], False, None
         for _ in range(3):  # a few random articles: a tiny page or a cover page alone shouldn't fail the check
             title = kiwix.random_title(book["id"])

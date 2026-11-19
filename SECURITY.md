@@ -134,7 +134,7 @@ A web page in the same browser can try to send requests to `127.0.0.1:8642`. Bea
 | Meshtastic add-on | Its own hash lock, installed with `--no-deps` |
 | Map tool (go-pmtiles) | Pinned to one release; the archive's SHA-256 is in the code and checked before the tool is saved or run |
 | Kiwix archives | Checked against the publisher's `.sha256` file; a mismatch deletes the download |
-| Every other download | SHA-256 fingerprint recorded on arrival; the health check re-hashes files up to 1 GB and flags any that changed |
+| Every other download | SHA-256 fingerprint recorded on arrival, with the address the file really came from (the publisher, a mirror named in `catalog.json`, or the Internet Archive's copy); the health check re-hashes files up to 1 GB and flags any that changed |
 | AI models | Pulled through Ollama, which verifies each layer's SHA-256 digest |
 | Map viewer, fonts, QR code library | Vendored in the repo with versions in [`static/vendor/VERSIONS.txt`](static/vendor/VERSIONS.txt); nothing loads from a CDN |
 
@@ -145,7 +145,7 @@ All downloads use HTTPS. The drive builder writes a software bill of materials, 
 - Beacon doesn't encrypt files itself; it relies on macOS drive encryption (APFS Encrypted, AES-XTS), which is stronger and better tested than anything an app could add. The drive builder, the health check and the status panel (the status button at the top of Beacon) all warn when the drive isn't encrypted, and [`START-HERE.txt`](START-HERE.txt) explains how to turn it on.
 - **Erase all of it** (**Plan > Your household**) deletes the household file and the setup answers. *Test: `test_household_info_can_be_erased`.*
 - Conversations aren't stored unless someone saves them. Browsers keep only small preferences (theme, text size, units, tool settings, the name used on the Board, running timers) and, on a guest's phone, that guest's own setup answers.
-- No analytics, accounts or telemetry. Beacon contacts the internet only from the Beacon computer, and only for things a person started or turned on: in the Library tab, an "are we online?" check at most once a minute, catalog lookups and downloads; and, if updates are on, the update feeds at most every 30 minutes.
+- No analytics, accounts or telemetry. Beacon contacts the internet only from the Beacon computer, and only for things a person started or turned on: in the Library tab, an "are we online?" check at most once a minute, catalog lookups and downloads (from the publisher, or from a mirror or the Internet Archive when the publisher's address fails); and, if updates are on, the update feeds at most every 30 minutes.
 
 ### Meshtastic radio (optional add-on)
 
@@ -171,14 +171,17 @@ These are deliberate trade-offs, written down so nobody has to discover them.
 - **Checksums come from the publisher's own site.** They catch corrupted or tampered mirrors and networks, not a compromised publisher account. Hash locks and the pinned map tool narrow that window for code.
 - **The macOS quarantine flag is removed** from the bundled Python and AI engine, only after their checksums are verified, so they can run from the drive without prompts.
 - **The AI engine runs local-only** (`OLLAMA_NO_CLOUD=1`): no cloud models, no sign-in, no web search through the engine. Beacon's own network use is the opt-in updates and the Library tab's downloads.
-- **Downloads are checked before they're kept.** A site that blocks automatic downloads often answers with an empty body or a web page; Beacon deletes those instead of filing them as manuals, and the health check flags any that slipped through earlier.
+- **Downloads are checked before they're kept.** A site that blocks automatic downloads often answers with an empty body or a web page; Beacon deletes those instead of filing them as manuals, and the health check flags any that slipped through earlier. A web page saved as text is refused if it holds almost no text. *Test: `test_downloader_refuses_empty_files_and_web_pages_posing_as_pdfs`.*
+- **A dead link has named fallbacks, and Beacon says which one it used.** When a publisher's address fails, Beacon tries the mirrors listed for that item in [`catalog.json`](catalog.json), then the Internet Archive's newest good copy of the same address. Mirrors on other hosts are listed only for public-domain works; a file a publisher gives away is fetched only from that publisher's addresses or the Archive's copy of them. The build log, the library report and the Library tab name the source that worked, and it is stored with the file's fingerprint. Kiwix archives are never fetched from anywhere but Kiwix. A manual has no publisher checksum, so nothing proves a mirror's copy equals the publisher's: what limits the risk is that every source is named in the open catalog and recorded, and that a manual is only ever read, never run. *Tests: `test_a_mirror_fills_in_when_the_publisher_fails`, `test_the_internet_archive_is_the_last_resort`, `test_a_blocked_web_page_comes_from_the_archive_and_says_so`.*
+- **A half-downloaded manual is never continued.** Only Kiwix archives resume after an interruption, because their checksum would catch a bad join; a manual has no checksum, so it starts again from the first byte. *Test: `test_downloader_resumes_and_records`.*
+- **Beacon says who it is.** Downloads identify themselves as Beacon, with this repository's address, and send the same `Accept` headers a browser does; Beacon does not pose as a browser to get past a site that refuses it.
 - **Beacon.app is built on your Mac and signed ad hoc**, not with an Apple developer certificate. The builder checks the signature is intact, since macOS won't open an app whose signature is broken, and the macOS tests in CI check that macOS opens it.
 - **The AI can be wrong.** That's a safety problem more than a security one, and it's handled the same way: citations on every answer, quick cards that work with no AI, and plain-text fallbacks on the drive.
 
 ## Check it yourself
 
 ```bash
-python -m pytest -q          # 82 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q          # 90 tests; the AI engine, internet, Bonjour and radio are faked
 ```
 
 On a Mac running Beacon:

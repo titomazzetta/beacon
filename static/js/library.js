@@ -275,7 +275,7 @@ function renderJobs() {
     const pct = j.total ? Math.round(100 * j.done / j.total) : null;
     const live = ["queued", "downloading"].includes(j.state);
     const state = {queued: "Waiting", downloading: pct != null ? `${pct}% of ${fmtBytes(j.total)}` : "Working", done: "Done", failed: "Failed", cancelled: "Cancelled"}[j.state] || j.state;
-    return `<div class="row-item"><div><div class="t">${esc(j.title)}</div><div class="d ${j.state === "failed" ? "bad" : ""}">${esc(j.error || j.detail || "")}</div>
+    return `<div class="row-item"><div><div class="t">${esc(j.title)}</div><div class="d ${j.state === "failed" ? "bad" : ""}">${esc(j.error || j.detail || (j.state === "done" && j.source ? `The publisher's link didn't work, so this came from ${j.source}.` : ""))}</div>
       ${j.state === "downloading" && pct != null ? `<div class="pbar"><i style="width:${pct}%"></i></div>` : ""}</div>
       <div class="act"><span class="state ${j.state === "done" ? "ok" : j.state === "failed" ? "bad" : ""}">${esc(state)}</span>${live ? `<button class="btn small ghost" data-cancel="${esc(j.id)}">Cancel</button>` : ""}</div></div>`;
   }).join("") : '<p class="hint" style="padding:12px 2px">Nothing downloading. Downloads keep going while you use the rest of Beacon.</p>';
@@ -292,39 +292,69 @@ function docTitle(path) {
   const name = path.split("/").pop().replace(/\.(pdf|txt|md)$/i, "");
   return name.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 }
+/* PDF books inside Kiwix archives. A full drive holds thousands (MedlinePlus alone has 2,800),
+   so each archive is one row, and its books are listed only when it's opened. */
+const archOpen = new Set(), archCache = {};
+let docsSig = "";
+function docRow(m, read, save) {
+  return `<div class="row-item"><div><div class="t">${esc(m.title || docTitle(m.path))}</div>
+      <div class="d">${m.chunks ? (m.chunks === 1 ? "1 passage" : m.chunks.toLocaleString() + " passages") : "No readable text"}${m.pages > 1 ? `, ${m.pages} pages` : ""}${m.chunks && m.scanned ? ". Mostly scanned images, so only part is searchable" : ""}</div></div>
+      <div class="act"><a href="${esc(read)}" target="_blank" rel="noopener">Read</a>${save ? `<a href="${esc(save)}" download>Save</a>` : ""}</div></div>`;
+}
+function archList(a) {
+  const c = archCache[a.book];
+  if (!c || c.loading) return `<p class="hint arch-note">Loading…</p>`;
+  if (c.error) return `<p class="err arch-note">${esc(c.error)}</p>`;
+  const note = `${a.passages.toLocaleString()} passages the AI can search.${a.unreadable ? ` ${a.unreadable} ${a.unreadable === 1 ? "is a scanned image" : "are scanned images"} with no readable text.` : ""}`;
+  return `<p class="hint arch-note">${note}</p><div class="rows">${c.rows.map(m =>
+    docRow(m, "/read/kiwix/" + enc(a.book + "/" + m.path.slice(a.book.length + 5)), null)).join("")}</div>`;
+}
+async function loadArch(book) {
+  const n = (status.archives || []).find(a => a.book === book)?.pdfs;
+  archCache[book] = {n, loading: true};
+  try { archCache[book] = {n, rows: await B.api("/api/manuals/archive/" + encodeURIComponent(book))}; }
+  catch (err) { archCache[book] = {n, error: err.message}; }
+  renderDocs();
+}
 function renderDocs() {
   const bandTitle = Object.fromEntries((lib?.bands || []).map(b => [b.id, b.title]));
   const bookTitle = Object.fromEntries((status.books || []).map(b => [b.id, b.title]));
+  const arch = status.archives || [];
   const groups = {};
   for (const m of status.manuals) {
-    let g, read, save;
-    if (m.path.startsWith("zim:")) {
-      const [book, ...rest] = m.path.slice(4).split("/");
-      g = bookTitle[book] || book.replace(/_/g, " ");
-      read = "/read/kiwix/" + enc(book + "/" + rest.join("/"));
-      save = null;
-    } else {
-      const top = m.path.includes("/") ? m.path.split("/")[0] : "";
-      g = top === "cards" ? "Quick cards" : bandTitle[top] || (top ? top.replace(/-/g, " ") : "Your own files");
-      read = "/read/manual/" + enc(m.path);
-      save = read + "?download=1";
-    }
-    (groups[g] = groups[g] || []).push({...m, read, save});
+    const top = m.path.includes("/") ? m.path.split("/")[0] : "";
+    const g = top === "cards" ? "Quick cards" : bandTitle[top] || (top ? top.replace(/-/g, " ") : "Your own files");
+    const read = "/read/manual/" + enc(m.path);
+    (groups[g] = groups[g] || []).push({...m, read, save: read + "?download=1"});
+  }
+  for (const a of arch) {  // an archive that was re-indexed: its list is out of date
+    if (archCache[a.book] && !archCache[a.book].loading && archCache[a.book].n !== a.pdfs) delete archCache[a.book];
+    if (archOpen.has(a.book) && !archCache[a.book]) loadArch(a.book);
   }
   const names = Object.keys(groups).sort((a, b) => (a === "Quick cards" ? -1 : b === "Quick cards" ? 1 : a.localeCompare(b)));
-  const count = status.manuals.length;
+  const count = status.manuals.length + arch.reduce((n, a) => n + a.pdfs, 0);
   $("docMeta").textContent = count ? `${count.toLocaleString()} searchable` : "";
-  $("docs").innerHTML = count ? names.map(g => `<h3 class="group-label">${esc(g)}</h3><div class="rows">${groups[g].map(m => `
-    <div class="row-item"><div><div class="t">${esc(m.title || docTitle(m.path))}</div>
-      <div class="d">${m.chunks ? m.chunks.toLocaleString() + " passages" : "No readable text"}${m.pages > 1 ? `, ${m.pages} pages` : ""}${m.scanned ? ". Mostly scanned images, so only part is searchable" : ""}</div></div>
-      <div class="act"><a href="${esc(m.read)}" target="_blank" rel="noopener">Read</a>${m.save ? `<a href="${esc(m.save)}" download>Save</a>` : ""}</div></div>`).join("")}</div>`).join("")
+  const html = count ? names.map(g => `<h3 class="group-label">${esc(g)}</h3><div class="rows">${groups[g].map(m => docRow(m, m.read, m.save)).join("")}</div>`).join("")
+    + (arch.length ? `<h3 class="group-label">PDF books inside your libraries</h3><div class="rows">${arch.map(a => `
+    <details class="band" data-arch="${esc(a.book)}" ${archOpen.has(a.book) ? "open" : ""}><summary><b>${esc(bookTitle[a.book] || a.book.replace(/_/g, " "))}</b><span class="state">${a.pdfs.toLocaleString()} PDF${a.pdfs === 1 ? "" : "s"}</span></summary>
+      ${archOpen.has(a.book) ? archList(a) : ""}</details>`).join("")}</div>` : "")
     : `<p class="hint">No manuals yet.${B.sys?.guest ? "" : " Download a tier under What's installed, or add your own files."}</p>`;
+  if (html !== docsSig) { $("docs").innerHTML = html; docsSig = html; }  // leave the list alone when nothing changed
   if (!B.sys?.guest) {
     const pend = status.pending.length;
     $("ingestLog").textContent = status.ingest.running ? (status.ingest.log.at(-1) || "Indexing…") : pend ? `${pend} file${pend === 1 ? "" : "s"} waiting to be indexed.` : (status.ingest.log.at(-1) || "");
     $("ingestBtn").disabled = status.ingest.running;
   }
 }
+$("docs").addEventListener("toggle", e => {  // toggle doesn't bubble, so listen in the capture phase
+  const d = e.target;
+  if (!d.matches?.("details[data-arch]")) return;
+  const book = d.dataset.arch;
+  if (d.open === archOpen.has(book)) return;
+  if (d.open) archOpen.add(book); else archOpen.delete(book);
+  if (!d.open && archCache[book]?.error) delete archCache[book];  // opening it again tries again
+  renderDocs();
+}, true);
 $("ingestBtn").addEventListener("click", async () => {
   try { await B.api("/api/ingest", {}); } catch (err) { B.toast(err.message); }
   setTimeout(refresh, 400);
@@ -349,7 +379,11 @@ $("runCheck").addEventListener("click", async () => {
   const poll = async () => {
     let c;
     try { c = await B.api("/api/check"); } catch { c = {running: false}; }
-    if (c.running) return setTimeout(poll, 900);
+    if (c.running) {
+      const label = $("checkOut").querySelector(".thinking span");
+      if (label && c.step) label.textContent = c.step;
+      return setTimeout(poll, 900);
+    }
     $("runCheck").disabled = false;
     if (c.report) renderCheck(c.report);
   };

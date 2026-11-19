@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from beacon import checks, library, mapdata, models, plans, rag, system
+from beacon import checks, library, manuals, mapdata, models, plans, rag, system
 from beacon.app import create_app, mini_md
 from beacon.kiwix_source import KiwixLibrary, html_to_text, query_variants
 from beacon.manuals import ManualIndex, chunk
@@ -289,6 +289,11 @@ def test_catalog_is_consistent():
             assert "license" in it
             if it["type"] == "page":
                 assert it["file"].endswith(".md")
+            mirrors = it.get("mirrors", [])
+            assert all(m.startswith("https://") and " " not in m for m in mirrors) and it["url"] not in mirrors
+            if not it["license"].startswith("Public domain"):   # a file its publisher gives away: only from that publisher
+                site = lambda u: ".".join(u.split("/")[2].split(".")[-2:])
+                assert all(site(m) == site(it["url"]) for m in mirrors), it["id"]
         elif it["type"] == "link":
             assert it["url"].startswith("https://")
         else:
@@ -331,19 +336,28 @@ def test_kiwix_catalog_resolves_and_caches(tmp_path):
 
 
 def test_downloader_resumes_and_records(tmp_path):
-    body = b"%PDF-1.4 " + b"x" * 5000
-    http = FakeHTTP({"https://example.org/file.pdf": body})
+    body = b"ZIM " + b"x" * 5000
+    http = FakeHTTP({"https://example.org/big.zim": body})
     inst = library.Installed(str(tmp_path / "installed.json"))
     done = []
     dl = library.Downloader(inst, on_done=done.append, http=http)
-    dest = tmp_path / "out" / "file.pdf"
+    dest = tmp_path / "out" / "big.zim"
     dest.parent.mkdir()
-    (dest.parent / "file.pdf.part").write_bytes(body[:1200])          # interrupted earlier
-    dl.add({"id": "f", "title": "F", "type": "pdf"}, "https://example.org/file.pdf", dest)
+    (dest.parent / "big.zim.part").write_bytes(body[:1200])          # interrupted earlier
+    dl.add({"id": "f", "title": "F", "type": "zim"}, "https://example.org/big.zim", dest)
     dl.worker.join(5)
     assert dest.read_bytes() == body
-    assert http.calls[-1][2]["Range"] == "bytes=1200-"
+    assert http.calls[0][2]["Range"] == "bytes=1200-"                 # a Kiwix file carries on where it stopped
     assert inst.file_for("f") == str(dest) and done and done[0]["state"] == "done"
+
+    # a manual always starts over: nothing vouches for the half that was left behind
+    pdf = b"%PDF-1.4 " + b"y" * 3000
+    http2 = FakeHTTP({"https://example.org/file.pdf": pdf})
+    dl2 = library.Downloader(library.Installed(str(tmp_path / "i2.json")), http=http2)
+    (dest.parent / "file.pdf.part").write_bytes(b"%PDF-1.4 an older edition, cut off halfway")
+    dl2.add({"id": "p", "title": "P", "type": "pdf"}, "https://example.org/file.pdf", dest.parent / "file.pdf")
+    dl2.worker.join(5)
+    assert (dest.parent / "file.pdf").read_bytes() == pdf and "Range" not in http2.calls[0][2]
 
 
 def test_downloader_reports_failures_and_tasks(tmp_path):
@@ -813,7 +827,8 @@ def test_multi_file_and_web_page_downloads(env):
     multi = next(i for i in library.all_items(cat) if i.get("files"))
     page = next(i for i in library.all_items(cat) if i["type"] == "page")
     routes = {f["url"]: b"%PDF-1.4 part" for f in multi["files"]}
-    routes[page["url"]] = "<html><body><h1>Shelter</h1><p>Stay inside and listen to the radio.</p><script>x()</script></body></html>"
+    routes[page["url"]] = ("<html><body><h1>Shelter</h1><p>Stay inside and listen to the radio.</p><p>" + "Close windows and doors. " * 12
+                           + "</p><script>x()</script></body></html>")
     app, c = make_client(env, http=FakeHTTP(routes))
     r = c.post("/api/library/download", json={"ids": [multi["id"], page["id"]]}).get_json()
     assert r["queued"] == 2 and not r["errors"]
@@ -1614,6 +1629,128 @@ def test_downloader_refuses_empty_files_and_web_pages_posing_as_pdfs(tmp_path):
     assert library.file_problem(tmp_path / "m" / "real.pdf") is None
 
 
+def test_pdfs_inside_archives_get_readable_names():
+    name = manuals.ManualIndex.pdf_title
+    assert name("Solar Water Disinfection", "zim:x/files/a.pdf") == "Solar Water Disinfection"      # a real title stays
+    assert name("null", "zim:energypedia_en_all/A_Multi-Criteria_Assessment_of_Stoves.pdf") == "A Multi Criteria Assessment of Stoves"
+    assert name("medlineplus.gov/about/aboutmedlineplus.pdf", "zim:m/medlineplus.gov/about/aboutmedlineplus.pdf") == "aboutmedlineplus"
+    assert name("files/Water (1).pdf", "zim:zimgit-water/files/Water (1).pdf") == "Water (1)"
+    assert name("", "zim:r/www.ready.gov/sites/default/files/2024-03/ready.gov_landslide_hazard-info-sheet.pdf") == "ready.gov landslide hazard info sheet"
+
+
+def test_a_long_question_is_matched_on_its_longest_words(tmp_path):
+    """Every word of a question is looked for in every passage, so a pasted paragraph is held to its
+    most telling words; otherwise the full drive's 90,000 passages take seconds per question."""
+    class Flat(FakeOllama):   # every passage looks the same to the AI: only the word matching can tell them apart
+        def embed(self, model, texts): return [[1.0] + [0.0] * 63 for _ in texts]
+    man = tmp_path / "manuals"; man.mkdir()
+    small = "that with have this from they were been will your some what when them than then also into".split()
+    (man / "still.txt").write_text("A solar still works by evaporation and condensation; it is slow desalination. " * 3)
+    (man / "chatter.txt").write_text(" ".join(small) + ". " + " ".join(small) + ".")
+    idx = manuals.ManualIndex(str(tmp_path / "i.sqlite"), Flat(), "nomic-embed-text", str(man))
+    idx.ingest_dir(str(man), progress=lambda *a: None)
+    filler = "apple bread chair dance eagle flame grape horse igloo joker knife lemon mango night ocean piano".split()
+    pasted = " ".join(small) + " " + " ".join(filler) + " and how do evaporation and desalination work?"
+    assert len(set(pasted.split())) > manuals.BOOST_WORDS
+    assert idx.search(pasted, k=1)[0]["file"].endswith("still.txt")        # two telling words beat eighteen small ones
+    assert idx.search("what will they have with them", k=1)[0]["file"].endswith("chatter.txt")   # a short question still uses every word
+
+
+CDX = library.WAYBACK + "/cdx/search/cdx"
+
+
+def cdx(*rows):
+    """What the Internet Archive answers when asked which copies of an address it holds."""
+    return json.dumps([["timestamp", "original", "length"], *[list(r) for r in rows]])
+
+
+def test_a_mirror_fills_in_when_the_publisher_fails(tmp_path):
+    pdf = b"%PDF-1.4 " + b"m" * 4000
+    http = FakeHTTP({"https://pub.example/manual.pdf": b"",                       # 200 OK and nothing in it
+                     "https://dead.example/manual.pdf": b"<html>moved</html>",
+                     "https://mirror.example/copy.pdf": pdf})
+    inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
+    integ = library.Integrity(str(tmp_path / "integrity.json"), str(tmp_path))
+    dl = library.Downloader(inst, integrity=integ, http=http)
+    dest = tmp_path / "m" / "manual.pdf"
+    dest.parent.mkdir()
+    (dest.parent / "manual.pdf.part").write_bytes(b"%PDF-1.4 half of the publisher's file")   # an interrupted earlier try
+    dl.add({"id": "man", "title": "Manual", "type": "pdf",
+            "mirrors": ["https://dead.example/manual.pdf", "https://mirror.example/copy.pdf"]},
+           "https://pub.example/manual.pdf", dest)
+    dl.worker.join(5)
+    job = dl.jobs["man"]
+    assert job["state"] == "done" and dest.read_bytes() == pdf, job
+    assert job["source"] == "mirror.example"
+    assert job["attempts"] == [("pub.example", "The site sent an empty file"),
+                               ("dead.example", "The site sent a web page instead of the PDF")]
+    by_url = {u: h for u, _, h in http.calls}
+    assert not any("Range" in h for h in by_url.values())                 # no source continues another's half file
+    assert by_url["https://pub.example/manual.pdf"]["Accept-Language"]    # what a browser sends; some sites refuse without it
+    assert "Beacon" in by_url["https://pub.example/manual.pdf"]["User-Agent"]   # and Beacon says who it is
+    assert integ.map["m/manual.pdf"]["source"] == "https://mirror.example/copy.pdf"   # where it really came from
+    assert not any(u.startswith(library.WAYBACK) for u in by_url)         # the Archive is only asked when all else fails
+    assert sorted(p.name for p in dest.parent.iterdir()) == ["manual.pdf"]
+
+
+def test_the_internet_archive_is_the_last_resort(tmp_path):
+    pdf = b"%PDF-1.4 " + b"a" * 3000
+    moved, old = "https://pub.example/new/manual.pdf", "https://pub.example/old/manual.pdf"
+    http = FakeHTTP({
+        CDX + "?collapse=digest&filter=statuscode:200&fl=timestamp,original,length&output=json&url=" + moved: "[]",
+        CDX + "?collapse=digest&filter=statuscode:200&fl=timestamp,original,length&output=json&url=" + old: cdx(
+            ("20190301000000", old, "310000"),      # a good copy
+            ("20230615120000", old, "305000"),      # a newer good copy: this one
+            ("20251029053000", old, "512")),        # the newest: the day the site started sending empty files
+        library.WAYBACK + "/web/20230615120000id_/" + old: pdf})
+    inst = library.Installed(str(tmp_path / "i.json"), str(tmp_path))
+    dl = library.Downloader(inst, http=http)
+    dl.add({"id": "man", "title": "Manual", "type": "pdf", "mirrors": [old]}, moved, tmp_path / "m" / "manual.pdf")
+    dl.worker.join(5)
+    job = dl.jobs["man"]
+    assert job["state"] == "done" and (tmp_path / "m" / "manual.pdf").read_bytes() == pdf, job
+    assert job["source"] == "the Internet Archive"
+    assert job["attempts"] == [("pub.example", "HTTP 404"), ("pub.example", "HTTP 404")]
+
+    # nothing anywhere: the error names every place that was tried, and no half file is left behind
+    http2 = FakeHTTP({"https://a.example/x.pdf": b"", CDX: cdx(("20240101000000", "https://a.example/x.pdf", "9000"))})
+    dl2 = library.Downloader(library.Installed(str(tmp_path / "i2.json"), str(tmp_path)), http=http2)
+    dl2.add({"id": "x", "title": "X", "type": "pdf", "mirrors": ["https://b.example/x.pdf"]},
+            "https://a.example/x.pdf", tmp_path / "n" / "x.pdf")
+    dl2.worker.join(5)
+    err = dl2.jobs["x"]["error"]
+    assert dl2.jobs["x"]["state"] == "failed" and err.startswith("Tried 4 sources and none worked"), err
+    assert "a.example: The site sent an empty file" in err and "b.example: HTTP 404" in err and "the Internet Archive: HTTP 404" in err
+    assert dl2.jobs["x"]["url"] == "https://a.example/x.pdf"             # the link to open by hand is still the publisher's
+    assert list((tmp_path / "n").iterdir()) == []
+
+    # a Kiwix file is only ever fetched from Kiwix, which publishes a checksum for it
+    http3 = FakeHTTP({})
+    dl3 = library.Downloader(library.Installed(str(tmp_path / "i3.json"), str(tmp_path)), http=http3)
+    dl3.add({"id": "z", "title": "Z", "type": "zim"}, "https://download.kiwix.org/zim/z_2026-01.zim", tmp_path / "z" / "z_2026-01.zim")
+    dl3.worker.join(5)
+    assert dl3.jobs["z"]["state"] == "failed" and [u for u, _, _ in http3.calls] == ["https://download.kiwix.org/zim/z_2026-01.zim"]
+    assert library.archived_copy("https://a.example/x.pdf", FakeHTTP(online=False)) is None   # offline: no copy, no crash
+
+
+def test_a_blocked_web_page_comes_from_the_archive_and_says_so(env):
+    cat = library.load_catalog()
+    page = next(i for i in library.all_items(cat) if i["type"] == "page")
+    guide = "<html><body><h1>Crisis abroad</h1><p>" + "Enroll before you travel and keep your passport with you. " * 8 + "</p></body></html>"
+    copy = library.WAYBACK + "/web/20260102030405id_/" + page["url"]
+    http = FakeHTTP({page["url"]: "<html><body>Access Denied</body></html>",      # 200 OK, and not the guide
+                     CDX: cdx(("20260102030405", page["url"], "18000")), copy: guide})
+    app, c = make_client(env, http=http)
+    assert c.post("/api/library/download", json={"ids": [page["id"]]}).get_json()["queued"] == 1
+    app.config["downloader"].worker.join(10)
+    job = app.config["downloader"].jobs[page["id"]]
+    assert job["state"] == "done" and job["source"] == "the Internet Archive", job
+    assert job["attempts"] == [(library._host(page["url"]), "The site sent a page with almost no text")]
+    saved = (Path(env["cfg"]["manuals_dir"]) / page["band"] / page["file"]).read_text()
+    assert "Source: " + page["url"] in saved and "Copy from: " + copy in saved and "keep your passport" in saved
+    assert "Access Denied" not in saved
+
+
 def test_newer_edition_replaces_the_old_file_and_records_survive_two_writers(tmp_path):
     zims = tmp_path / "zim"; zims.mkdir()
     old = zims / "diy.stackexchange.com_en_all_2026-08.zim"; old.write_bytes(b"old")
@@ -1650,7 +1787,8 @@ def test_leftovers_and_bogus_files_show_up_in_the_health_check(env, tmp_path):
     left = {l["file"]: l for l in library.leftovers(str(zims), inst, library.load_catalog())}
     assert left["ham.stackexchange.com_en_all_2026-08.zim"]["why"].startswith("An older edition of ham.stackexchange.com_en_all_2026-10")
     assert left["wikipedia_en_all_mini_2026-09.zim"]["why"] == "Replaced by All of Wikipedia: full text, no images"
-    assert "wikipedia_en_all_nopic_2026-06.zim" not in left and "testbook.zim" in left   # the fixture's test book isn't recorded
+    assert "wikipedia_en_all_nopic_2026-06.zim" not in left
+    assert "testbook.zim" not in left            # an archive you added yourself is yours: never called a leftover
     bogus = Path(env["cfg"]["manuals_dir"]) / "wilderness" / "FM-3-25.26-Map-Reading.pdf"
     bogus.parent.mkdir(parents=True, exist_ok=True); bogus.write_bytes(b"")
     rep = checks.run(env["manuals"], KiwixLibrary(str(zims)), env["ollama"], None, "nomic-embed-text",
@@ -1679,3 +1817,103 @@ def test_installer_report_lists_every_item_with_its_state(env, tmp_path, capsys)
     assert "403" in lines["WikiMed medical encyclopedia"]
     installer._forget_failure(failed, "wikimed")
     assert "wikimed" not in json.loads(failed.read_text())
+
+
+def test_one_article_from_overlapping_editions_counts_once(tmp_path):
+    """A full drive holds all of Wikipedia plus its top-articles and medicine subsets: one article, one source."""
+    from libzim.writer import Creator, Hint, Item, StringProvider
+
+    class Page(Item):
+        def __init__(self, path, title, body):
+            super().__init__()
+            self.p, self.t, self.b = path, title, body
+        def get_path(self): return self.p
+        def get_title(self): return self.t
+        def get_mimetype(self): return "text/html"
+        def get_contentprovider(self): return StringProvider(self.b)
+        def get_hints(self): return {Hint.FRONT_ARTICLE: True}
+
+    zims = tmp_path / "zim"; zims.mkdir()
+    filler = " Cool the burn under running water for twenty minutes and cover it loosely." * 8
+    for stem, extra in (("wikipedia_en_all_maxi_2026-08", "with pictures"), ("wikipedia_en_medicine_maxi_2026-10", "medicine subset"),
+                        ("wikipedia_en_top_maxi_2026-09", "top articles"), ("wikem_en_all_maxi_2026-07", "emergency medicine wiki")):
+        with Creator(str(zims / f"{stem}.zim")).config_indexing(True, "eng") as c:
+            c.set_mainpath("Burn")
+            c.add_metadata("Title", stem.split("_")[0])
+            c.add_item(Page("Burn", "Burn", f"<html><body><h1>Burn</h1><p>A burn is an injury to skin ({extra}).{filler}</p></body></html>"))
+    lib = KiwixLibrary(str(zims))
+    hits = lib.search("how do I treat a burn")
+    assert sorted(h["ref"].split("/")[0] for h in hits) == ["wikem_en_all_maxi_2026-07", "wikipedia_en_all_maxi_2026-08"]
+    assert "with pictures" in [h for h in hits if h["book"] == "wikipedia"][0]["text"]        # the fullest edition wins
+    assert len(lib.search("burn", only="wikipedia_en_top_maxi_2026-09")) == 1                  # each one still searchable alone
+
+
+def test_archive_without_a_text_index_falls_back_to_titles(tmp_path):
+    from libzim.writer import Creator, Hint, Item, StringProvider
+
+    class Page(Item):
+        def __init__(self, path, title, body):
+            super().__init__()
+            self.p, self.t, self.b = path, title, body
+        def get_path(self): return self.p
+        def get_title(self): return self.t
+        def get_mimetype(self): return "text/html"
+        def get_contentprovider(self): return StringProvider(self.b)
+        def get_hints(self): return {Hint.FRONT_ARTICLE: True}
+
+    zims = tmp_path / "zim"; zims.mkdir()
+    with Creator(str(zims / "notext_en_2026-01.zim")).config_indexing(False, "eng") as c:
+        c.set_mainpath("Bowline")
+        c.add_metadata("Title", "Knots")
+        c.add_item(Page("Bowline", "Bowline", "<html><body><p>The bowline makes a fixed loop at the end of a rope."
+                        + " It is easy to untie after loading." * 10 + "</p></body></html>"))
+    lib = KiwixLibrary(str(zims))
+    assert lib.summary()[0]["fulltext"] is False
+    assert [h["title"] for h in lib.search("bowline")] == ["Bowline"]
+
+
+def test_health_check_samples_pdfs_inside_archives(tmp_path, monkeypatch):
+    """A full drive has thousands of PDFs inside Kiwix archives: the check tests a few per archive, one line each."""
+    from libzim.writer import Creator, Hint, Item, StringProvider
+
+    class Doc(Item):
+        def __init__(self, path, title, body, mime):
+            super().__init__()
+            self.p, self.t, self.b, self.m = path, title, body, mime
+        def get_path(self): return self.p
+        def get_title(self): return self.t
+        def get_mimetype(self): return self.m
+        def get_contentprovider(self): return StringProvider(self.b)
+        def get_hints(self): return {Hint.FRONT_ARTICLE: self.m == "text/html"}
+
+    zims = tmp_path / "zim"; zims.mkdir()
+    topics = ["tourniquet above the wound", "splint the broken forearm", "rehydration salts for diarrhea", "treat burns with cool water",
+              "clear the airway of a choking adult", "recovery position for an unconscious casualty", "signs of heat stroke",
+              "rewarm frostbite slowly"]
+    with Creator(str(zims / "fieldmanuals_en_2026-01.zim")).config_indexing(True, "eng") as c:
+        c.set_mainpath("index")
+        c.add_metadata("Title", "Field Manuals")
+        c.add_item(Doc("index", "Index", "<html><body><p>List of manuals for the field medic.</p></body></html>", "text/html"))
+        for n, topic in enumerate(topics):
+            c.add_item(Doc(f"files/manual-{n}.pdf", f"Manual {n}", make_pdf(f"Chapter {n}: how to {topic} in the field"), "application/pdf"))
+        c.add_item(Doc("files/scan.pdf", "A scanned book", make_pdf(""), "application/pdf"))
+    kiwix = KiwixLibrary(str(zims))
+    man = tmp_path / "manuals"; man.mkdir()
+    (man / "radio.md").write_text("# Radio Card\n" + "NOAA weather radio broadcasts on 162.550 MHz. " * 5)
+    idx = ManualIndex(str(tmp_path / "i.sqlite"), FakeOllama(), "nomic-embed-text", str(man))
+    idx.ingest_dir(str(man), progress=lambda m: None)
+    assert idx.ingest_zim_pdfs(kiwix, progress=lambda m: None)["indexed"] == 9
+    assert [f["path"] for f in idx.files(archives=False)] == ["radio.md"]            # lists stay short
+    assert idx.archives() == [{"book": "fieldmanuals_en_2026-01", "pdfs": 9, "passages": 8, "unreadable": 1}]
+    assert len(idx.archive_files("fieldmanuals_en_2026-01")) == 9
+
+    searches = []
+    real = idx.search
+    monkeypatch.setattr(idx, "search", lambda q, **kw: (searches.append(q), real(q, **kw))[1])
+    rep = checks.run(idx, kiwix, FakeOllama(), None, "nomic-embed-text", str(man))
+    rows = [r for r in rep["results"] if r["kind"] == "manual"]
+    assert [r["name"] for r in rows] == ["radio.md", "PDFs inside Field Manuals"]     # one line for the whole archive
+    arch = rows[1]
+    assert arch["ok"] and not arch["warn"]
+    assert arch["detail"] == "9 PDFs, 8 passages; 3 of the 3 tested were findable. 1 is a scanned image with no readable text"
+    assert len(searches) == 1 + checks.ARCHIVE_SAMPLE                                 # not one search per PDF

@@ -16,6 +16,11 @@ jobs:
       - run: pip install -r requirements.txt pytest pyflakes
       - run: python -m pyflakes beacon tests
       - run: python -m pytest -q
+      - name: The same tests with the exact package versions the drive ships
+        run: |
+          python -m venv "$RUNNER_TEMP/pinned"
+          "$RUNNER_TEMP/pinned/bin/pip" install -q $(grep -oE '^[a-z0-9_.-]+==[0-9][^ ]*' scripts/requirements-mac.lock) pytest
+          "$RUNNER_TEMP/pinned/bin/python" -m pytest -q
       - run: bash -n scripts/build_usb.sh && bash -n scripts/make_app.sh && bash -n scripts/launch.sh && bash -n "scripts/Beacon (with Terminal).command"
       - if: runner.os == 'macOS'
         name: Beacon.app is signed, macOS opens it, and it starts the launcher

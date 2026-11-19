@@ -83,6 +83,19 @@ def query_variants(question: str, limit: int = 8) -> list[str]:
     return out[:limit]
 
 
+def _results(search, count: int) -> list[str]:
+    """Article paths for a search. libzim 3 has getResults and returns paths; libzim 4 renamed it
+    get_results and returns result objects. Beacon runs on both."""
+    get = getattr(search, "get_results", None) or search.getResults
+    return [getattr(r, "path", r) for r in get(0, count)]
+
+
+def family(name: str) -> str:
+    """'wikipedia_en_all_maxi_2026-08' -> 'wikipedia'. Editions of one site (all of Wikipedia,
+    its top articles, its medicine subset) share a family, and so share articles."""
+    return name.split("_", 1)[0].lower()
+
+
 class KiwixLibrary:
     def __init__(self, zim_dir: str):
         self.books: dict[str, "Archive"] = {}
@@ -131,7 +144,7 @@ class KiwixLibrary:
 
     def search(self, question: str, per_book: int = 2, max_chars: int = 2500,
                only: str | None = None) -> list[dict]:
-        hits = []
+        hits, seen = [], set()
         for name, archive in self.books.items():
             if only and name != only:
                 continue
@@ -144,7 +157,7 @@ class KiwixLibrary:
                         s = Searcher(archive).search(Query().set_query(variant))
                     else:  # no full-text index: fall back to title matching
                         s = SuggestionSearcher(archive).suggest(variant)
-                    for p in s.getResults(0, per_book):
+                    for p in _results(s, per_book):
                         if p not in paths:
                             paths.append(p)
             except Exception as e:
@@ -153,6 +166,9 @@ class KiwixLibrary:
             for path in paths:
                 try:
                     entry = archive.get_entry_by_path(path)
+                    key = (family(name), entry.title.strip().casefold())
+                    if key in seen:  # the same article, already taken from a fuller edition of this site
+                        continue
                     item = entry.get_item()
                     if "html" not in item.mimetype:
                         continue
@@ -161,6 +177,7 @@ class KiwixLibrary:
                     continue
                 if len(text) < 200:
                     continue
+                seen.add(key)
                 hits.append({
                     "kind": "kiwix", "book": self.titles.get(name, name), "title": entry.title,
                     "ref": f"{name}/{path}", "text": text[:max_chars],

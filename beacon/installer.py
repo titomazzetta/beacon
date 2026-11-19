@@ -31,7 +31,7 @@ def _load(path: Path) -> dict:
 
 def _note_failure(path: Path, item_id: str, title: str, error: str):
     d = _load(path)
-    d[item_id] = {"title": title, "error": error[:200], "at": int(time.time())}
+    d[item_id] = {"title": title, "error": error[:300], "at": int(time.time())}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(d, indent=1))
 
@@ -43,9 +43,16 @@ def _forget_failure(path: Path, item_id: str):
 
 
 def report(catalog: dict, installed: library.Installed, cfg: dict, failures_path: Path,
-           tier: str = "everything", optional: bool = False) -> str:
+           tier: str = "everything", optional: bool = False, integrity: library.Integrity | None = None) -> str:
     """Every item the drive should have, with its state: the proof that the library is complete."""
     failed = _load(failures_path)
+
+    def elsewhere(it: dict, file: str) -> str:
+        """Where a file came from, when that wasn't the first address in the catalog."""
+        if not integrity or it["type"] == "zim" or not Path(file).is_file():
+            return ""
+        source = integrity.map.get(integrity._rel(file), {}).get("source", "")
+        return f"   from {library._host(source)}" if source.startswith("http") and source != it.get("url") else ""
     lines, ok, bad = [], 0, []
     for it in library.items_for_tier(catalog, tier, None, optional):
         have = installed.file_for(it["id"])
@@ -56,11 +63,11 @@ def report(catalog: dict, installed: library.Installed, cfg: dict, failures_path
         if have and not problem:
             ok += 1
             size = sum(f.stat().st_size for f in Path(have).rglob("*") if f.is_file()) if Path(have).is_dir() else Path(have).stat().st_size
-            lines.append(f"  ✓ {it['title'][:60]:60} {human(size):>8}")
+            lines.append(f"  ✓ {it['title'][:60]:60} {human(size):>8}{elsewhere(it, have)}")
         else:
             why = problem or failed.get(it["id"], {}).get("error") or "not downloaded"
             bad.append(it["title"])
-            lines.append(f"  ✗ {it['title'][:60]:60}   {why[:90]}")
+            lines.append(f"  ✗ {it['title'][:60]:60}   {why[:200]}")
     head = f"Library report ({tier} tier{', with optional items' if optional else ''}): {ok} of {ok + len(bad)} items on the drive"
     tail = "" if not bad else f"\nMissing or broken ({len(bad)}): run the builder again, or retry them in the Library tab.\n"
     return "\n" + head + "\n" + "\n".join(lines) + tail
@@ -84,7 +91,10 @@ def wait(downloader: library.Downloader, label: str):
     print()
     for j in downloader.status():
         mark = {"done": "✓", "failed": "✗", "cancelled": "-"}.get(j["state"], "?")
-        print(f"  {mark} {j['title']}" + (f"  ({j['error']})" if j.get("error") else ""))
+        note = j.get("error") or ""
+        if not note and j.get("source"):  # the first address failed and another one had it: say so
+            note = f"from {j['source']}, after " + "; ".join(f"{where}: {why}" for where, why in j.get("attempts") or [])
+        print(f"  {mark} {j['title']}" + (f"  ({note})" if note else ""))
 
 
 def main(argv=None):
@@ -198,7 +208,7 @@ def main(argv=None):
         wait(dl, "Maps")
 
     if a.report:
-        print(report(catalog, installed, cfg, failures_path, a.tier or "everything", a.optional))
+        print(report(catalog, installed, cfg, failures_path, a.tier or "everything", a.optional, integrity))
 
 
 if __name__ == "__main__":

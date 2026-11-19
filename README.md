@@ -164,7 +164,7 @@ The builder installs Light and Strong by default; add others from the Library ta
    The builder verifies every program against its publisher's checksum (or a pinned hash) before using it, installs Python packages from a hash lock, checks that the AI answers from the drive, and writes a software list with hashes to `Beacon/data/SBOM.txt`.
 3. Add your own PDFs to `Beacon/library/manuals/` and click **Index new files** in the Library tab.
 
-**Check what landed.** Every build ends with a library report, one line per item with a ✓ or the reason it failed, kept at `Beacon/data/library-report.txt`; the whole build output is in `Beacon/data/logs/build.log`. A site that blocks automatic downloads shows up there as "sent a web page instead of the PDF": open that link in a browser and save the file into `Beacon/library/manuals`. Quit Beacon before running the builder; it refuses to run while Beacon is open.
+**Check what landed.** Every build ends with a library report, one line per item with a ✓ or the reason it failed, kept at `Beacon/data/library-report.txt`; the whole build output is in `Beacon/data/logs/build.log`. When a publisher's link is dead or refuses automatic downloads, Beacon tries the mirrors listed in `catalog.json`, then the Internet Archive's copy, and the report says where the file came from. An item nothing could fetch lists every place that was tried: open its link in a browser and save the file into `Beacon/library/manuals`. Quit Beacon before running the builder; it refuses to run while Beacon is open.
 
 **Top it up later.** A quick load first, the rest when there's time: run the builder again with a bigger tier, more brains or another `--region`, and it downloads only what's missing. The Library tab does the same from inside Beacon, with exact sizes. Start the big tiers before bed: all of Wikipedia is hours of downloading, and an interrupted run resumes where it stopped.
 
@@ -184,7 +184,7 @@ Open the drive, then the `Beacon` folder, and double-click **Beacon**. It opens 
 - **Location:** Macs have no GPS, and phones only share location with secure (HTTPS) pages, which Beacon's local network sharing isn't. Type a town or coordinates, or plug in a mesh radio with GPS.
 - **Linked Beacons work on one local network.** Linking across the internet isn't built yet (see the roadmap).
 - **Battery:** the AI draws far more power than reading. Low power mode keeps everything else running.
-- **Tested in CI, in browser walkthroughs, and with one real build** (Apple Silicon, macOS 27), not yet across many Macs. The Meshtastic bridge is tested against a simulated radio; real-radio testing is the next step. Build a drive and run the health check: that's the real proof on your machine.
+- **Tested in CI (with the newest libraries and again with the exact versions the drive ships), in browser walkthroughs, and with one real build** (Apple Silicon, macOS 27), not yet across many Macs. The Meshtastic bridge is tested against a simulated radio; real-radio testing is the next step. Build a drive and run the health check: that's the real proof on your machine.
 
 ## Develop
 
@@ -192,7 +192,7 @@ Open the drive, then the `Beacon` folder, and double-click **Beacon**. It opens 
 pip install -r requirements.txt pytest       # Python 3.10+
 ollama pull qwen3:4b && ollama pull nomic-embed-text
 python -m beacon                             # http://127.0.0.1:8642
-python -m pytest -q                          # 82 tests; the AI engine, internet, Bonjour and radio are faked
+python -m pytest -q                          # 90 tests; the AI engine, internet, Bonjour and radio are faked
 python -m beacon.installer --list            # everything the library can install
 ```
 

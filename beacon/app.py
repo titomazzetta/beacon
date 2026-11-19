@@ -174,7 +174,7 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         "manuals": manuals if manuals is not None else ManualIndex(cfg["index_path"], o, cfg["embed_model"], cfg["manuals_dir"]),
         "places": Places(str(mapdata.maps_dir(data_root) / "places.tsv")),
         "ingest": {"running": False, "log": []},
-        "check": {"running": False, "report": None},
+        "check": {"running": False, "report": None, "step": ""},
         "online": {"at": 0, "value": False},
         "low_power": False,
     }
@@ -495,11 +495,17 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
         return jsonify({
             "model": current_model(),
             "books": st["kiwix"].summary(),
-            "manuals": st["manuals"].files(),
+            "manuals": st["manuals"].files(archives=False),
+            "archives": st["manuals"].archives(),  # PDF books inside Kiwix archives, one line each
             "pending": st["manuals"].pending(st["cfg"]["manuals_dir"]),
             "ingest": st["ingest"],
             "jobs": downloader.status(),
         })
+
+    @app.get("/api/manuals/archive/<book>")
+    def archive_pdfs(book):
+        """The PDF books inside one Kiwix archive, listed when its row is opened."""
+        return jsonify(st["manuals"].archive_files(book))
 
     @app.post("/api/model")
     def set_model():
@@ -793,7 +799,9 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
             try:
                 rep = checks.run(st["manuals"], st["kiwix"], st["ollama"], current_model(),
                                  st["cfg"]["embed_model"], st["cfg"]["manuals_dir"],
-                                 library.leftovers(st["cfg"]["zim_dir"], installed, catalog))
+                                 library.leftovers(st["cfg"]["zim_dir"], installed, catalog),
+                                 progress=lambda step: st["check"].update(step=step))
+                st["check"]["step"] = "Security"
                 rep["results"] += checks.security(st["cfg"], system.drive_info(data_root), integrity, share.status(),
                                                   audit.failures_since(24 * 3600), lan_ip())
                 rep["passed"] = sum(r["ok"] for r in rep["results"])
@@ -803,7 +811,7 @@ def create_app(cfg: dict | None = None, ollama=None, kiwix=None, manuals=None, h
                 st["check"]["report"] = {"passed": 0, "total": 1, "seconds": 0, "results": [
                     {"kind": "brain", "name": "Library check", "ok": False, "detail": str(e)[:200]}]}
             finally:
-                st["check"]["running"] = False
+                st["check"].update(running=False, step="")
         threading.Thread(target=go, daemon=True).start()
         return jsonify({"running": True})
 

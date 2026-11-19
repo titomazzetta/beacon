@@ -486,6 +486,8 @@ details.band summary { list-style: none; display: grid; grid-template-columns: 1
 details.band summary::-webkit-details-marker { display: none; }
 details.band summary b { font: 700 1.0625rem var(--sign); }
 details.band[open] summary b { color: var(--signal); }
+details.band .arch-note { margin: 0 2px 12px; }
+details.band > .rows { margin-bottom: 14px; }
 .item { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: center; padding: 10px 2px 10px 6px; border-top: 1px dashed var(--line); font-size: .9375rem; }
 .item small { display: block; color: var(--muted); font-size: .8125rem; }
 .item .ic { width: 16px; height: 16px; color: var(--muted); }

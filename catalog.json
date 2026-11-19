@@ -1,5 +1,5 @@
 {
-  "_about": "Everything Beacon can download, grouped into topic bands. Tiers are cumulative: extended includes core, etc. ZIM entries are looked up in the live Kiwix catalog by 'name' (and 'flavour'); if that fails, by 'query'. Only public-domain works, openly licensed works, or files the publisher offers as free downloads at the URL given are downloaded automatically. 'link' items open the publisher's page instead.",
+  "_about": "Everything Beacon can download, grouped into topic bands. Tiers are cumulative: extended includes core, etc. ZIM entries are looked up in the live Kiwix catalog by 'name' (and 'flavour'); if that fails, by 'query'. Only public-domain works, openly licensed works, or files the publisher offers as free downloads at the URL given are downloaded automatically. 'mirrors' lists other addresses for the same file, tried in order when the first one fails: any reputable host for a public-domain work, but only the publisher's own addresses (current or former) for a file the publisher gives away. After those, Beacon looks for the Internet Archive's copy of each address. 'link' items open the publisher's page instead.",
   "tiers": [
     {
       "id": "core",
@@ -311,6 +311,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/attp3-97-11.pdf",
+          "mirrors": [
+            "https://ciehub.info/ref/ATTP/3-97x11.pdf"
+          ],
           "file": "ATTP-3-97.11-Cold-Region-Operations.pdf",
           "title": "Army: Cold Region Operations (ATTP 3-97.11)",
           "license": "Public domain (US Gov)"
@@ -320,6 +323,9 @@
           "type": "pdf",
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/atp3-90-97.pdf",
+          "mirrors": [
+            "https://apps.dtic.mil/sti/pdfs/AD1013626.pdf"
+          ],
           "file": "ATP-3-90.97-Mountain-and-Cold-Weather.pdf",
           "title": "Army: Mountain Warfare and Cold Weather Ops (ATP 3-90.97)",
           "license": "Public domain (US Gov)"
@@ -335,6 +341,9 @@
           "type": "pdf",
           "tier": "core",
           "url": "https://irp.fas.org/doddir/army/atp3-50-21.pdf",
+          "mirrors": [
+            "https://armypubs.army.mil/epubs/DR_pubs/DR_a/pdf/web/ARN12086_ATP%203-50x21%20FINAL%20WEB.pdf"
+          ],
           "file": "ATP-3-50.21-Army-Survival-2018.pdf",
           "title": "Army Survival manual (ATP 3-50.21, 2018)",
           "license": "Public domain (US Gov)"
@@ -380,6 +389,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/tc3-21-60.pdf",
+          "mirrors": [
+            "https://web.archive.org/web/20170510051806id_/https://fas.org/irp/doddir/army/tc3-21-60.pdf"
+          ],
           "file": "TC-3-21.60-Visual-Signals.pdf",
           "title": "Visual Signals (TC 3-21.60)",
           "license": "Public domain (US Gov)"
@@ -398,6 +410,9 @@
           "type": "pdf",
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/tc3-97-61.pdf",
+          "mirrors": [
+            "https://armypubs.army.mil/epubs/DR_pubs/DR_a/pdf/web/tc3_97x61.pdf"
+          ],
           "file": "TC-3-97.61-Military-Mountaineering.pdf",
           "title": "Military Mountaineering (TC 3-97.61)",
           "license": "Public domain (US Gov)"
@@ -439,7 +454,10 @@
           "id": "sweden-crisis",
           "type": "pdf",
           "tier": "core",
-          "url": "https://rib.msb.se/filer/pdf/30874.pdf",
+          "url": "https://rib.msb.se/filer/pdf/31523.pdf",
+          "mirrors": [
+            "https://rib.msb.se/filer/pdf/30874.pdf"
+          ],
           "file": "Sweden-In-Case-of-Crisis-or-War-2024.pdf",
           "title": "Sweden: In case of crisis or war (2024, English)",
           "license": "Free from publisher (Swedish government)"
@@ -591,6 +609,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm24-18.pdf",
+          "mirrors": [
+            "https://archive.org/download/MManuals/UsArmyTacticalSingleChannelRadioTechniques1987.pdf"
+          ],
           "file": "FM-24-18-Field-Radio-Techniques.pdf",
           "title": "Field radio techniques and improvised antennas (FM 24-18)",
           "license": "Public domain (US Gov)"
@@ -641,6 +662,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/usaf/afh10-644.pdf",
+          "mirrors": [
+            "https://static.e-publishing.af.mil/production/1/af_a3/publication/afh10-644/afh10-644.pdf"
+          ],
           "file": "AFH-10-644-SERE-Operations.pdf",
           "title": "Air Force SERE Operations handbook (AFH 10-644)",
           "license": "Public domain (US Gov)"
@@ -650,6 +674,9 @@
           "type": "pdf",
           "tier": "extended",
           "url": "https://irp.fas.org/doddir/army/fm21-76-1.pdf",
+          "mirrors": [
+            "https://rmp.nc.gov/LCF/Publications/AL_Resources/Survival/Multi%20Service%20Survival%20Manual.pdf"
+          ],
           "file": "FM-21-76-1-Survival-Evasion-Recovery-1999.pdf",
           "title": "Survival, Evasion and Recovery pocket guide (FM 21-76-1, 1999)",
           "license": "Public domain (US Gov)"
@@ -668,6 +695,9 @@
           "type": "pdf",
           "tier": "complete",
           "url": "https://irp.fas.org/doddir/army/attp3-34-39.pdf",
+          "mirrors": [
+            "https://ciehub.info/ref/ATTP/3-34x39_2010.pdf"
+          ],
           "file": "ATTP-3-34.39-Camouflage-Concealment.pdf",
           "title": "Camouflage, Concealment and Decoys (ATTP 3-34.39)",
           "license": "Public domain (US Gov)"
@@ -845,7 +875,11 @@
           "id": "h2f",
           "type": "pdf",
           "tier": "core",
-          "url": "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF",
+          "url": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN30964-FM_7-22-001-WEB-4.pdf",
+          "mirrors": [
+            "https://arotc.illinoisstate.edu/downloads/resources/FM_7-22_October%202020.pdf",
+            "https://media.defense.gov/2023/Jul/27/2003268908/-1/-1/1/H2F-FM-7-22-2020.PDF"
+          ],
           "file": "FM-7-22-Holistic-Health-and-Fitness.pdf",
           "title": "Army Holistic Health and Fitness (FM 7-22): training, sleep, nutrition, mental and spiritual readiness",
           "license": "Public domain (US Gov)"
@@ -863,7 +897,10 @@
           "id": "who-pfa",
           "type": "pdf",
           "tier": "extended",
-          "url": "https://iris.who.int/bitstream/handle/10665/44615/9789241548205_eng.pdf",
+          "url": "https://iris.who.int/server/api/core/bitstreams/e7e129fb-b306-496d-84a5-67bb70abc130/content",
+          "mirrors": [
+            "https://iris.who.int/bitstream/handle/10665/44615/9789241548205_eng.pdf"
+          ],
           "file": "WHO-Psychological-First-Aid.pdf",
           "title": "WHO: Psychological First Aid guide for field workers",
           "license": "Free from publisher (WHO)"

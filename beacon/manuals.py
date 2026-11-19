@@ -43,6 +43,9 @@ def chunk(text: str, size: int = CHUNK_CHARS, overlap: int = OVERLAP) -> list[st
     return out
 
 
+BOOST_WORDS = 16  # how many of a question's words are matched against every passage
+
+
 class ManualIndex:
     def __init__(self, db_path: str, ollama: Ollama, embed_model: str, root: str | None = None):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -127,16 +130,46 @@ class ManualIndex:
         """'army/FM-3-05-70_survival.pdf' -> 'FM 3 05 70 survival'."""
         return re.sub(r"[-_]+", " ", Path(file).stem).strip() or Path(file).name
 
-    def files(self) -> list[dict]:
+    @staticmethod
+    def pdf_title(title: str, path: str) -> str:
+        """A readable name for a PDF inside a Kiwix archive. Archives often title them 'null', or with
+        their own address; then the file's name says more."""
+        t = (title or "").strip()
+        if not t or t.lower() in ("null", "none", "undefined") or "/" in t or t.lower().endswith(".pdf"):
+            t = re.sub(r"[-_]+", " ", Path(path).stem).strip() or Path(path).name
+        return t
+
+    def files(self, archives: bool = True) -> list[dict]:
+        """Every indexed file. archives=False leaves out the PDFs inside Kiwix archives: a full
+        drive holds thousands of those, so lists show them one archive at a time (see archives())."""
         out = []
         with self.lock:
-            rows = self.db.execute("SELECT path, chunks, pages, chars FROM files ORDER BY path").fetchall()
+            rows = self.db.execute("SELECT path, chunks, pages, chars FROM files"
+                                   + ("" if archives else " WHERE path NOT LIKE 'zim:%'") + " ORDER BY path").fetchall()
             titles = dict(self.db.execute("SELECT path, title FROM titles").fetchall())
         for p, c, pages, chars in rows:
             scanned = (p.lower().endswith(".pdf") or p.startswith("zim:")) and pages and chars / max(pages, 1) < 40
-            out.append({"file": Path(p).name, "path": p, "chunks": c, "title": titles.get(p, ""),
+            title = self.pdf_title(titles.get(p, ""), p) if p.startswith("zim:") else titles.get(p, "")
+            out.append({"file": Path(p).name, "path": p, "chunks": c, "title": title,
                         "pages": pages, "scanned": bool(scanned)})
         return out
+
+    def archives(self) -> list[dict]:
+        """The PDF books inside Kiwix archives, summed up per archive."""
+        with self.lock:
+            rows = self.db.execute("SELECT path, chunks FROM files WHERE path LIKE 'zim:%'").fetchall()
+        out: dict[str, dict] = {}
+        for p, chunks in rows:
+            book = p[4:].split("/", 1)[0]
+            a = out.setdefault(book, {"book": book, "pdfs": 0, "passages": 0, "unreadable": 0})
+            a["pdfs"] += 1
+            a["passages"] += chunks or 0
+            a["unreadable"] += 0 if chunks else 1
+        return sorted(out.values(), key=lambda a: a["book"])
+
+    def archive_files(self, book: str) -> list[dict]:
+        """The PDFs inside one Kiwix archive."""
+        return [f for f in self.files() if f["path"].startswith(f"zim:{book}/")]
 
     def pending(self, manuals_dir: str) -> list[str]:
         """Files in the folder that are new or changed since the last index."""
@@ -220,9 +253,10 @@ class ManualIndex:
             if done:
                 continue
             pdfs = []
+            by_id = getattr(archive, "get_entry_by_id", None) or archive._get_entry_by_id  # public since libzim 4
             for i in range(archive.entry_count):
                 try:
-                    entry = archive._get_entry_by_id(i)
+                    entry = by_id(i)
                     if entry.is_redirect:
                         continue
                     item = entry.get_item()
@@ -274,8 +308,11 @@ class ManualIndex:
         q = np.asarray(self.ollama.embed(self.embed_model, [question])[0], dtype=np.float32)
         q /= np.linalg.norm(q) + 1e-9
         scores = self.matrix @ q
-        words = {w for w in re.findall(r"[a-z0-9\-]{4,}", question.lower())}
-        if words:  # the question's words in a passage count a little, in its document's title a little more
+        # The question's words count a little when they appear in a passage, and a little more in its
+        # document's title. Only the BOOST_WORDS longest ones: they are the telling ones, and every
+        # word is looked for in every passage, so a pasted paragraph would otherwise take seconds.
+        words = sorted({w for w in re.findall(r"[a-z0-9\-]{4,}", question.lower())}, key=lambda w: (-len(w), w))[:BOOST_WORDS]
+        if words:
             titles = {}
             for i, (_, file, _, text) in enumerate(self.meta):
                 if file not in titles:
@@ -294,7 +331,7 @@ class ManualIndex:
                 book, path = file[4:].split("/", 1)
                 with self.lock:
                     row = self.db.execute("SELECT title FROM titles WHERE path=?", (file,)).fetchone()
-                out.append({"kind": "zimpdf", "book": row[0] if row else Path(path).stem, "title": f"p. {page}",
+                out.append({"kind": "zimpdf", "book": self.pdf_title(row[0] if row else "", path), "title": f"p. {page}",
                             "file": file, "ref": f"{book}/{path}", "page": page, "text": text[:max_chars],
                             "score": float(scores[i])})
                 continue

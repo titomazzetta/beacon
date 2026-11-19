@@ -7,14 +7,21 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 
+from . import __version__
 from .config import ROOT
 
 OPDS = "https://library.kiwix.org/catalog/v2/entries"
 TIER_ORDER = ["core", "extended", "complete", "everything"]
-UA = {"User-Agent": "Beacon-offline-library/0.2 (+https://github.com)"}
+UA = {"User-Agent": f"Mozilla/5.0 (compatible; Beacon/{__version__}; +https://github.com/titomazzetta/beacon)"}
+# For publishers' sites. Beacon says who it is, and sends the two headers every browser sends:
+# several government sites answer 403 to a request without them.
+PUBLISHER = {**UA, "Accept": "application/pdf,text/html;q=0.9,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9"}
+WAYBACK = "https://web.archive.org"
+MIN_PAGE_TEXT = 200  # a saved web page with less text than this is an error page, not the guide
 
 
 def load_catalog(path: Path | None = None) -> dict:
@@ -280,7 +287,8 @@ def older_editions(path) -> list[Path]:
 
 def leftovers(zim_dir: str, installed: "Installed", catalog: dict | None = None) -> list[dict]:
     """Files on the drive that Beacon no longer needs: editions superseded by a newer download,
-    and group members (Wikipedia intros) made redundant by a fuller one. Reported, never deleted."""
+    and group members (Wikipedia intros) made redundant by a fuller one. Reported, never deleted.
+    An archive you added yourself isn't in the install records and isn't a leftover."""
     recorded = {}
     for item_id, rel in installed.map.items():
         recorded[str(Path(installed._abs(rel)).resolve())] = item_id
@@ -289,15 +297,16 @@ def leftovers(zim_dir: str, installed: "Installed", catalog: dict | None = None)
         if str(f.resolve()) in recorded:
             continue
         newer = [o for o in Path(zim_dir).glob("*.zim") if f in older_editions(o)]
-        why = f"An older edition of {newer[0].name}" if newer else "Not in the install records"
-        out.append({"file": f.name, "gb": round(f.stat().st_size / 1e9, 1), "why": why})
+        if newer:
+            out.append({"file": f.name, "gb": round(f.stat().st_size / 1e9, 1),
+                        "why": f"An older edition of {newer[0].name}"})
     if catalog:
         by_group: dict[str, list[dict]] = {}
         for it in all_items(catalog):
             if it.get("group") and installed.file_for(it["id"]):
                 by_group.setdefault(it["group"], []).append(it)
         for members in by_group.values():
-            members.sort(key=lambda it: TIER_ORDER.index(it["tier"]))
+            members.sort(key=lambda it: (TIER_ORDER.index(it["tier"]), bool(it.get("optional"))))
             best = members[-1]
             for it in members[:-1]:
                 f = Path(installed.file_for(it["id"]))
@@ -340,6 +349,69 @@ def is_online(http=requests) -> bool:
 
 # ------------------------------------------------------------------ downloads
 
+class DriveFull(OSError):
+    """No point trying another source."""
+
+
+def archived_copy(url: str, http=requests) -> str | None:
+    """The newest good copy of an address in the Internet Archive's Wayback Machine, or None.
+    Publishers move, rename and block files; the Archive keeps what they once served. The 'id_' in
+    the answer asks for the original bytes, without the Archive's banner around them."""
+    try:
+        r = http.get(WAYBACK + "/cdx/search/cdx", headers=UA, timeout=20,
+                     params={"url": url, "output": "json", "fl": "timestamp,original,length",
+                             "filter": "statuscode:200", "collapse": "digest"})
+        if r.status_code != 200:
+            return None
+        rows = r.json()[1:]  # the first row names the columns
+    except Exception:
+        return None
+    # 'length' is the stored size, headers included: a capture of an empty answer is a few hundred bytes
+    good = [row for row in rows if len(row) == 3 and str(row[2]).isdigit() and int(row[2]) > 1000]
+    if not good:
+        return None
+    stamp, original, _ = max(good, key=lambda row: row[0])
+    return f"{WAYBACK}/web/{stamp}id_/{original}"
+
+
+def _sources(first: str, mirrors, http=requests):
+    """Where to look for one file or page, in order: the publisher, any mirrors the catalog lists,
+    then the Internet Archive's copy of each of those addresses (asked only once they have all
+    failed; a file that moved has no copy under its new address yet, but has one under the old)."""
+    listed = [first, *(mirrors or [])]
+    yield from listed
+    for url in listed:
+        copy = None if url.startswith(WAYBACK) else archived_copy(url, http)
+        if copy:
+            yield copy
+
+
+def _host(url: str) -> str:
+    host = urlsplit(url).netloc.lower().removeprefix("www.")
+    return "the Internet Archive" if host == "web.archive.org" else host
+
+
+def _short(e: Exception) -> str:
+    """One failed attempt in a few words, for the log."""
+    s = str(e)
+    m = re.match(r"\s*(\d{3})\b", s)
+    if m:
+        return "HTTP " + m.group(1)
+    if isinstance(e, requests.Timeout):
+        return "timed out"
+    if isinstance(e, requests.ConnectionError):
+        return "couldn't connect"
+    return re.split(r"[.;:]\s", s)[0][:80]
+
+
+def _none_worked(failed: list):
+    """Raise the reason a download failed. One source: its own message, with the advice in it."""
+    if len(failed) == 1:
+        raise failed[0][2]
+    raise ValueError(f"Tried {len(failed)} sources and none worked: "
+                     + "; ".join(f"{where}: {why}" for where, why, _ in failed))
+
+
 class Downloader:
     """One background worker, resumable downloads, progress you can poll."""
     def __init__(self, installed: Installed, on_done=None, http=requests, integrity: Integrity | None = None):
@@ -356,7 +428,8 @@ class Downloader:
                 return
             self.jobs[item["id"]] = {"id": item["id"], "title": item["title"], "type": item["type"],
                                      "url": url, "dest": str(dest), "total": size, "done": 0,
-                                     "state": "queued", "error": "", "sha256_url": sha256_url}
+                                     "state": "queued", "error": "", "sha256_url": sha256_url,
+                                     "mirrors": list(item.get("mirrors") or [])}
             self.queue.append(item["id"])
             if not self.worker or not self.worker.is_alive():
                 self.worker = threading.Thread(target=self._run, daemon=True)
@@ -405,7 +478,7 @@ class Downloader:
                 else:
                     self._download(job)
             except Exception as e:  # network drop, disk full, 404...
-                job["state"], job["error"] = "failed", str(e)[:200]
+                job["state"], job["error"] = "failed", str(e)[:300]
 
     def _publisher_sha256(self, job: dict) -> str | None:
         """The checksum the publisher lists next to the file (Kiwix does), if any."""
@@ -422,11 +495,42 @@ class Downloader:
             return None
 
     def _download(self, job: dict, record: bool = True):
+        """Fetch one file: from its publisher, or failing that from a mirror or the Internet Archive.
+        Kiwix files are fetched from Kiwix only; it has its own mirrors and a checksum for every file."""
+        if job.get("type") == "zim":
+            return self._get_file(job, record)
+        first, failed = job["url"], []
+        part = Path(job["dest"] + ".part")
+        for url in _sources(first, job.get("mirrors"), self.http):
+            job.update(url=url, total=0, done=0)
+            try:
+                # Always from the first byte. Only Kiwix files are continued after an interruption:
+                # they are huge and have a checksum that would catch a bad join; a manual has neither.
+                self._get_file(job, record, resume=False, headers=PUBLISHER)
+                job["attempts"] = [(where, why) for where, why, _ in failed]
+                if job["state"] == "cancelled":
+                    part.unlink(missing_ok=True)
+                elif url != first:
+                    job["source"] = _host(url)
+                return
+            except DriveFull:
+                part.unlink(missing_ok=True)
+                raise
+            except Exception as e:
+                failed.append((_host(url), _short(e), e))
+                part.unlink(missing_ok=True)
+        job["url"] = first
+        job["attempts"] = [(where, why) for where, why, _ in failed]
+        _none_worked(failed)
+
+    def _get_file(self, job: dict, record: bool = True, resume: bool = True, headers: dict | None = None):
         dest = Path(job["dest"])
         dest.parent.mkdir(parents=True, exist_ok=True)
         part = dest.with_name(dest.name + ".part")
+        if not resume:
+            part.unlink(missing_ok=True)
         have = part.stat().st_size if part.exists() else 0
-        headers = dict(UA)
+        headers = dict(headers or UA)
         if have:
             headers["Range"] = f"bytes={have}-"
         job["state"] = "downloading"
@@ -446,7 +550,7 @@ class Downloader:
                     job["total"] = have + length
                 need = (job["total"] or 0) - have
                 if need > 0 and need > free_bytes(str(dest.parent)) - 200 * 1024 ** 2:
-                    raise OSError("Not enough free space on the drive")
+                    raise DriveFull("Not enough free space on the drive")
                 job["done"] = have
                 with open(part, "ab" if have else "wb") as f:
                     for chunk in r.iter_content(1024 * 1024):
@@ -485,6 +589,31 @@ class Downloader:
             self.on_done(job)
 
 
+def fetch_page(it: dict, http=requests, job: dict | None = None) -> tuple[str, str]:
+    """The readable text of a web page and the address it came from: the page itself, a mirror the
+    catalog lists, or the Internet Archive's copy."""
+    from .kiwix_source import html_to_text
+    failed = []
+    for url in _sources(it["url"], it.get("mirrors"), http):
+        try:
+            r = http.get(url, headers=PUBLISHER, timeout=60)
+            r.raise_for_status()
+            text = html_to_text(r.text)
+            if len(text.strip()) < MIN_PAGE_TEXT:
+                raise ValueError("The site sent a page with almost no text; it may block automatic downloads. "
+                                 "Open the link in a browser and save the page into Beacon/library/manuals.")
+            if job is not None:
+                job["attempts"] = [(where, why) for where, why, _ in failed]
+                if url != it["url"]:
+                    job["source"] = _host(url)
+            return text, url
+        except Exception as e:
+            failed.append((_host(url), _short(e), e))
+    if job is not None:
+        job["attempts"] = [(where, why) for where, why, _ in failed]
+    _none_worked(failed)
+
+
 def queue_item(it: dict, downloader: "Downloader", kcat: KiwixCatalog, cfg: dict, http=requests):
     """Queue one catalog item for download, whatever its kind. Used by the app and the drive builder."""
     if it["type"] == "zim":
@@ -503,23 +632,23 @@ def queue_item(it: dict, downloader: "Downloader", kcat: KiwixCatalog, cfg: dict
             for n, f in enumerate(it["files"], 1):
                 job["detail"] = f"{n}/{len(it['files'])}: {f['file']}"
                 sub = {"id": f"{it['id']}#{n}", "title": f["file"], "state": "downloading",
-                       "url": f["url"], "dest": str(folder / f["file"]), "total": 0, "done": 0}
+                       "url": f["url"], "dest": str(folder / f["file"]), "total": 0, "done": 0,
+                       "mirrors": list(f.get("mirrors") or [])}
                 downloader._download(sub, record=False)
                 job["done"] = n
             downloader.installed.set(it["id"], str(folder))
         downloader.add_task(it["id"], it["title"], task, "pdf")
     elif it["type"] == "page":  # a web page saved as plain text
         def task(job, it=it):
-            from .kiwix_source import html_to_text
-            r = http.get(it["url"], headers=UA, timeout=60)
-            r.raise_for_status()
+            text, source = fetch_page(it, http, job)
             dest = destination(it, cfg)
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(f"# {it['title']}\n\nSource: {it['url']}\nSaved: {time.strftime('%Y-%m-%d')}\n\n"
-                            + html_to_text(r.text), encoding="utf-8")
+            copy = f"Copy from: {source}\n" if source != it["url"] else ""
+            dest.write_text(f"# {it['title']}\n\nSource: {it['url']}\n{copy}Saved: {time.strftime('%Y-%m-%d')}\n\n"
+                            + text, encoding="utf-8")
             downloader.installed.set(it["id"], str(dest))
             if downloader.integrity:
-                downloader.integrity.record(dest, sha256_file(dest), it["url"])
+                downloader.integrity.record(dest, sha256_file(dest), source)
         downloader.add_task(it["id"], it["title"], task, "page")
     elif it["type"] in ("pdf", "text"):
         downloader.add({**it}, it["url"], destination(it, cfg))
